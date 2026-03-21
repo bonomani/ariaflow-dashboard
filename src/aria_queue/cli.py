@@ -26,3 +26,7 @@ def main() -> int:
     except KeyboardInterrupt:
         server.server_close()
     return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
