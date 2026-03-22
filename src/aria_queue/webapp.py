@@ -426,6 +426,18 @@ INDEX_HTML = """<!doctype html>
         </div>
       </div>
     </div>
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="section-title">
+        <h2>Backends</h2>
+        <div class="hint">Default is 127.0.0.1:8000</div>
+      </div>
+      <div class="row">
+        <input id="backend-input" placeholder="http://127.0.0.1:8000">
+        <button class="secondary" onclick="addBackend()">Add backend</button>
+        <button class="secondary" onclick="useDefaultBackend()">Use default</button>
+      </div>
+      <div id="backend-panel" class="chips" style="margin-top:12px;"></div>
+    </div>
     <div class="grid">
       <div class="span-12 show-dashboard page-only">
         <div class="panel toolbar">
@@ -646,8 +658,73 @@ INDEX_HTML = """<!doctype html>
       else if (mq.addListener) mq.addListener(sync);
     }
 
+    const DEFAULT_BACKEND_URL = "http://127.0.0.1:8000";
+
+    function loadBackendState() {
+      let backends = [];
+      try {
+        backends = JSON.parse(localStorage.getItem('ariaflow.backends') || '[]');
+      } catch (err) {
+        backends = [];
+      }
+      backends = [...new Set((backends.length ? backends : [DEFAULT_BACKEND_URL]).map((item) => String(item || '').trim()).filter(Boolean))];
+      const selected = (localStorage.getItem('ariaflow.selected_backend') || '').trim();
+      return {
+        backends,
+        selected: backends.includes(selected) ? selected : backends[0],
+      };
+    }
+
+    function saveBackendState(backends, selected) {
+      const clean = [...new Set((backends || []).map((item) => String(item || '').trim()).filter(Boolean))];
+      const nextSelected = clean.includes(selected) ? selected : (clean[0] || DEFAULT_BACKEND_URL);
+      localStorage.setItem('ariaflow.backends', JSON.stringify(clean));
+      localStorage.setItem('ariaflow.selected_backend', nextSelected);
+      renderBackendPanel();
+    }
+
     function apiPath(path) {
-      return path;
+      const backend = loadBackendState().selected || DEFAULT_BACKEND_URL;
+      const u = new URL(path, window.location.origin);
+      u.searchParams.set('backend', backend);
+      return `${u.pathname}${u.search}`;
+    }
+
+    function renderBackendPanel() {
+      const panel = document.getElementById('backend-panel');
+      if (!panel) return;
+      const { backends, selected } = loadBackendState();
+      panel.innerHTML = backends.map((backend) => `
+        <button class="${backend === selected ? '' : 'secondary'}" onclick="selectBackend('${backend.replace(/'/g, "\\'")}')">${backend}${backend === selected ? ' · active' : ''}</button>
+      `).join('');
+      const input = document.getElementById('backend-input');
+      if (input && !input.value) input.value = selected || DEFAULT_BACKEND_URL;
+    }
+
+    function selectBackend(backend) {
+      const state = loadBackendState();
+      if (!state.backends.includes(backend)) state.backends.push(backend);
+      saveBackendState(state.backends, backend);
+      refresh();
+      if (page === 'lifecycle') loadLifecycle();
+      if (page === 'log') refreshActionLog();
+    }
+
+    function addBackend() {
+      const input = document.getElementById('backend-input');
+      const value = (input?.value || '').trim();
+      if (!value) return;
+      const state = loadBackendState();
+      if (!state.backends.includes(value)) state.backends.push(value);
+      saveBackendState(state.backends, value);
+      refresh();
+    }
+
+    function useDefaultBackend() {
+      const state = loadBackendState();
+      if (!state.backends.includes(DEFAULT_BACKEND_URL)) state.backends.unshift(DEFAULT_BACKEND_URL);
+      saveBackendState(state.backends, DEFAULT_BACKEND_URL);
+      refresh();
     }
 
     function toggleTheme() {
@@ -1380,6 +1457,7 @@ INDEX_HTML = """<!doctype html>
     if (page === 'dashboard') {
       loadDeclaration().catch(() => {});
     }
+    renderBackendPanel();
     applyPage();
   </script>
 </body>
