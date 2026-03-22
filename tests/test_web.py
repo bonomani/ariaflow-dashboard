@@ -7,6 +7,7 @@ import tempfile
 import threading
 import time
 import urllib.request
+import urllib.parse
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -83,6 +84,10 @@ class WebSmokeTests(unittest.TestCase):
                     self.assertIn("items", status)
                     self.assertIn("state", status)
                     self.assertIn("summary", status)
+                    encoded_status = request_json(
+                        "http://127.0.0.1:8765/api/status?" + urllib.parse.urlencode({"backend": "http://127.0.0.1:8000"})
+                    )
+                    self.assertIn("items", encoded_status)
                     log_data = request_json("http://127.0.0.1:8765/api/log")
                     self.assertIn("items", log_data)
                     declaration = request_json("http://127.0.0.1:8765/api/declaration")

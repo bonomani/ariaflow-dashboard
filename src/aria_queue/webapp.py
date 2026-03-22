@@ -4,7 +4,7 @@ import json
 import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from ariaflow_web.client import (
     add_item,
@@ -1469,12 +1469,11 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
     def _backend_url(self, parsed: object | None = None) -> str:
         if parsed is None:
             return DEFAULT_BACKEND_URL
-        query = {}
         try:
-            query = dict(part.split("=", 1) if "=" in part else (part, "") for part in parsed.query.split("&") if part)  # type: ignore[attr-defined]
+            query = parse_qs(getattr(parsed, "query", ""), keep_blank_values=True)  # type: ignore[arg-type]
         except Exception:
             query = {}
-        backend = str(query.get("backend", "")).strip()
+        backend = str(query.get("backend", [""])[0]).strip()
         return backend or DEFAULT_BACKEND_URL
 
     def _invalidate_status_cache(self) -> None:
