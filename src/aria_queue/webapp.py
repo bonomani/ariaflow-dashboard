@@ -8,21 +8,35 @@ from urllib.parse import urlparse
 
 from ariaflow_web.client import (
     add_item,
+    add_item_from,
     get_declaration,
+    get_declaration_from,
     get_lifecycle,
+    get_lifecycle_from,
     get_log,
+    get_log_from,
     get_status,
+    get_status_from,
     lifecycle_action,
+    lifecycle_action_from,
     pause as api_pause,
+    pause_from,
     preflight as api_preflight,
+    preflight_from,
     resume as api_resume,
+    resume_from,
     run_queue as api_run_queue,
+    run_queue_from,
     run_ucc as api_run_ucc,
+    run_ucc_from,
     save_declaration as api_save_declaration,
+    save_declaration_from,
     set_session as api_set_session,
+    set_session_from,
 )
 STATUS_CACHE: dict[str, object] = {"ts": 0.0, "payload": None}
 STATUS_CACHE_TTL = 2.0
+DEFAULT_BACKEND_URL = "http://127.0.0.1:8000"
 
 
 def format_bytes(value: object) -> str:
@@ -412,6 +426,18 @@ INDEX_HTML = """<!doctype html>
         </div>
       </div>
     </div>
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="section-title">
+        <h2>Backends</h2>
+        <div class="hint">Choose or add API endpoints</div>
+      </div>
+      <div class="row">
+        <input id="backend-input" placeholder="http://127.0.0.1:8000">
+        <button class="secondary" onclick="addBackend()">Add backend</button>
+        <button class="secondary" onclick="useDefaultBackend()">Use default</button>
+      </div>
+      <div id="backend-panel" class="chips" style="margin-top:12px;"></div>
+    </div>
     <div class="grid">
       <div class="span-12 show-dashboard page-only">
         <div class="panel toolbar">
@@ -588,6 +614,7 @@ INDEX_HTML = """<!doctype html>
     let refreshInterval = 10000;
     let backendGlobalOptions = {};
     let lastDeclaration = null;
+    const DEFAULT_BACKEND_URL = "http://127.0.0.1:8000";
     const path = window.location.pathname.replace(/[/]+$/, "");
     const page = path === "/bandwidth" ? "bandwidth" : path === "/lifecycle" ? "lifecycle" : path === "/log" ? "log" : "dashboard";
 
@@ -630,6 +657,81 @@ INDEX_HTML = """<!doctype html>
       };
       if (mq.addEventListener) mq.addEventListener('change', sync);
       else if (mq.addListener) mq.addListener(sync);
+    }
+
+    function backendDefaults() {
+      return [DEFAULT_BACKEND_URL];
+    }
+
+    function loadBackendState() {
+      let backends = [];
+      try {
+        backends = JSON.parse(localStorage.getItem('ariaflow.backends') || '[]');
+      } catch (err) {
+        backends = [];
+      }
+      if (!Array.isArray(backends) || !backends.length) backends = backendDefaults();
+      backends = [...new Set(backends.map((item) => String(item || '').trim()).filter(Boolean))];
+
+      const preferred = (localStorage.getItem('ariaflow.selected_backend') || '').trim();
+      const selected = preferred && backends.includes(preferred) ? preferred : backends[0];
+      if (!backends.includes(selected)) backends.unshift(selected);
+
+      return { backends, selected };
+    }
+
+    function saveBackendState(backends, selected) {
+      const clean = [...new Set((backends || []).map((item) => String(item || '').trim()).filter(Boolean))];
+      localStorage.setItem('ariaflow.backends', JSON.stringify(clean));
+      localStorage.setItem('ariaflow.selected_backend', selected || clean[0] || DEFAULT_BACKEND_URL);
+      renderBackendPanel();
+    }
+
+    function selectedBackendUrl() {
+      return loadBackendState().selected;
+    }
+
+    function apiPath(path) {
+      const u = new URL(path, window.location.origin);
+      u.searchParams.set('backend', selectedBackendUrl());
+      return `${u.pathname}${u.search}`;
+    }
+
+    function renderBackendPanel() {
+      const panel = document.getElementById('backend-panel');
+      if (!panel) return;
+      const { backends, selected } = loadBackendState();
+      panel.innerHTML = backends.map((backend) => `
+        <button class="${backend === selected ? '' : 'secondary'}" onclick="selectBackend('${backend.replace(/'/g, "\\'")}')">${backend}${backend === selected ? ' · active' : ''}</button>
+      `).join('');
+      const input = document.getElementById('backend-input');
+      if (input && !input.value) input.value = selected || DEFAULT_BACKEND_URL;
+    }
+
+    function selectBackend(backend) {
+      const state = loadBackendState();
+      if (!state.backends.includes(backend)) state.backends.push(backend);
+      saveBackendState(state.backends, backend);
+      refresh();
+      if (page === 'lifecycle') loadLifecycle();
+      if (page === 'log') refreshActionLog();
+    }
+
+    function addBackend() {
+      const input = document.getElementById('backend-input');
+      const value = (input?.value || '').trim();
+      if (!value) return;
+      const state = loadBackendState();
+      if (!state.backends.includes(value)) state.backends.push(value);
+      saveBackendState(state.backends, value);
+      refresh();
+    }
+
+    function useDefaultBackend() {
+      const state = loadBackendState();
+      if (!state.backends.includes(DEFAULT_BACKEND_URL)) state.backends.unshift(DEFAULT_BACKEND_URL);
+      saveBackendState(state.backends, DEFAULT_BACKEND_URL);
+      refresh();
     }
 
     function toggleTheme() {
@@ -704,7 +806,7 @@ INDEX_HTML = """<!doctype html>
       ].join('');
     }
     async function setAutoPreflightPreference(enabled) {
-      const r = await fetch('/api/declaration');
+      const r = await fetch(apiPath('/api/declaration'));
       const data = await r.json();
       const prefs = Array.isArray(data?.uic?.preferences) ? data.uic.preferences : [];
       const idx = prefs.findIndex((item) => item.name === 'auto_preflight_on_run');
@@ -713,13 +815,13 @@ INDEX_HTML = """<!doctype html>
       else prefs.push(next);
       data.uic = data.uic || {};
       data.uic.preferences = prefs;
-      const save = await fetch('/api/declaration', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      const save = await fetch(apiPath('/api/declaration'), { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
       lastDeclaration = await save.json();
       const options = document.getElementById('options-panel');
       if (options) options.innerHTML = renderOptionsPanel(lastDeclaration);
     }
     async function setDuplicateAction(value) {
-      const r = await fetch('/api/declaration');
+      const r = await fetch(apiPath('/api/declaration'));
       const data = await r.json();
       const prefs = Array.isArray(data?.uic?.preferences) ? data.uic.preferences : [];
       const idx = prefs.findIndex((item) => item.name === 'duplicate_active_transfer_action');
@@ -728,13 +830,13 @@ INDEX_HTML = """<!doctype html>
       else prefs.push(next);
       data.uic = data.uic || {};
       data.uic.preferences = prefs;
-      const save = await fetch('/api/declaration', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      const save = await fetch(apiPath('/api/declaration'), { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
       lastDeclaration = await save.json();
       const options = document.getElementById('options-panel');
       if (options) options.innerHTML = renderOptionsPanel(lastDeclaration);
     }
     async function setSimultaneousLimit(value) {
-      const r = await fetch('/api/declaration');
+      const r = await fetch(apiPath('/api/declaration'));
       const data = await r.json();
       const prefs = Array.isArray(data?.uic?.preferences) ? data.uic.preferences : [];
       const idx = prefs.findIndex((item) => item.name === 'max_simultaneous_downloads');
@@ -744,13 +846,13 @@ INDEX_HTML = """<!doctype html>
       else prefs.push(next);
       data.uic = data.uic || {};
       data.uic.preferences = prefs;
-      const save = await fetch('/api/declaration', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      const save = await fetch(apiPath('/api/declaration'), { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
       lastDeclaration = await save.json();
       const options = document.getElementById('options-panel');
       if (options) options.innerHTML = renderOptionsPanel(lastDeclaration);
     }
     async function setPostActionRule(value) {
-      const r = await fetch('/api/declaration');
+      const r = await fetch(apiPath('/api/declaration'));
       const data = await r.json();
       const prefs = Array.isArray(data?.uic?.preferences) ? data.uic.preferences : [];
       const idx = prefs.findIndex((item) => item.name === 'post_action_rule');
@@ -759,7 +861,7 @@ INDEX_HTML = """<!doctype html>
       else prefs.push(next);
       data.uic = data.uic || {};
       data.uic.preferences = prefs;
-      const save = await fetch('/api/declaration', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      const save = await fetch(apiPath('/api/declaration'), { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
       lastDeclaration = await save.json();
       const options = document.getElementById('options-panel');
       if (options) options.innerHTML = renderOptionsPanel(lastDeclaration);
@@ -1140,7 +1242,7 @@ INDEX_HTML = """<!doctype html>
       if (refreshInFlight) return;
       refreshInFlight = true;
       try {
-        const r = await fetch('/api/status');
+        const r = await fetch(apiPath('/api/status'));
         const data = await r.json();
         lastStatus = data;
         if (data?.ok === false || data?.backend?.reachable === false) {
@@ -1204,7 +1306,7 @@ INDEX_HTML = """<!doctype html>
       }
     }
     async function loadLifecycle() {
-      const r = await fetch('/api/lifecycle');
+      const r = await fetch(apiPath('/api/lifecycle'));
       const data = await r.json();
       lastLifecycle = data;
       if (data?.ok === false || data?.backend?.reachable === false) {
@@ -1214,7 +1316,7 @@ INDEX_HTML = """<!doctype html>
       document.getElementById('lifecycle').innerHTML = renderLifecycleSummary(data);
     }
     async function pauseQueue() {
-      const r = await fetch('/api/pause', { method: 'POST' });
+      const r = await fetch(apiPath('/api/pause'), { method: 'POST' });
       const data = await r.json();
       lastResult = data;
       document.getElementById('result').textContent = data.paused ? "Queue paused" : "Pause requested";
@@ -1222,7 +1324,7 @@ INDEX_HTML = """<!doctype html>
       await refresh();
     }
     async function resumeQueue() {
-      const r = await fetch('/api/resume', { method: 'POST' });
+      const r = await fetch(apiPath('/api/resume'), { method: 'POST' });
       const data = await r.json();
       lastResult = data;
       document.getElementById('result').textContent = data.resumed ? "Queue resumed" : "Resume requested";
@@ -1237,7 +1339,7 @@ INDEX_HTML = """<!doctype html>
       const raw = document.getElementById('url').value.trim();
       const urls = raw.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean);
       const payload = urls.length > 1 ? { urls } : { url: urls[0] || "" };
-      const r = await fetch('/api/add', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const r = await fetch(apiPath('/api/add'), { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       const data = await r.json();
       lastResult = data;
       const queued = Array.isArray(data.added) ? data.added.length : (data.added ? 1 : 0);
@@ -1248,7 +1350,7 @@ INDEX_HTML = """<!doctype html>
       await refresh();
     }
     async function preflightRun() {
-      const r = await fetch('/api/preflight', { method: 'POST' });
+      const r = await fetch(apiPath('/api/preflight'), { method: 'POST' });
       const data = await r.json();
       lastResult = data;
       document.getElementById('result').textContent = data.status === 'pass' ? "Preflight passed" : "Preflight needs attention";
@@ -1258,7 +1360,7 @@ INDEX_HTML = """<!doctype html>
     }
     async function runQueue() {
       const autoPreflight = document.getElementById('auto-preflight')?.checked;
-      const r = await fetch('/api/run', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({auto_preflight_on_run: !!autoPreflight}) });
+      const r = await fetch(apiPath('/api/run'), { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({auto_preflight_on_run: !!autoPreflight}) });
       const data = await r.json();
       lastResult = data;
       document.getElementById('result').textContent = data.started ? "Queue runner started" : data.stopped ? "Queue runner stopped" : "Queue runner already running";
@@ -1269,7 +1371,7 @@ INDEX_HTML = """<!doctype html>
       return runQueue();
     }
     async function uccRun() {
-      const r = await fetch('/api/ucc', { method: 'POST' });
+      const r = await fetch(apiPath('/api/ucc'), { method: 'POST' });
       const data = await r.json();
       lastResult = data;
       const outcome = data.result && data.result.outcome ? data.result.outcome : "unknown";
@@ -1282,7 +1384,7 @@ INDEX_HTML = """<!doctype html>
       await refresh();
     }
     async function lifecycleAction(target, action) {
-      const r = await fetch('/api/lifecycle/action', {
+      const r = await fetch(apiPath('/api/lifecycle/action'), {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ target, action }),
@@ -1295,7 +1397,7 @@ INDEX_HTML = """<!doctype html>
       document.getElementById('result-json').textContent = JSON.stringify(data, null, 2);
     }
     async function newSession() {
-      const r = await fetch('/api/session', {
+      const r = await fetch(apiPath('/api/session'), {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ action: 'new' }),
@@ -1309,7 +1411,7 @@ INDEX_HTML = """<!doctype html>
       if (page === 'log') refreshActionLog();
     }
     async function loadDeclaration() {
-      const r = await fetch('/api/declaration');
+      const r = await fetch(apiPath('/api/declaration'));
       lastDeclaration = await r.json();
       if (lastDeclaration?.ok === false || lastDeclaration?.backend?.reachable === false) {
         const options = document.getElementById('options-panel');
@@ -1328,7 +1430,7 @@ INDEX_HTML = """<!doctype html>
     async function saveDeclaration() {
       const value = document.getElementById('declaration').value;
       const parsed = JSON.parse(value);
-      const r = await fetch('/api/declaration', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(parsed) });
+      const r = await fetch(apiPath('/api/declaration'), { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(parsed) });
       const data = await r.json();
       lastResult = data;
       document.getElementById('result').textContent = "Declaration saved";
@@ -1338,7 +1440,7 @@ INDEX_HTML = """<!doctype html>
       if (page !== 'log') return;
       const sessionFilter = document.getElementById('session-filter');
       if (sessionFilter && !sessionFilter.value) sessionFilter.value = 'current';
-      const r = await fetch('/api/log?limit=120');
+      const r = await fetch(apiPath('/api/log?limit=120'));
       const data = await r.json();
       if (data?.ok === false || data?.backend?.reachable === false) {
         const actionLog = document.getElementById('action-log');
@@ -1351,6 +1453,7 @@ INDEX_HTML = """<!doctype html>
     document.getElementById('action-filter')?.addEventListener('change', refreshActionLog);
     document.getElementById('session-filter')?.addEventListener('change', refreshActionLog);
     initTheme();
+    renderBackendPanel();
     refresh();
     setRefreshInterval(10000);
     if (page === 'lifecycle') loadLifecycle();
@@ -1370,17 +1473,34 @@ INDEX_HTML = """<!doctype html>
 
 
 class AriaFlowHandler(BaseHTTPRequestHandler):
+    def _backend_url(self, parsed: object | None = None) -> str:
+        if parsed is None:
+            return DEFAULT_BACKEND_URL
+        query = {}
+        try:
+            query = dict(part.split("=", 1) if "=" in part else (part, "") for part in parsed.query.split("&") if part)  # type: ignore[attr-defined]
+        except Exception:
+            query = {}
+        backend = str(query.get("backend", "")).strip()
+        return backend or DEFAULT_BACKEND_URL
+
     def _invalidate_status_cache(self) -> None:
         STATUS_CACHE["ts"] = 0.0
         STATUS_CACHE["payload"] = None
 
-    def _status_payload(self, force: bool = False) -> dict:
+    def _status_payload(self, backend_url: str, force: bool = False) -> dict:
         now = time.time()
         cached = STATUS_CACHE.get("payload")
-        if not force and cached is not None and now - float(STATUS_CACHE.get("ts", 0.0)) < STATUS_CACHE_TTL:
+        if (
+            not force
+            and cached is not None
+            and STATUS_CACHE.get("backend") == backend_url
+            and now - float(STATUS_CACHE.get("ts", 0.0)) < STATUS_CACHE_TTL
+        ):
             return cached  # type: ignore[return-value]
-        payload = get_status()
+        payload = get_status_from(backend_url)
         STATUS_CACHE["ts"] = now
+        STATUS_CACHE["backend"] = backend_url
         STATUS_CACHE["payload"] = payload
         return payload
 
@@ -1395,6 +1515,7 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         path = parsed.path
+        backend_url = self._backend_url(parsed)
         if path in {"/", "/index.html", "/bandwidth", "/lifecycle", "/options", "/log"}:
             body = INDEX_HTML.encode("utf-8")
             self.send_response(HTTPStatus.OK)
@@ -1404,7 +1525,7 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
         if path == "/api/status":
-            self._send_json(self._status_payload())
+            self._send_json(self._status_payload(backend_url))
             return
         if path == "/api/log":
             limit = 120
@@ -1413,21 +1534,23 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
                 limit = max(1, min(500, int(query.get("limit", "120"))))
             except ValueError:
                 limit = 120
-            self._send_json(get_log(limit=limit))
+            self._send_json(get_log_from(backend_url, limit=limit))
             return
         if path == "/api/declaration":
-            self._send_json(get_declaration())
+            self._send_json(get_declaration_from(backend_url))
             return
         if path == "/api/options":
-            self._send_json(get_declaration())
+            self._send_json(get_declaration_from(backend_url))
             return
         if path == "/api/lifecycle":
-            self._send_json(get_lifecycle())
+            self._send_json(get_lifecycle_from(backend_url))
             return
         self._send_json({"error": "not_found"}, status=404)
 
     def do_POST(self) -> None:  # noqa: N802
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
+        backend_url = self._backend_url(parsed)
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length).decode("utf-8") if length else "{}"
         payload = json.loads(raw or "{}")
@@ -1442,37 +1565,37 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
             if not urls:
                 self._send_json({"error": "missing_url"}, status=400)
                 return
-            added = [add_item(url) for url in urls]
+            added = [add_item_from(backend_url, url) for url in urls]
             self._invalidate_status_cache()
             self._send_json({"added": added[0] if len(added) == 1 else added})
             return
 
         if path == "/api/preflight":
             self._invalidate_status_cache()
-            self._send_json(api_preflight())
+            self._send_json(preflight_from(backend_url))
             return
 
         if path == "/api/run":
             self._invalidate_status_cache()
-            self._send_json(api_run_queue(bool(payload.get("auto_preflight_on_run"))))
+            self._send_json(run_queue_from(backend_url, bool(payload.get("auto_preflight_on_run"))))
             return
 
         if path == "/api/ucc":
             self._invalidate_status_cache()
-            self._send_json(api_run_ucc())
+            self._send_json(run_ucc_from(backend_url))
             return
 
         if path == "/api/declaration":
             declaration = payload if isinstance(payload, dict) else {}
             self._invalidate_status_cache()
-            self._send_json(api_save_declaration(declaration))
+            self._send_json(save_declaration_from(backend_url, declaration))
             return
 
         if path == "/api/lifecycle/action":
             target = str(payload.get("target", "")).strip()
             action = str(payload.get("action", "")).strip()
             self._invalidate_status_cache()
-            self._send_json(lifecycle_action(target, action))
+            self._send_json(lifecycle_action_from(backend_url, target, action))
             return
 
         if path == "/api/session":
@@ -1481,17 +1604,17 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "unsupported_action", "action": action}, status=400)
                 return
             self._invalidate_status_cache()
-            self._send_json(api_set_session(action))
+            self._send_json(set_session_from(backend_url, action))
             return
 
         if path == "/api/pause":
             self._invalidate_status_cache()
-            self._send_json(api_pause())
+            self._send_json(pause_from(backend_url))
             return
 
         if path == "/api/resume":
             self._invalidate_status_cache()
-            self._send_json(api_resume())
+            self._send_json(resume_from(backend_url))
             return
 
         self._send_json({"error": "not_found"}, status=404)
