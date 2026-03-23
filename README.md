@@ -23,3 +23,9 @@ When installed from the tap, the service is intended to run alongside the
 brew services start ariaflow
 brew services start ariaflow-web
 ```
+
+## Architecture
+
+The canonical UI architecture is documented in:
+
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md)
