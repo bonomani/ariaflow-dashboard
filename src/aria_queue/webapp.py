@@ -157,6 +157,19 @@ INDEX_HTML = """<!doctype html>
     .toolbar { display: grid; gap: 12px; }
     .row { display: flex; gap: 10px; flex-wrap: wrap; }
     .row > * { flex: 1 1 160px; }
+    .queue-add-row { align-items: flex-start; }
+    .queue-add-row > textarea {
+      flex: 1 1 420px;
+      min-height: 48px;
+      height: 48px;
+      resize: vertical;
+    }
+    .queue-add-row > button {
+      flex: 0 0 auto;
+      width: auto;
+      align-self: flex-start;
+      white-space: nowrap;
+    }
     input, textarea, button { font: inherit; }
     input, textarea {
       width: 100%;
@@ -441,8 +454,8 @@ INDEX_HTML = """<!doctype html>
     <div class="grid">
       <div class="span-12 show-dashboard page-only">
         <div class="panel toolbar">
-          <div class="row">
-            <textarea id="url" rows="3" placeholder="Paste one or more URLs, one per line"></textarea>
+          <div class="row queue-add-row">
+            <textarea id="url" rows="1" placeholder="Paste one or more URLs, one per line"></textarea>
             <button onclick="add()">Add to queue</button>
           </div>
         </div>
