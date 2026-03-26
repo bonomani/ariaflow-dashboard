@@ -34,7 +34,8 @@ jobs:
       - name: Rename release artifact
         run: |
           mkdir -p release
-          cp dist/*.tar.gz release/ariaflow-web-${GITHUB_REF_NAME}.tar.gz
+          artifact=$(find dist -maxdepth 1 -name '*.tar.gz' -print -quit)
+          cp "$artifact" "release/ariaflow-web-${GITHUB_REF_NAME}.tar.gz"
 
       - name: Create release
         uses: softprops/action-gh-release@v2
@@ -70,13 +71,5 @@ jobs:
       - name: Verify tap version
         run: |
           expected="${GITHUB_REF_NAME#v}"
-          current=$(python3 - <<'PY'
-from pathlib import Path
-import re
-
-text = Path("tap/Formula/ariaflow-web.rb").read_text(encoding="utf-8")
-match = re.search(r'^  version "([^"]+)"$', text, re.MULTILINE)
-print(match.group(1) if match else "")
-PY
-          )
+          current=$(python3 -c 'from pathlib import Path; import re; text = Path("tap/Formula/ariaflow-web.rb").read_text(encoding="utf-8"); match = re.search(r"^  version \"([^\"]+)\"$", text, re.MULTILINE); print(match.group(1) if match else "")')
           test "$current" = "$expected"
