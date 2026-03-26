@@ -145,27 +145,41 @@ INDEX_HTML = """<!doctype html>
     .row { display: flex; gap: 10px; flex-wrap: wrap; }
     .row > * { flex: 1 1 160px; }
     .queue-add-row {
+      display: block;
+    }
+    .queue-add-group {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
-      align-items: start;
+      align-items: stretch;
+      gap: 8px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel-2);
     }
-    .queue-add-row > textarea {
+    .queue-add-row textarea {
       min-height: 0;
-      height: calc(1.45em + 24px);
+      height: calc(1.45em + 22px);
       resize: none;
       overflow-y: auto;
+      border: 0;
+      background: transparent;
+      padding: 10px 8px;
+      border-radius: 10px;
+      box-shadow: none;
     }
     .queue-add-button {
-      min-width: 96px;
-      height: calc(1.45em + 24px);
-      padding: 0 14px;
-      justify-self: stretch;
-      align-self: stretch;
+      min-width: 84px;
+      height: calc(1.45em + 22px);
+      padding: 0 12px;
+      justify-self: end;
+      align-self: center;
       white-space: nowrap;
-      border-radius: 12px;
-      font-size: 0.9rem;
+      border-radius: 10px;
+      font-size: 0.88rem;
       font-weight: 600;
       line-height: 1;
+      box-shadow: none;
     }
     input, textarea, button { font: inherit; }
     input, textarea {
@@ -389,12 +403,14 @@ INDEX_HTML = """<!doctype html>
       .span-8, .span-7, .span-5, .span-4, .span-6 { grid-column: span 12; }
     }
     @media (max-width: 720px) {
-      .queue-add-row {
+      .queue-add-group {
         grid-template-columns: 1fr;
       }
       .queue-add-button {
         min-width: 0;
         width: 100%;
+        justify-self: stretch;
+        align-self: stretch;
       }
     }
   </style>
@@ -459,9 +475,11 @@ INDEX_HTML = """<!doctype html>
     <div class="grid">
       <div class="span-12 show-dashboard page-only">
         <div class="panel toolbar">
-          <div class="row queue-add-row">
-            <textarea id="url" rows="1" placeholder="Paste one or more URLs, one per line"></textarea>
-            <button class="queue-add-button" onclick="add()">Add to queue</button>
+          <div class="queue-add-row">
+            <div class="queue-add-group">
+              <textarea id="url" rows="1" placeholder="Paste one or more URLs, one per line"></textarea>
+              <button class="queue-add-button" onclick="add()">Add</button>
+            </div>
           </div>
         </div>
       </div>
