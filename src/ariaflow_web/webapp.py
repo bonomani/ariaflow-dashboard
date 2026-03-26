@@ -6,33 +6,20 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from ariaflow_web.client import (
-    add_item,
-    add_item_from,
-    get_declaration,
+from .client import (
     get_declaration_from,
-    get_lifecycle,
     get_lifecycle_from,
-    get_log,
     get_log_from,
-    get_status,
     get_status_from,
-    lifecycle_action,
     lifecycle_action_from,
-    pause as api_pause,
     pause_from,
-    preflight as api_preflight,
     preflight_from,
-    resume as api_resume,
     resume_from,
-    run_queue as api_run_queue,
-    run_queue_from,
-    run_ucc as api_run_ucc,
+    run_action_from,
     run_ucc_from,
-    save_declaration as api_save_declaration,
     save_declaration_from,
-    set_session as api_set_session,
     set_session_from,
+    add_items_from,
 )
 STATUS_CACHE: dict[str, object] = {"ts": 0.0, "payload": None}
 STATUS_CACHE_TTL = 2.0
@@ -1364,14 +1351,19 @@ INDEX_HTML = """<!doctype html>
     async function add() {
       const raw = document.getElementById('url').value.trim();
       const urls = raw.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean);
-      const payload = urls.length > 1 ? { urls } : { url: urls[0] || "" };
+      const payload = { items: urls.map((url) => ({ url })) };
       const r = await fetch(apiPath('/api/add'), { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       const data = await r.json();
       lastResult = data;
-      const queued = Array.isArray(data.added) ? data.added.length : (data.added ? 1 : 0);
+      if (!r.ok || data.ok === false) {
+        document.getElementById('result').textContent = data.message || 'Add request failed';
+        document.getElementById('result-json').textContent = JSON.stringify(data, null, 2);
+        return;
+      }
+      const queued = Array.isArray(data.added) ? data.added.length : 0;
       document.getElementById('result').textContent = queued > 1
         ? `Queued ${queued} items`
-        : `Queued: ${data.added?.url || urls[0] || raw}`;
+        : `Queued: ${data.added?.[0]?.url || urls[0] || raw}`;
       document.getElementById('result-json').textContent = JSON.stringify(data, null, 2);
       await refresh();
     }
@@ -1384,17 +1376,28 @@ INDEX_HTML = """<!doctype html>
       document.getElementById('preflight').innerHTML = renderPreflight(data);
       await refresh();
     }
-    async function runQueue() {
+    async function runnerAction(action) {
       const autoPreflight = document.getElementById('auto-preflight')?.checked;
-      const r = await fetch(apiPath('/api/run'), { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({auto_preflight_on_run: !!autoPreflight}) });
+      const payload = { action };
+      if (action === 'start') payload.auto_preflight_on_run = !!autoPreflight;
+      const r = await fetch(apiPath('/api/run'), { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       const data = await r.json();
       lastResult = data;
-      document.getElementById('result').textContent = data.started ? "Queue runner started" : data.stopped ? "Queue runner stopped" : "Queue runner already running";
+      if (!r.ok || data.ok === false) {
+        document.getElementById('result').textContent = data.message || 'Runner request failed';
+        document.getElementById('result-json').textContent = JSON.stringify(data, null, 2);
+        await refresh();
+        return;
+      }
+      const result = data.result || {};
+      document.getElementById('result').textContent = action === 'start'
+        ? (result.started ? "Queue runner started" : "Queue runner already running")
+        : (result.stopped ? "Queue runner stopped" : "Queue runner already stopped");
       document.getElementById('result-json').textContent = JSON.stringify(data, null, 2);
       await refresh();
     }
     async function toggleRunner() {
-      return runQueue();
+      return runnerAction(lastStatus?.state?.running ? 'stop' : 'start');
     }
     async function uccRun() {
       const r = await fetch(apiPath('/api/ucc'), { method: 'POST' });
@@ -1537,6 +1540,14 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    @staticmethod
+    def _forward_status(payload: dict[str, object]) -> int:
+        raw_status = payload.get("http_status")
+        try:
+            return int(raw_status) if raw_status is not None else 200
+        except (TypeError, ValueError):
+            return 200
+
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         path = parsed.path
@@ -1550,7 +1561,8 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
         if path == "/api/status":
-            self._send_json(self._status_payload(backend_url))
+            payload = self._status_payload(backend_url)
+            self._send_json(payload, status=self._forward_status(payload))
             return
         if path == "/api/log":
             limit = 120
@@ -1559,16 +1571,20 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
                 limit = max(1, min(500, int(query.get("limit", "120"))))
             except ValueError:
                 limit = 120
-            self._send_json(get_log_from(backend_url, limit=limit))
+            payload = get_log_from(backend_url, limit=limit)
+            self._send_json(payload, status=self._forward_status(payload))
             return
         if path == "/api/declaration":
-            self._send_json(get_declaration_from(backend_url))
+            payload = get_declaration_from(backend_url)
+            self._send_json(payload, status=self._forward_status(payload))
             return
         if path == "/api/options":
-            self._send_json(get_declaration_from(backend_url))
+            payload = get_declaration_from(backend_url)
+            self._send_json(payload, status=self._forward_status(payload))
             return
         if path == "/api/lifecycle":
-            self._send_json(get_lifecycle_from(backend_url))
+            payload = get_lifecycle_from(backend_url)
+            self._send_json(payload, status=self._forward_status(payload))
             return
         self._send_json({"error": "not_found"}, status=404)
 
@@ -1578,49 +1594,74 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
         backend_url = self._backend_url(parsed)
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length).decode("utf-8") if length else "{}"
-        payload = json.loads(raw or "{}")
+        try:
+            payload = json.loads(raw or "{}")
+        except json.JSONDecodeError:
+            self._send_json(
+                {"ok": False, "error": "invalid_json", "message": "request body must be valid JSON"},
+                status=400,
+            )
+            return
 
         if path == "/api/add":
-            raw_urls = payload.get("urls")
-            if isinstance(raw_urls, list):
-                urls = [str(url).strip() for url in raw_urls if str(url).strip()]
-            else:
-                raw_url = str(payload.get("url", "")).strip()
-                urls = [line.strip() for line in raw_url.splitlines() if line.strip()]
-            if not urls:
-                self._send_json({"error": "missing_url"}, status=400)
+            if not isinstance(payload, dict):
+                self._send_json({"ok": False, "error": "invalid_payload", "message": "expected a JSON object"}, status=400)
                 return
-            added = [add_item_from(backend_url, url) for url in urls]
+            items = payload.get("items")
+            if not isinstance(items, list):
+                self._send_json({"ok": False, "error": "invalid_items", "message": "items must be provided as a list"}, status=400)
+                return
             self._invalidate_status_cache()
-            self._send_json({"added": added[0] if len(added) == 1 else added})
+            response = add_items_from(backend_url, items)
+            self._send_json(response, status=self._forward_status(response))
             return
 
         if path == "/api/preflight":
             self._invalidate_status_cache()
-            self._send_json(preflight_from(backend_url))
+            response = preflight_from(backend_url)
+            self._send_json(response, status=self._forward_status(response))
             return
 
         if path == "/api/run":
+            if not isinstance(payload, dict):
+                self._send_json({"ok": False, "error": "invalid_payload", "message": "expected a JSON object"}, status=400)
+                return
+            action = str(payload.get("action", "")).strip()
+            auto_preflight = payload.get("auto_preflight_on_run")
+            if auto_preflight is not None and not isinstance(auto_preflight, bool):
+                self._send_json(
+                    {
+                        "ok": False,
+                        "error": "invalid_auto_preflight_on_run",
+                        "message": "auto_preflight_on_run must be a boolean when provided",
+                    },
+                    status=400,
+                )
+                return
             self._invalidate_status_cache()
-            self._send_json(run_queue_from(backend_url, bool(payload.get("auto_preflight_on_run"))))
+            response = run_action_from(backend_url, action, auto_preflight if isinstance(auto_preflight, bool) else None)
+            self._send_json(response, status=self._forward_status(response))
             return
 
         if path == "/api/ucc":
             self._invalidate_status_cache()
-            self._send_json(run_ucc_from(backend_url))
+            response = run_ucc_from(backend_url)
+            self._send_json(response, status=self._forward_status(response))
             return
 
         if path == "/api/declaration":
             declaration = payload if isinstance(payload, dict) else {}
             self._invalidate_status_cache()
-            self._send_json(save_declaration_from(backend_url, declaration))
+            response = save_declaration_from(backend_url, declaration)
+            self._send_json(response, status=self._forward_status(response))
             return
 
         if path == "/api/lifecycle/action":
             target = str(payload.get("target", "")).strip()
             action = str(payload.get("action", "")).strip()
             self._invalidate_status_cache()
-            self._send_json(lifecycle_action_from(backend_url, target, action))
+            response = lifecycle_action_from(backend_url, target, action)
+            self._send_json(response, status=self._forward_status(response))
             return
 
         if path == "/api/session":
@@ -1629,17 +1670,20 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "unsupported_action", "action": action}, status=400)
                 return
             self._invalidate_status_cache()
-            self._send_json(set_session_from(backend_url, action))
+            response = set_session_from(backend_url, action)
+            self._send_json(response, status=self._forward_status(response))
             return
 
         if path == "/api/pause":
             self._invalidate_status_cache()
-            self._send_json(pause_from(backend_url))
+            response = pause_from(backend_url)
+            self._send_json(response, status=self._forward_status(response))
             return
 
         if path == "/api/resume":
             self._invalidate_status_cache()
-            self._send_json(resume_from(backend_url))
+            response = resume_from(backend_url)
+            self._send_json(response, status=self._forward_status(response))
             return
 
         self._send_json({"error": "not_found"}, status=404)

@@ -6,14 +6,12 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from aria_queue.cli import build_parser as legacy_build_parser  # noqa: E402
-from ariaflow_web.cli import build_parser as canonical_build_parser  # noqa: E402
+from ariaflow_web.cli import build_parser  # noqa: E402
 
 
-class CliCompatibilityTests(unittest.TestCase):
-    def test_legacy_cli_parser_matches_canonical_defaults(self) -> None:
-        legacy_args = legacy_build_parser().parse_args([])
-        canonical_args = canonical_build_parser().parse_args([])
+class CliTests(unittest.TestCase):
+    def test_cli_parser_uses_expected_defaults(self) -> None:
+        args = build_parser().parse_args([])
 
-        self.assertEqual(legacy_args.host, canonical_args.host)
-        self.assertEqual(legacy_args.port, canonical_args.port)
+        self.assertEqual(args.host, "127.0.0.1")
+        self.assertEqual(args.port, 8001)

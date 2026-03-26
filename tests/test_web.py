@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from aria_queue.webapp import serve  # noqa: E402
+from ariaflow_web.webapp import serve  # noqa: E402
 
 
 def request_json(url: str, method: str = "GET", payload: dict | None = None) -> dict:
@@ -49,19 +49,21 @@ class WebSmokeTests(unittest.TestCase):
                 "summary": {"queued": 0, "done": 0, "error": 0},
             }
             declaration_payload = {"uic": {}, "ucc": {}, "policy": {}}
-            with patch("aria_queue.webapp.get_lifecycle_from", return_value=lifecycle_payload), \
-                 patch("aria_queue.webapp.get_status_from", return_value=status_payload), \
-                 patch("aria_queue.webapp.get_log_from", return_value={"items": []}), \
-                 patch("aria_queue.webapp.get_declaration_from", return_value=declaration_payload), \
-                 patch("aria_queue.webapp.add_item_from", return_value={"url": "https://example.com/file.gguf"}), \
-                 patch("aria_queue.webapp.preflight_from", return_value={"status": "pass"}), \
-                 patch("aria_queue.webapp.run_queue_from", return_value={"started": True}), \
-                 patch("aria_queue.webapp.run_ucc_from", return_value={"result": {"outcome": "converged", "observation": "ok"}}), \
-                 patch("aria_queue.webapp.save_declaration_from", return_value={"saved": True, "declaration": declaration_payload}), \
-                 patch("aria_queue.webapp.set_session_from", return_value={"ok": True, "session": lifecycle_payload["session_id"]}), \
-                 patch("aria_queue.webapp.pause_from", return_value={"paused": True}), \
-                 patch("aria_queue.webapp.resume_from", return_value={"resumed": True}), \
-                 patch("aria_queue.webapp.lifecycle_action_from", return_value={"ok": True, "lifecycle": lifecycle_payload}):
+            def add_items_response(_base_url: str, items: list[dict]) -> dict:
+                return {"ok": True, "count": len(items), "added": [{"url": item["url"]} for item in items]}
+            with patch("ariaflow_web.webapp.get_lifecycle_from", return_value=lifecycle_payload), \
+                 patch("ariaflow_web.webapp.get_status_from", return_value=status_payload), \
+                 patch("ariaflow_web.webapp.get_log_from", return_value={"items": []}), \
+                 patch("ariaflow_web.webapp.get_declaration_from", return_value=declaration_payload), \
+                 patch("ariaflow_web.webapp.add_items_from", side_effect=add_items_response), \
+                 patch("ariaflow_web.webapp.preflight_from", return_value={"status": "pass"}), \
+                 patch("ariaflow_web.webapp.run_action_from", return_value={"ok": True, "action": "start", "result": {"started": True}}), \
+                 patch("ariaflow_web.webapp.run_ucc_from", return_value={"result": {"outcome": "converged", "observation": "ok"}}), \
+                 patch("ariaflow_web.webapp.save_declaration_from", return_value={"saved": True, "declaration": declaration_payload}), \
+                 patch("ariaflow_web.webapp.set_session_from", return_value={"ok": True, "session": lifecycle_payload["session_id"]}), \
+                 patch("ariaflow_web.webapp.pause_from", return_value={"paused": True}), \
+                 patch("ariaflow_web.webapp.resume_from", return_value={"resumed": True}), \
+                 patch("ariaflow_web.webapp.lifecycle_action_from", return_value={"ok": True, "lifecycle": lifecycle_payload}):
                 server = serve(host="127.0.0.1", port=8765)
                 thread = threading.Thread(target=server.serve_forever, daemon=True)
                 thread.start()
@@ -121,22 +123,29 @@ class WebSmokeTests(unittest.TestCase):
                     added = request_json(
                         "http://127.0.0.1:8765/api/add",
                         method="POST",
-                        payload={"url": "https://example.com/file.gguf"},
+                        payload={"items": [{"url": "https://example.com/file.gguf"}]},
                     )
-                    self.assertEqual(added["added"]["url"], "https://example.com/file.gguf")
+                    self.assertTrue(added["ok"])
+                    self.assertEqual(added["added"][0]["url"], "https://example.com/file.gguf")
                     added_many = request_json(
                         "http://127.0.0.1:8765/api/add",
                         method="POST",
-                        payload={"url": "https://example.com/one.gguf\nhttps://example.com/two.gguf"},
+                        payload={"items": [{"url": "https://example.com/one.gguf"}, {"url": "https://example.com/two.gguf"}]},
                     )
                     self.assertIsInstance(added_many["added"], list)
-                    self.assertEqual(len(added_many["added"]), 2)
+                    self.assertEqual(added_many["count"], 2)
                     paused = request_json("http://127.0.0.1:8765/api/pause", method="POST")
                     self.assertIn("paused", paused)
                     resumed = request_json("http://127.0.0.1:8765/api/resume", method="POST")
                     self.assertIn("resumed", resumed)
-                    run = request_json("http://127.0.0.1:8765/api/run", method="POST")
-                    self.assertTrue(run["started"])
+                    run = request_json(
+                        "http://127.0.0.1:8765/api/run",
+                        method="POST",
+                        payload={"action": "start", "auto_preflight_on_run": False},
+                    )
+                    self.assertTrue(run["ok"])
+                    self.assertEqual(run["action"], "start")
+                    self.assertTrue(run["result"]["started"])
                 finally:
                     server.shutdown()
                     server.server_close()

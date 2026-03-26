@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import argparse
 
-from aria_queue.webapp import serve
 from . import __version__
+from .webapp import serve
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -22,6 +22,33 @@ def _request(path: str, method: str = "GET", payload: dict | None = None, base_u
     try:
         with urlopen(req, timeout=10) as resp:
             return json.loads(resp.read().decode("utf-8"))
+    except HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        try:
+            payload = json.loads(body) if body else {}
+        except json.JSONDecodeError:
+            payload = {
+                "ok": False,
+                "error": "http_error",
+                "message": body or str(exc),
+            }
+        if not isinstance(payload, dict):
+            payload = {
+                "ok": False,
+                "error": "http_error",
+                "message": str(payload),
+            }
+        payload.setdefault("ok", False)
+        payload.setdefault("http_status", exc.code)
+        payload.setdefault(
+            "backend",
+            {
+                "reachable": True,
+                "status": exc.code,
+                "url": url,
+            },
+        )
+        return payload
     except URLError as exc:
         return {
             "ok": False,
@@ -73,17 +100,13 @@ def get_lifecycle_from(base_url: str) -> dict:
     return _request("/api/lifecycle", base_url=base_url)
 
 
-def add_item(url: str, output: str | None = None, post_action_rule: str = "pending") -> dict:
-    payload: dict[str, object] = {"url": url, "post_action_rule": post_action_rule}
-    if output is not None:
-        payload["output"] = output
+def add_items(items: list[dict[str, object]]) -> dict:
+    payload: dict[str, object] = {"items": items}
     return _request("/api/add", method="POST", payload=payload)
 
 
-def add_item_from(base_url: str, url: str, output: str | None = None, post_action_rule: str = "pending") -> dict:
-    payload: dict[str, object] = {"url": url, "post_action_rule": post_action_rule}
-    if output is not None:
-        payload["output"] = output
+def add_items_from(base_url: str, items: list[dict[str, object]]) -> dict:
+    payload: dict[str, object] = {"items": items}
     return _request("/api/add", method="POST", payload=payload, base_url=base_url)
 
 
@@ -95,12 +118,18 @@ def preflight_from(base_url: str) -> dict:
     return _request("/api/preflight", method="POST", base_url=base_url)
 
 
-def run_queue(auto_preflight_on_run: bool = False) -> dict:
-    return _request("/api/run", method="POST", payload={"auto_preflight_on_run": auto_preflight_on_run})
+def run_action(action: str, auto_preflight_on_run: bool | None = None) -> dict:
+    payload: dict[str, object] = {"action": action}
+    if auto_preflight_on_run is not None:
+        payload["auto_preflight_on_run"] = auto_preflight_on_run
+    return _request("/api/run", method="POST", payload=payload)
 
 
-def run_queue_from(base_url: str, auto_preflight_on_run: bool = False) -> dict:
-    return _request("/api/run", method="POST", payload={"auto_preflight_on_run": auto_preflight_on_run}, base_url=base_url)
+def run_action_from(base_url: str, action: str, auto_preflight_on_run: bool | None = None) -> dict:
+    payload: dict[str, object] = {"action": action}
+    if auto_preflight_on_run is not None:
+        payload["auto_preflight_on_run"] = auto_preflight_on_run
+    return _request("/api/run", method="POST", payload=payload, base_url=base_url)
 
 
 def run_ucc() -> dict:
