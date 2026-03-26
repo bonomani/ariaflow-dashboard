@@ -615,7 +615,15 @@ INDEX_HTML = """<!doctype html>
     let backendGlobalOptions = {};
     let lastDeclaration = null;
     const path = window.location.pathname.replace(/[/]+$/, "");
-    const page = path === "/bandwidth" ? "bandwidth" : path === "/lifecycle" ? "lifecycle" : path === "/log" ? "log" : "dashboard";
+    const page = path === "/bandwidth"
+      ? "bandwidth"
+      : path === "/lifecycle"
+        ? "lifecycle"
+        : path === "/options"
+          ? "options"
+          : path === "/log"
+            ? "log"
+            : "dashboard";
 
     function applyPage() {
       document.body.classList.add(`page-${page}`);
@@ -628,6 +636,8 @@ INDEX_HTML = """<!doctype html>
         document.querySelectorAll('.show-bandwidth').forEach((el) => el.style.display = '');
       } else if (page === 'lifecycle') {
         document.querySelectorAll('.show-lifecycle').forEach((el) => el.style.display = '');
+      } else if (page === 'options') {
+        document.querySelectorAll('.show-options').forEach((el) => el.style.display = '');
       } else if (page === 'log') {
         document.querySelectorAll('.show-log').forEach((el) => el.style.display = '');
       }

@@ -29,3 +29,9 @@ brew services start ariaflow-web
 The canonical UI architecture is documented in:
 
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+
+## Release
+
+The release checklist lives in:
+
+- [`RELEASE.md`](./RELEASE.md)
