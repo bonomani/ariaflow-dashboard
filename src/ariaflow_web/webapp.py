@@ -146,7 +146,7 @@ INDEX_HTML = """<!doctype html>
     .row > * { flex: 1 1 160px; }
     .queue-add-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) max-content;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: start;
     }
     .queue-add-row > textarea {
@@ -156,11 +156,16 @@ INDEX_HTML = """<!doctype html>
       overflow-y: auto;
     }
     .queue-add-button {
-      width: fit-content;
-      min-width: 0;
-      justify-self: start;
-      align-self: start;
+      min-width: 96px;
+      height: calc(1.45em + 24px);
+      padding: 0 14px;
+      justify-self: stretch;
+      align-self: stretch;
       white-space: nowrap;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      line-height: 1;
     }
     input, textarea, button { font: inherit; }
     input, textarea {
@@ -387,6 +392,10 @@ INDEX_HTML = """<!doctype html>
       .queue-add-row {
         grid-template-columns: 1fr;
       }
+      .queue-add-button {
+        min-width: 0;
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -439,12 +448,11 @@ INDEX_HTML = """<!doctype html>
     <div class="panel" style="margin-bottom:14px;">
       <div class="section-title">
         <h2>Backends</h2>
-        <div class="hint">Default is 127.0.0.1:8000</div>
+        <div class="hint">Local default is 127.0.0.1:8000; manual backends stay browser-local</div>
       </div>
       <div class="row">
         <input id="backend-input" placeholder="http://127.0.0.1:8000">
         <button class="secondary" onclick="addBackend()">Add backend</button>
-        <button class="secondary" onclick="useDefaultBackend()">Use default</button>
       </div>
       <div id="backend-panel" class="chips" style="margin-top:12px;"></div>
     </div>
@@ -687,17 +695,17 @@ INDEX_HTML = """<!doctype html>
       } catch (err) {
         backends = [];
       }
-      backends = [...new Set((backends.length ? backends : [DEFAULT_BACKEND_URL]).map((item) => String(item || '').trim()).filter(Boolean))];
+      backends = [...new Set(backends.map((item) => String(item || '').trim()).filter((item) => item && item !== DEFAULT_BACKEND_URL))];
       const selected = (localStorage.getItem('ariaflow.selected_backend') || '').trim();
       return {
         backends,
-        selected: backends.includes(selected) ? selected : backends[0],
+        selected: selected === DEFAULT_BACKEND_URL || backends.includes(selected) ? selected : DEFAULT_BACKEND_URL,
       };
     }
 
     function saveBackendState(backends, selected) {
-      const clean = [...new Set((backends || []).map((item) => String(item || '').trim()).filter(Boolean))];
-      const nextSelected = clean.includes(selected) ? selected : (clean[0] || DEFAULT_BACKEND_URL);
+      const clean = [...new Set((backends || []).map((item) => String(item || '').trim()).filter((item) => item && item !== DEFAULT_BACKEND_URL))];
+      const nextSelected = selected === DEFAULT_BACKEND_URL || clean.includes(selected) ? selected : DEFAULT_BACKEND_URL;
       localStorage.setItem('ariaflow.backends', JSON.stringify(clean));
       localStorage.setItem('ariaflow.selected_backend', nextSelected);
       renderBackendPanel();
@@ -714,11 +722,22 @@ INDEX_HTML = """<!doctype html>
       const panel = document.getElementById('backend-panel');
       if (!panel) return;
       const { backends, selected } = loadBackendState();
-      panel.innerHTML = backends.map((backend) => `
-        <button class="${backend === selected ? '' : 'secondary'}" onclick="selectBackend('${backend.replace(/'/g, "\\'")}')">${backend}${backend === selected ? ' · active' : ''}</button>
-      `).join('');
+      const localLabel = `${DEFAULT_BACKEND_URL}${selected === DEFAULT_BACKEND_URL ? ' · active' : ''}`;
+      const renderManual = (backend) => {
+        const escaped = backend.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        return `
+          <span class="chip">
+            <button class="${backend === selected ? '' : 'secondary'}" onclick="selectBackend('${escaped}')">${backend}${backend === selected ? ' · active' : ''}</button>
+            <button class="secondary icon-btn" onclick="removeBackend('${escaped}')" title="Remove backend" aria-label="Remove backend">×<span class="sr-only">Remove backend</span></button>
+          </span>
+        `;
+      };
+      panel.innerHTML = `
+        <button class="${selected === DEFAULT_BACKEND_URL ? '' : 'secondary'}" onclick="selectBackend('${DEFAULT_BACKEND_URL}')">${localLabel}</button>
+        ${backends.map(renderManual).join('')}
+      `;
       const input = document.getElementById('backend-input');
-      if (input && !input.value) input.value = selected || DEFAULT_BACKEND_URL;
+      if (input && !input.value) input.value = selected === DEFAULT_BACKEND_URL ? '' : selected;
     }
 
     function selectBackend(backend) {
@@ -735,15 +754,15 @@ INDEX_HTML = """<!doctype html>
       const value = (input?.value || '').trim();
       if (!value) return;
       const state = loadBackendState();
-      if (!state.backends.includes(value)) state.backends.push(value);
+      if (value !== DEFAULT_BACKEND_URL && !state.backends.includes(value)) state.backends.push(value);
       saveBackendState(state.backends, value);
+      if (input) input.value = '';
       refresh();
     }
 
-    function useDefaultBackend() {
+    function removeBackend(backend) {
       const state = loadBackendState();
-      if (!state.backends.includes(DEFAULT_BACKEND_URL)) state.backends.unshift(DEFAULT_BACKEND_URL);
-      saveBackendState(state.backends, DEFAULT_BACKEND_URL);
+      saveBackendState(state.backends.filter((item) => item !== backend), state.selected === backend ? DEFAULT_BACKEND_URL : state.selected);
       refresh();
     }
 
