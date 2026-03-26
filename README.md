@@ -24,6 +24,10 @@ brew services start ariaflow
 brew services start ariaflow-web
 ```
 
+Stable GitHub releases now update `bonomani/homebrew-ariaflow/Formula/ariaflow-web.rb`
+automatically. The generated formula also depends on `ariaflow`, so a fresh
+`brew install ariaflow-web` pulls in the backend package.
+
 ## Architecture
 
 The canonical UI architecture is documented in:
@@ -35,3 +39,10 @@ The canonical UI architecture is documented in:
 The release checklist lives in:
 
 - [`RELEASE.md`](./RELEASE.md)
+
+Prefer the helper:
+
+```bash
+python3 scripts/release.py --dry-run
+python3 scripts/release.py --push
+```
