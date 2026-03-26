@@ -72,6 +72,7 @@ class WebSmokeTests(unittest.TestCase):
                 try:
                     page = urllib.request.urlopen("http://127.0.0.1:8765/", timeout=5).read().decode("utf-8")
                     self.assertIn("ariaflow", page)
+                    self.assertIn("Web UI", page)
                     bandwidth_page = urllib.request.urlopen("http://127.0.0.1:8765/bandwidth", timeout=5).read().decode("utf-8")
                     self.assertIn("Bandwidth", bandwidth_page)
                     lifecycle_page = urllib.request.urlopen("http://127.0.0.1:8765/lifecycle", timeout=5).read().decode("utf-8")

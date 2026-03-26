@@ -6,6 +6,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+from . import __version__
 from .bonjour import discover_http_services
 from .client import (
     get_declaration_from,
@@ -492,6 +493,7 @@ INDEX_HTML = """<!doctype html>
           <span>Speed: <strong id="sum-speed">-</strong></span>
         </div>
         <div class="chips">
+          <div class="chip">Web UI <strong id="chip-web-version">__ARIAFLOW_WEB_VERSION__</strong></div>
           <div class="chip">Runner <strong id="chip-runner">idle</strong></div>
           <div class="chip">Cap <strong id="chip-cap">-</strong></div>
           <div class="chip">Last issue <strong id="chip-error">none</strong></div>
@@ -1605,6 +1607,7 @@ INDEX_HTML = """<!doctype html>
 </body>
 </html>
 """
+INDEX_HTML = INDEX_HTML.replace("__ARIAFLOW_WEB_VERSION__", f"v{__version__}")
 
 
 class AriaFlowHandler(BaseHTTPRequestHandler):
