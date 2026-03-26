@@ -60,6 +60,7 @@ class WebSmokeTests(unittest.TestCase):
                  patch("ariaflow_web.webapp.run_action_from", return_value={"ok": True, "action": "start", "result": {"started": True}}), \
                  patch("ariaflow_web.webapp.run_ucc_from", return_value={"result": {"outcome": "converged", "observation": "ok"}}), \
                  patch("ariaflow_web.webapp.save_declaration_from", return_value={"saved": True, "declaration": declaration_payload}), \
+                 patch("ariaflow_web.webapp.discover_http_services", return_value={"available": True, "items": [{"url": "http://example.local:8000", "role": "api"}], "reason": "ok"}), \
                  patch("ariaflow_web.webapp.set_session_from", return_value={"ok": True, "session": lifecycle_payload["session_id"]}), \
                  patch("ariaflow_web.webapp.pause_from", return_value={"paused": True}), \
                  patch("ariaflow_web.webapp.resume_from", return_value={"resumed": True}), \
@@ -100,6 +101,9 @@ class WebSmokeTests(unittest.TestCase):
                     self.assertIn("ariaflow", lifecycle)
                     self.assertIn("meta", lifecycle["ariaflow"])
                     self.assertIn("session_id", lifecycle)
+                    discovery = request_json("http://127.0.0.1:8765/api/discovery")
+                    self.assertTrue(discovery["available"])
+                    self.assertEqual(discovery["items"][0]["url"], "http://example.local:8000")
                     session = request_json(
                         "http://127.0.0.1:8765/api/session",
                         method="POST",

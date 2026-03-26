@@ -6,6 +6,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+from .bonjour import discover_http_services
 from .client import (
     get_declaration_from,
     get_lifecycle_from,
@@ -152,7 +153,7 @@ INDEX_HTML = """<!doctype html>
     }
     .backend-add-group {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) auto auto;
       align-items: stretch;
       gap: 8px;
       padding: 8px;
@@ -512,6 +513,7 @@ INDEX_HTML = """<!doctype html>
         <div class="backend-add-group">
           <input id="backend-input" placeholder="http://127.0.0.1:8000">
           <button class="secondary backend-add-button" onclick="addBackend()">Add</button>
+          <button class="secondary backend-add-button" onclick="discoverBackends()">Discover</button>
         </div>
       </div>
       <div id="backend-panel" class="chips" style="margin-top:12px;"></div>
@@ -773,6 +775,16 @@ INDEX_HTML = """<!doctype html>
       renderBackendPanel();
     }
 
+    function mergeDiscoveredBackends(items) {
+      const discovered = Array.isArray(items)
+        ? items.map((item) => String(item?.url || '').trim()).filter((item) => item && item !== DEFAULT_BACKEND_URL)
+        : [];
+      if (!discovered.length) return;
+      const state = loadBackendState();
+      const merged = [...new Set([...state.backends, ...discovered])];
+      saveBackendState(merged, state.selected || DEFAULT_BACKEND_URL);
+    }
+
     function apiPath(path) {
       const backend = loadBackendState().selected || DEFAULT_BACKEND_URL;
       const u = new URL(path, window.location.origin);
@@ -826,6 +838,18 @@ INDEX_HTML = """<!doctype html>
       const state = loadBackendState();
       saveBackendState(state.backends.filter((item) => item !== backend), state.selected === backend ? DEFAULT_BACKEND_URL : state.selected);
       refresh();
+    }
+
+    async function discoverBackends() {
+      const r = await fetch('/api/discovery');
+      const data = await r.json();
+      lastResult = data;
+      mergeDiscoveredBackends(data.items || []);
+      document.getElementById('result').textContent = Array.isArray(data.items) && data.items.length
+        ? `Discovered ${data.items.length} backend service(s)`
+        : 'No Bonjour backends discovered';
+      document.getElementById('result-json').textContent = JSON.stringify(data, null, 2);
+      await refresh();
     }
 
     function toggleTheme() {
@@ -1575,6 +1599,7 @@ INDEX_HTML = """<!doctype html>
       loadDeclaration().catch(() => {});
     }
     renderBackendPanel();
+    discoverBackends().catch(() => {});
     applyPage();
   </script>
 </body>
@@ -1666,6 +1691,9 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
         if path == "/api/lifecycle":
             payload = get_lifecycle_from(backend_url)
             self._send_json(payload, status=self._forward_status(payload))
+            return
+        if path == "/api/discovery":
+            self._send_json(discover_http_services())
             return
         self._send_json({"error": "not_found"}, status=404)
 
