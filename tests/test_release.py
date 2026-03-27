@@ -13,8 +13,8 @@ SPEC.loader.exec_module(release_script)
 
 
 class ReleaseScriptTests(unittest.TestCase):
-    def test_next_release_version_bumps_stable_patch(self) -> None:
-        self.assertEqual(release_script.next_release_version("0.1.17"), "0.1.18")
+    def test_parse_version_accepts_stable_semver(self) -> None:
+        self.assertEqual(release_script.parse_version("0.1.18"), (0, 1, 18))
 
     def test_version_to_tag_uses_stable_tag_shape(self) -> None:
         self.assertEqual(release_script.version_to_tag("0.1.18"), "v0.1.18")
@@ -22,6 +22,18 @@ class ReleaseScriptTests(unittest.TestCase):
     def test_parse_version_rejects_prerelease_shape(self) -> None:
         with self.assertRaises(SystemExit):
             release_script.parse_version("0.1.18-alpha.1")
+
+    def test_build_plan_marks_manual_fallback_role(self) -> None:
+        plan = release_script.build_plan(
+            current="0.1.38",
+            next_version="0.1.39",
+            tag="v0.1.39",
+            push=False,
+            run_tests=True,
+            allow_dirty=False,
+        )
+        self.assertIn("manual fallback release helper", plan[0])
+        self.assertIn("requested version: 0.1.39", plan)
 
 
 if __name__ == "__main__":
