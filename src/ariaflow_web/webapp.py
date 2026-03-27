@@ -265,32 +265,70 @@ INDEX_HTML = """<!doctype html>
       box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.12);
       background: rgba(8, 17, 31, 0.82);
     }
-    .control-groups {
+    .system-layout {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
     }
-    .control-group {
+    .system-engine {
+      display: grid;
+      gap: 12px;
+    }
+    .system-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+    .system-card {
       border: 1px solid var(--line);
       background: rgba(8, 17, 31, 0.65);
       border-radius: 14px;
-      padding: 12px;
+      padding: 14px;
       display: grid;
-      gap: 10px;
+      gap: 12px;
     }
-    .control-group h3 {
+    .system-card h3 {
       margin: 0;
-      font-size: 0.92rem;
+      font-size: 0.98rem;
       letter-spacing: -0.01em;
     }
-    .control-group .meta {
-      font-size: 0.85rem;
+    .system-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
     }
-    .control-actions {
+    .system-copy {
+      display: grid;
+      gap: 6px;
+    }
+    .system-copy .meta {
+      font-size: 0.88rem;
+    }
+    .system-facts {
       display: grid;
       gap: 8px;
     }
-    .control-actions button {
+    .system-fact {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.92rem;
+      color: var(--muted);
+      border-top: 1px solid rgba(148, 163, 184, 0.12);
+      padding-top: 8px;
+    }
+    .system-fact strong {
+      color: var(--text);
+      font-weight: 600;
+      text-align: right;
+      word-break: break-word;
+    }
+    .system-actions {
+      display: grid;
+      gap: 8px;
+    }
+    .system-actions button {
       width: 100%;
     }
     .item-top {
@@ -465,7 +503,7 @@ INDEX_HTML = """<!doctype html>
       .hero, .summary { grid-template-columns: 1fr; }
       .hero { align-items: start; }
       .span-8, .span-7, .span-5, .span-4, .span-6 { grid-column: span 12; }
-      .control-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .system-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 720px) {
       .queue-add-group {
@@ -485,9 +523,6 @@ INDEX_HTML = """<!doctype html>
         width: 100%;
         justify-self: stretch;
         align-self: stretch;
-      }
-      .control-groups {
-        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -567,38 +602,30 @@ INDEX_HTML = """<!doctype html>
       <div class="span-12 show-dashboard page-only">
         <div class="panel toolbar">
           <div class="section-title" style="margin-bottom:0;">
-            <h2>Controls</h2>
-            <div class="hint">Separated by function: run, queue, session, and startup policy</div>
+            <h2>Engine</h2>
+            <div class="hint">The runner powers queue processing, but the queue and session stay separate concepts</div>
           </div>
-          <div class="control-groups">
-            <div class="control-group">
-              <h3>Engine</h3>
-              <div class="meta"><span>Start or stop the queue runner.</span></div>
-              <div class="control-actions">
+          <div class="system-layout">
+            <div class="system-card system-engine">
+              <div class="system-head">
+                <div class="system-copy">
+                  <h3>Engine</h3>
+                  <div class="meta"><span>The runner is the executor. It powers the queue but does not define the job grouping.</span></div>
+                </div>
+                <span class="badge" id="engine-state">idle</span>
+              </div>
+              <div class="system-facts">
+                <div class="system-fact"><span>Runner state</span><strong id="engine-detail">Idle</strong></div>
+                <div class="system-fact"><span>Startup policy</span><strong id="engine-policy">Manual start</strong></div>
+                <div class="system-fact"><span>Current mode</span><strong id="engine-mode">idle</strong></div>
+              </div>
+              <div class="system-actions">
                 <button class="secondary" id="runner-btn" onclick="toggleRunner()">Start engine</button>
+                <label class="refresh-control" style="justify-self:start;">
+                  <input type="checkbox" id="auto-preflight" onchange="setAutoPreflightPreference(this.checked)">
+                  Auto-check before start
+                </label>
               </div>
-            </div>
-            <div class="control-group">
-              <h3>Queue</h3>
-              <div class="meta"><span>Pause or resume active transfers without stopping the engine.</span></div>
-              <div class="control-actions">
-                <button class="secondary" id="toggle-btn" onclick="toggleQueue()">Pause queue</button>
-              </div>
-            </div>
-            <div class="control-group">
-              <h3>Session</h3>
-              <div class="meta"><span>Start a fresh run boundary for logs and tracking.</span></div>
-              <div class="control-actions">
-                <button class="secondary" onclick="newSession()">New run</button>
-              </div>
-            </div>
-            <div class="control-group">
-              <h3>Startup Policy</h3>
-              <div class="meta"><span>Choose whether readiness checks should run automatically before engine start.</span></div>
-              <label class="refresh-control" style="justify-self:start;">
-                <input type="checkbox" id="auto-preflight" onchange="setAutoPreflightPreference(this.checked)">
-                Auto-check before start
-              </label>
             </div>
           </div>
         </div>
@@ -607,9 +634,52 @@ INDEX_HTML = """<!doctype html>
         <div class="panel">
           <div class="section-title">
             <h2>Queue</h2>
-            <div class="hint">Multiple jobs supported; live transfer shown in the row</div>
+            <div class="hint">Jobs live inside the queue; pause or resume the flow without stopping the engine</div>
+          </div>
+          <div class="system-card" style="margin-bottom:12px;">
+            <div class="system-head">
+              <div class="system-copy">
+                <h3>Queue State</h3>
+                <div class="meta"><span>The shared workflow state. Jobs wait here and advance only when the engine is running.</span></div>
+              </div>
+              <span class="badge" id="queue-state">idle</span>
+            </div>
+            <div class="system-facts">
+              <div class="system-fact"><span>Queue flow</span><strong id="queue-detail">Waiting for state</strong></div>
+              <div class="system-fact"><span>Active job</span><strong id="queue-active">none</strong></div>
+              <div class="system-fact"><span>Jobs in queue</span><strong id="queue-count">0 queued</strong></div>
+            </div>
+            <div class="system-actions">
+              <button class="secondary" id="toggle-btn" onclick="toggleQueue()">Pause queue</button>
+            </div>
           </div>
           <div id="queue" class="list">Loading...</div>
+        </div>
+      </div>
+      <div class="span-12 show-dashboard page-only">
+        <div class="panel">
+          <div class="section-title">
+            <h2>Session</h2>
+            <div class="hint">The current run context that groups queue activity, logs, and job history</div>
+          </div>
+          <div class="system-card">
+            <div class="system-head">
+              <div class="system-copy">
+                <h3>Current Session</h3>
+                <div class="meta"><span>The current run context. Jobs, logs, and queue activity are grouped under this session.</span></div>
+              </div>
+              <span class="badge" id="session-state">none</span>
+            </div>
+            <div class="system-facts">
+              <div class="system-fact"><span>Current session</span><strong id="session-detail">-</strong></div>
+              <div class="system-fact"><span>Started</span><strong id="session-started">-</strong></div>
+              <div class="system-fact"><span>Last seen</span><strong id="session-last-seen">-</strong></div>
+              <div class="system-fact"><span>Closed</span><strong id="session-closed">-</strong></div>
+            </div>
+            <div class="system-actions">
+              <button class="secondary" onclick="newSession()">New run</button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="span-5 show-bandwidth page-only">
@@ -1126,6 +1196,25 @@ INDEX_HTML = """<!doctype html>
       if (state?.session_id && state?.session_closed_at) return `closed ${String(state.session_id).slice(0, 8)}`;
       return "-";
     }
+    function runnerStateLabel(state, reachable=true) {
+      if (!reachable) return 'offline';
+      return state?.running ? 'running' : 'idle';
+    }
+    function queueStateLabel(state, items, active) {
+      if (!state?.running) return 'waiting for engine';
+      if (state?.paused) return 'paused';
+      if (active && active.status && active.status !== 'idle') return active.status;
+      if ((items || []).length) return 'ready';
+      return 'idle';
+    }
+    function sessionStateLabel(state) {
+      if (state?.session_id && !state?.session_closed_at) return 'open';
+      if (state?.session_id && state?.session_closed_at) return 'closed';
+      return 'none';
+    }
+    function timestampLabel(value) {
+      return value || '-';
+    }
     function backendUnavailableLabel(data) {
       const error = data?.backend?.error || data?.error || 'backend unavailable';
       return `Backend unavailable · ${error}`;
@@ -1250,10 +1339,10 @@ INDEX_HTML = """<!doctype html>
       }
       if (name === "networkquality") {
         if (reason === "ready") return "installed · usable";
-        if (reason === "timeout") return "installed · slow";
-        if (reason === "no_output") return "installed · no parse";
+        if (reason === "timeout" || reason === "probe_timeout_no_parse" || reason === "probe_timeout_partial_capture") return "installed · probe timeout";
+        if (reason === "no_output" || reason === "probe_no_parse") return "installed · no parse";
         if (reason === "missing") return "absent";
-        if (reason === "error") return "installed · error";
+        if (reason === "error" || reason === "probe_error") return "installed · error";
         return result.outcome || "unknown";
       }
       if (reason === "match") return "loaded";
@@ -1439,7 +1528,21 @@ INDEX_HTML = """<!doctype html>
           document.getElementById('active-label').textContent = 'none';
           document.getElementById('sum-speed').textContent = 'idle';
           document.getElementById('chip-runner').textContent = 'offline';
+          document.getElementById('chip-session').textContent = '-';
           document.getElementById('chip-error').textContent = data?.backend?.error || 'connection refused';
+          document.getElementById('engine-state').textContent = 'offline';
+          document.getElementById('engine-detail').textContent = 'Backend unavailable';
+          document.getElementById('engine-policy').textContent = autoPreflight ? 'Auto-check before start' : 'Manual start';
+          document.getElementById('engine-mode').textContent = 'offline';
+          document.getElementById('queue-state').textContent = 'offline';
+          document.getElementById('queue-detail').textContent = 'Backend unavailable';
+          document.getElementById('queue-active').textContent = 'none';
+          document.getElementById('queue-count').textContent = '0 queued';
+          document.getElementById('session-state').textContent = 'offline';
+          document.getElementById('session-detail').textContent = '-';
+          document.getElementById('session-started').textContent = '-';
+          document.getElementById('session-last-seen').textContent = '-';
+          document.getElementById('session-closed').textContent = '-';
           document.getElementById('bw-source').textContent = 'offline';
           document.getElementById('bw-down').textContent = backendUnavailableLabel(data);
           document.getElementById('bw-cap').textContent = '-';
@@ -1464,12 +1567,27 @@ INDEX_HTML = """<!doctype html>
         document.getElementById('queue').innerHTML = items.length ? items.map(renderQueueItem).join("") : "<div class='item'>Queue is empty.</div>";
         document.getElementById('chip-error').textContent = state.last_error || data.bandwidth?.reason || 'none';
         document.getElementById('chip-cap').textContent = data.bandwidth?.cap_mbps ? humanCap(formatMbps(data.bandwidth.cap_mbps)) : humanCap(data.bandwidth?.limit || data.bandwidth_global?.limit || '-');
-        document.getElementById('chip-runner').textContent = data.state && data.state.running ? 'running' : 'idle';
+        document.getElementById('chip-runner').textContent = runnerStateLabel(state);
         document.getElementById('chip-session').textContent = sessionLabel(state);
         const toggleButton = document.getElementById('toggle-btn');
         if (toggleButton) toggleButton.textContent = data.state && data.state.paused ? 'Resume queue' : 'Pause queue';
         const runnerButton = document.getElementById('runner-btn');
         if (runnerButton) runnerButton.textContent = data.state && data.state.running ? 'Stop engine' : 'Start engine';
+        document.getElementById('engine-state').textContent = runnerStateLabel(state);
+        document.getElementById('engine-detail').textContent = state?.running ? 'Runner is processing queue work' : 'Runner is stopped';
+        document.getElementById('engine-policy').textContent = autoPreflight ? 'Auto-check before start' : 'Manual start';
+        document.getElementById('engine-mode').textContent = activeStateLabel(liveActive, state);
+        document.getElementById('queue-state').textContent = queueStateLabel(state, items, liveActive);
+        document.getElementById('queue-detail').textContent = state?.paused ? 'Queue is paused' : (state?.running ? 'Queue can advance' : 'Waiting for engine start');
+        document.getElementById('queue-active').textContent = summarizeActiveItem(liveActive, state, items);
+        document.getElementById('queue-count').textContent = `${data.summary?.queued || 0} queued · ${items.length} total`;
+        document.getElementById('session-state').textContent = sessionStateLabel(state);
+        document.getElementById('session-detail').textContent = sessionLabel(state);
+        document.getElementById('session-started').textContent = timestampLabel(state.session_started_at);
+        document.getElementById('session-last-seen').textContent = timestampLabel(state.session_last_seen_at);
+        document.getElementById('session-closed').textContent = state.session_closed_at
+          ? `${state.session_closed_at}${state.session_closed_reason ? ` · ${state.session_closed_reason}` : ''}`
+          : '-';
         document.getElementById('mode-label').textContent = activeStateLabel(liveActive, state);
         document.getElementById('active-label').textContent = summarizeActiveItem(liveActive, state, items);
         document.getElementById('sum-speed').textContent = speed ? formatRate(speed) : "idle";
