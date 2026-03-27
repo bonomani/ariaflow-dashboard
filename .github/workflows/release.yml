@@ -21,6 +21,11 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Resolve release metadata
         id: release_meta
         run: |
@@ -48,14 +53,7 @@ jobs:
           esac
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "ref=$ref" >> "$GITHUB_OUTPUT"
           echo "should_tag_push=$should_tag_push" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.release_meta.outputs.ref }}
-          fetch-depth: 0
 
       - name: Set up git identity
         if: steps.release_meta.outputs.should_tag_push == 'true'
