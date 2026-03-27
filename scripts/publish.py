@@ -104,7 +104,7 @@ def run_py_compile() -> None:
         sorted(glob.glob(str(ROOT / "src" / "ariaflow_web" / "*.py")))
         + sorted(glob.glob(str(ROOT / "src" / "aria_queue" / "*.py")))
         + sorted(glob.glob(str(ROOT / "tests" / "*.py")))
-        + [str(ROOT / "scripts" / "release.py"), str(ROOT / "scripts" / "homebrew_formula.py")]
+        + [str(ROOT / "scripts" / "publish.py"), str(ROOT / "scripts" / "homebrew_formula.py")]
     )
     run(["python3", "-m", "py_compile", *files])
 
@@ -138,12 +138,12 @@ def build_plan(current: str, next_version: str | None, tag: str | None, push: bo
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Rebase-safe push and explicit release helper for ariaflow-web. Normal patch releases come from the CI workflow on main pushes."
+        description="Rebase-safe push and explicit publish helper for ariaflow-web. Normal patch releases come from the CI workflow on main pushes."
     )
     parser.add_argument("--version", help="Trigger an explicit stable release like 0.1.18 via workflow_dispatch.")
-    parser.add_argument("--no-tests", action="store_true", help="Skip local tests before committing.")
+    parser.add_argument("--no-tests", action="store_true", help="Skip local tests before publishing.")
     parser.add_argument("--allow-dirty", action="store_true", help="Allow dirty trees only for dry-run planning. Real pushes still require a clean tree.")
-    parser.add_argument("--dry-run", action="store_true", help="Print the planned release steps and exit.")
+    parser.add_argument("--dry-run", action="store_true", help="Print the planned publish steps and exit.")
     parser.add_argument("--push", action="store_true", help="Push main with rebase-safe sync. Required for real sync/release actions.")
     args = parser.parse_args()
 

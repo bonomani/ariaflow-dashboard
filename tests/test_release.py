@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 
-SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "release.py"
+SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "publish.py"
 SPEC = importlib.util.spec_from_file_location("release_script", SCRIPT_PATH)
 assert SPEC is not None and SPEC.loader is not None
 release_script = importlib.util.module_from_spec(SPEC)

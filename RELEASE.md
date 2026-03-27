@@ -17,8 +17,8 @@ Do not publish alpha tags or prereleases from this repo.
 Run the helper from a clean checkout on `main`:
 
 ```bash
-python3 scripts/release.py --dry-run
-python3 scripts/release.py --push
+python3 scripts/publish.py --dry-run
+python3 scripts/publish.py --push
 ```
 
 The helper will:
@@ -26,25 +26,20 @@ The helper will:
 - validate that `pyproject.toml` and `src/ariaflow_web/__init__.py` agree
 - refuse to reuse an existing tag
 - run `py_compile` and `python3 -m unittest tests.test_web tests.test_cli -v` unless `--no-tests` is used
-- bump the package version
-- commit the version bump
-- create the matching `vX.Y.Z` tag
-- push `main` and tags when `--push` is given
-
-Once the repo is on a stable version, the helper bumps the patch version
-automatically, for example `0.1.17` to `0.1.18`.
+- push `main` with a `pull --rebase` retry when `--push` is given
+- optionally trigger `workflow_dispatch` for an explicit stable version with `--version X.Y.Z`
 
 Useful flags:
 
 - `--dry-run`: print the release plan without changing files
-- `--version 0.1.18`: set an explicit stable version instead of auto-bumping
+- `--version 0.1.18`: dispatch an explicit stable release on GitHub Actions
 - `--no-tests`: skip local tests
-- `--allow-dirty`: bypass the clean-tree check
+- `--allow-dirty`: bypass the clean-tree check for dry-run planning only
 
-## After Tag Push
+## After Push
 
 The GitHub workflow in `.github/workflows/release.yml` runs automatically on
-stable tag pushes. It will:
+`main` pushes and can also be triggered explicitly with `workflow_dispatch`. It will:
 
 - run the test suite again on GitHub Actions
 - build the source distribution
@@ -53,7 +48,7 @@ stable tag pushes. It will:
 
 ## Manual Flow
 
-1. Start from a clean checkout on the branch you release from.
+1. Start from a clean checkout on `main`.
 2. Run the local checks:
 
 ```bash
@@ -61,10 +56,15 @@ python3 -m unittest tests.test_web tests.test_cli
 python3 -m py_compile src/aria_queue/webapp.py src/aria_queue/cli.py src/ariaflow_web/cli.py
 ```
 
-3. Bump `pyproject.toml` and `src/ariaflow_web/__init__.py` to the same version.
-4. Commit the version bump.
-5. Create the matching tag, for example `v0.1.14`.
-6. Push the branch and tag.
+3. Commit the code change on `main`.
+4. Push `main`.
+5. Let GitHub Actions create the release commit, stable tag, GitHub release, and Homebrew update.
+
+If you need to force a specific stable version:
+
+```bash
+python3 scripts/publish.py --version 0.1.18 --push
+```
 
 ## Verification
 
