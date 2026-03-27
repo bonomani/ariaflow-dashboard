@@ -800,11 +800,11 @@ INDEX_HTML = """<!doctype html>
       const { backends, selected } = loadBackendState();
       const localLabel = `${DEFAULT_BACKEND_URL}${selected === DEFAULT_BACKEND_URL ? ' · active' : ''}`;
       const renderManual = (backend) => {
-        const escaped = backend.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        const encoded = encodeURIComponent(backend);
         return `
           <span class="chip">
-            <button class="${backend === selected ? '' : 'secondary'}" onclick="selectBackend('${escaped}')">${backend}${backend === selected ? ' · active' : ''}</button>
-            <button class="secondary icon-btn" onclick="removeBackend('${escaped}')" title="Remove backend" aria-label="Remove backend">×<span class="sr-only">Remove backend</span></button>
+            <button class="${backend === selected ? '' : 'secondary'}" onclick="selectBackend(decodeURIComponent('${encoded}'))">${backend}${backend === selected ? ' · active' : ''}</button>
+            <button class="secondary icon-btn" onclick="removeBackend(decodeURIComponent('${encoded}'))" title="Remove backend" aria-label="Remove backend">×<span class="sr-only">Remove backend</span></button>
           </span>
         `;
       };
