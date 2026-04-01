@@ -16,6 +16,7 @@ from .client import (
     get_lifecycle_from,
     get_log_from,
     get_status_from,
+    item_action_from,
     lifecycle_action_from,
     pause_from,
     preflight_from,
@@ -531,6 +532,25 @@ INDEX_HTML = """<!doctype html>
       overflow: auto;
       font-size: 0.9rem;
     }
+    .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .filter-btn {
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(8, 17, 31, 0.55);
+      color: var(--muted);
+      font-size: 0.82rem;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .filter-btn.active {
+      background: linear-gradient(180deg, #7dd3fc, #38bdf8);
+      color: #082f49;
+      border-color: transparent;
+      font-weight: 700;
+    }
+    :root[data-theme="light"] .filter-btn { background: rgba(246, 237, 226, 0.8); }
+    :root[data-theme="light"] .filter-btn.active { background: linear-gradient(180deg, #0f766e, #0d9488); color: #fff; }
     .footer { color: var(--muted); font-size: 0.88rem; margin-top: 10px; }
     .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
     .chip {
@@ -727,7 +747,7 @@ INDEX_HTML = """<!doctype html>
                 <div class="metric"><div class="label">Queued</div><div class="value" id="sum-queued">0</div><div class="sub">waiting jobs</div></div>
                 <div class="metric"><div class="label">Done</div><div class="value" id="sum-done">0</div><div class="sub">completed</div></div>
                 <div class="metric"><div class="label">Errors</div><div class="value" id="sum-error">0</div><div class="sub">failed jobs</div></div>
-                <div class="metric"><div class="label">Speed</div><div class="value" id="queue-speed">idle</div><div class="sub">current transfer rate</div></div>
+                <div class="metric"><div class="label">Speed</div><div class="value" id="queue-speed">idle</div><div class="sub">current transfer rate</div><div id="global-speed-chart" style="margin-top:6px;"></div></div>
               </div>
             </div>
             <div class="system-head">
@@ -743,6 +763,17 @@ INDEX_HTML = """<!doctype html>
             <div class="system-actions">
               <button class="secondary" id="toggle-btn" onclick="toggleQueue()">Pause queue</button>
             </div>
+          </div>
+          <div style="margin-bottom:10px;">
+            <input id="queue-search" type="text" placeholder="Search by URL or filename..." oninput="setQueueSearch(this.value)" style="padding:8px 12px; border-radius:999px; font-size:0.88rem;">
+          </div>
+          <div class="filter-bar" id="queue-filters">
+            <button class="filter-btn active" data-filter="all" onclick="setQueueFilter('all')">All</button>
+            <button class="filter-btn" data-filter="queued" onclick="setQueueFilter('queued')">Queued</button>
+            <button class="filter-btn" data-filter="downloading" onclick="setQueueFilter('downloading')">Downloading</button>
+            <button class="filter-btn" data-filter="paused" onclick="setQueueFilter('paused')">Paused</button>
+            <button class="filter-btn" data-filter="done" onclick="setQueueFilter('done')">Done</button>
+            <button class="filter-btn" data-filter="error" onclick="setQueueFilter('error')">Error</button>
           </div>
           <div id="queue" class="list">Loading...</div>
         </div>
@@ -909,6 +940,150 @@ INDEX_HTML = """<!doctype html>
     let refreshTimer = null;
     let refreshInterval = 10000;
     let lastDeclaration = null;
+    let queueFilter = 'all';
+    let queueSearch = '';
+    const speedHistory = {};
+    const SPEED_HISTORY_MAX = 30;
+    let previousItemStatuses = {};
+
+    function formatEta(totalLength, completedLength, speed) {
+      const total = Number(totalLength || 0);
+      const done = Number(completedLength || 0);
+      const rate = Number(speed || 0);
+      if (rate <= 0 || total <= done) return null;
+      const secs = Math.round((total - done) / rate);
+      if (secs < 60) return `${secs}s`;
+      if (secs < 3600) return `${Math.floor(secs / 60)}m ${secs % 60}s`;
+      const h = Math.floor(secs / 3600);
+      const m = Math.floor((secs % 3600) / 60);
+      return `${h}h ${m}m`;
+    }
+
+    function recordSpeed(itemId, speed) {
+      if (!itemId) return;
+      if (!speedHistory[itemId]) speedHistory[itemId] = [];
+      speedHistory[itemId].push(Number(speed || 0));
+      if (speedHistory[itemId].length > SPEED_HISTORY_MAX) speedHistory[itemId].shift();
+    }
+
+    function renderSparkline(itemId) {
+      const data = speedHistory[itemId];
+      if (!data || data.length < 2) return '';
+      const max = Math.max(...data, 1);
+      const w = 120, h = 28;
+      const step = w / (data.length - 1);
+      const points = data.map((v, i) => `${(i * step).toFixed(1)},${(h - (v / max) * (h - 2) - 1).toFixed(1)}`).join(' ');
+      return `<svg width="${w}" height="${h}" style="display:block;margin-top:6px;" viewBox="0 0 ${w} ${h}">
+        <polyline points="${points}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg>`;
+    }
+
+    const globalSpeedHistory = [];
+    const GLOBAL_SPEED_MAX = 40;
+
+    function recordGlobalSpeed(speed) {
+      globalSpeedHistory.push(Number(speed || 0));
+      if (globalSpeedHistory.length > GLOBAL_SPEED_MAX) globalSpeedHistory.shift();
+    }
+
+    function renderGlobalSparkline() {
+      const el = document.getElementById('global-speed-chart');
+      if (!el) return;
+      const data = globalSpeedHistory;
+      if (data.length < 2) { el.innerHTML = ''; return; }
+      const max = Math.max(...data, 1);
+      const w = 200, h = 40;
+      const step = w / (data.length - 1);
+      const points = data.map((v, i) => `${(i * step).toFixed(1)},${(h - (v / max) * (h - 2) - 1).toFixed(1)}`).join(' ');
+      const peakLabel = formatRate(max);
+      el.innerHTML = `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;">
+        <polyline points="${points}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg><span style="font-size:0.78rem;color:var(--muted);">peak ${peakLabel}</span>`;
+    }
+
+    function checkNotifications(items) {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      items.forEach((item) => {
+        const id = item.id || item.url || '';
+        const status = (item.status || '').toLowerCase();
+        const prev = previousItemStatuses[id];
+        if (prev && prev !== status) {
+          if (status === 'done') {
+            new Notification('Download complete', { body: shortName(item.output || item.url || ''), tag: `ariaflow-${id}` });
+          } else if (status === 'error' || status === 'failed') {
+            new Notification('Download failed', { body: shortName(item.output || item.url || '') + (item.error_message ? ` — ${item.error_message}` : ''), tag: `ariaflow-${id}` });
+          }
+        }
+        previousItemStatuses[id] = status;
+      });
+    }
+
+    function initNotifications() {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+
+    function setQueueFilter(filter) {
+      queueFilter = filter;
+      document.querySelectorAll('#queue-filters .filter-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      renderFilteredQueue();
+    }
+    function setQueueSearch(value) {
+      queueSearch = (value || '').toLowerCase();
+      renderFilteredQueue();
+    }
+    function filterQueueItems(items) {
+      let filtered = items;
+      if (queueFilter !== 'all') {
+        filtered = filtered.filter((item) => {
+          const status = (item.status || 'unknown').toLowerCase();
+          const normalized = status === 'recovered' ? 'paused' : status;
+          if (queueFilter === 'downloading') return ['downloading', 'active'].includes(normalized);
+          return normalized === queueFilter;
+        });
+      }
+      if (queueSearch) {
+        filtered = filtered.filter((item) => {
+          const url = (item.url || '').toLowerCase();
+          const output = (item.output || '').toLowerCase();
+          const liveUrl = (item.live?.url || '').toLowerCase();
+          return url.includes(queueSearch) || output.includes(queueSearch) || liveUrl.includes(queueSearch);
+        });
+      }
+      return filtered;
+    }
+    function renderFilteredQueue() {
+      if (!lastStatus) return;
+      const state = lastStatus.state || {};
+      const active = lastStatus.active || null;
+      const actives = Array.isArray(lastStatus.actives) ? lastStatus.actives : (lastStatus.active ? [lastStatus.active] : []);
+      const items = enrichQueueItems(lastStatus.items || [], actives, state);
+      const filtered = filterQueueItems(items);
+      document.getElementById('queue').innerHTML = filtered.length
+        ? filtered.map(renderQueueItem).join("")
+        : `<div class='item'>No ${queueFilter === 'all' ? '' : queueFilter + ' '}items.</div>`;
+      updateFilterCounts(items);
+    }
+    function updateFilterCounts(items) {
+      const counts = { all: items.length, queued: 0, downloading: 0, paused: 0, done: 0, error: 0 };
+      items.forEach((item) => {
+        const status = ((item.status || 'unknown') === 'recovered' ? 'paused' : (item.status || 'unknown')).toLowerCase();
+        if (status === 'queued') counts.queued++;
+        else if (['downloading', 'active'].includes(status)) counts.downloading++;
+        else if (status === 'paused') counts.paused++;
+        else if (status === 'done') counts.done++;
+        else if (status === 'error') counts.error++;
+      });
+      document.querySelectorAll('#queue-filters .filter-btn').forEach((btn) => {
+        const f = btn.dataset.filter;
+        const count = counts[f] ?? 0;
+        const label = f.charAt(0).toUpperCase() + f.slice(1);
+        btn.textContent = count > 0 ? `${label} (${count})` : label;
+      });
+    }
     const path = window.location.pathname.replace(/[/]+$/, "");
     const page = path === "/bandwidth"
       ? "bandwidth"
@@ -1355,10 +1530,13 @@ INDEX_HTML = """<!doctype html>
           ? 'paused'
           : 'idle';
       const recoveredMeta = item.recovered_at ? `<span>Recovered ${item.recovered_at}</span>` : "";
+      const eta = formatEta(totalLength, completedLength, speed);
+      if (item.id && activeish) recordSpeed(item.id, speed || 0);
+      const sparkline = item.id ? renderSparkline(item.id) : '';
       const activePanel = showTransferPanel ? `
         <div class="meter"><div style="width:${Math.round(Number(computedProgress || 0))}%"></div></div>
         <div class="statusline">
-          <span>${Math.round(Number(computedProgress || 0))}% done</span>
+          <span>${Math.round(Number(computedProgress || 0))}% done${eta ? ` · ETA ${eta}` : ''}</span>
           <span>${rateLabel}</span>
         </div>
         <div class="meta">
@@ -1367,8 +1545,21 @@ INDEX_HTML = """<!doctype html>
           ${recoveredMeta}
           ${item.error_message ? `<span class="mono">${item.error_message}</span>` : ""}
         </div>
+        ${sparkline}
       ` : "";
       const stateLabel = liveStatus ? `${normalizedStatus} · aria2:${liveStatus}` : normalizedStatus;
+      const itemId = item.id || '';
+      const canPause = ['queued', 'downloading'].includes(normalizedStatus);
+      const canResume = normalizedStatus === 'paused';
+      const canRetry = ['error', 'failed', 'stopped'].includes(normalizedStatus);
+      const actionBtns = itemId ? `
+        <div class="action-strip" style="margin-top:8px;">
+          ${canPause ? `<button class="secondary icon-btn" onclick="itemAction('${itemId}','pause')" title="Pause">&#9646;&#9646;<span class="sr-only">Pause</span></button>` : ''}
+          ${canResume ? `<button class="secondary icon-btn" onclick="itemAction('${itemId}','resume')" title="Resume">&#9654;<span class="sr-only">Resume</span></button>` : ''}
+          ${canRetry ? `<button class="secondary icon-btn" onclick="itemAction('${itemId}','retry')" title="Retry">&#8635;<span class="sr-only">Retry</span></button>` : ''}
+          <button class="secondary icon-btn" onclick="itemAction('${itemId}','remove')" title="Remove">&#10005;<span class="sr-only">Remove</span></button>
+        </div>
+      ` : '';
       return `
         <div class="item compact ${activeish ? 'active-item' : ''}">
         <div class="item-top">
@@ -1381,6 +1572,7 @@ INDEX_HTML = """<!doctype html>
           ${detail ? `<span class="mono">${detail}</span>` : ""}
         </div>
           ${activePanel}
+          ${actionBtns}
         </div>
       `;
     }
@@ -1687,7 +1879,12 @@ INDEX_HTML = """<!doctype html>
         const liveActive = activeTransfer(actives, active, state);
         const speed = liveActive?.downloadSpeed || active?.downloadSpeed || data.state?.download_speed || null;
         const items = enrichQueueItems(data.items || [], actives, state);
-        document.getElementById('queue').innerHTML = items.length ? items.map(renderQueueItem).join("") : "<div class='item'>Queue is empty.</div>";
+        checkNotifications(items);
+        const filtered = filterQueueItems(items);
+        document.getElementById('queue').innerHTML = filtered.length
+          ? filtered.map(renderQueueItem).join("")
+          : `<div class='item'>No ${queueFilter === 'all' ? '' : queueFilter + ' '}items.</div>`;
+        updateFilterCounts(items);
         document.getElementById('backend-version').textContent = data.backend?.version || 'unreported';
         document.getElementById('backend-pid').textContent = data.backend?.pid || 'unreported';
         document.getElementById('backend-error').textContent = state.last_error || data.bandwidth?.reason || 'none';
@@ -1704,6 +1901,8 @@ INDEX_HTML = """<!doctype html>
         document.getElementById('queue-detail').textContent = state?.paused ? 'Queue is paused' : (state?.running ? 'Queue can advance' : 'Waiting for engine start');
         document.getElementById('queue-active').textContent = summarizeActiveItem(liveActive, state, items);
         document.getElementById('queue-speed').textContent = speed ? formatRate(speed) : "idle";
+        recordGlobalSpeed(speed || 0);
+        renderGlobalSparkline();
         document.getElementById('session-state').textContent = sessionStateLabel(state);
         document.getElementById('session-detail').textContent = sessionLabel(state);
         document.getElementById('session-started').textContent = timestampLabel(state.session_started_at);
@@ -1838,6 +2037,20 @@ INDEX_HTML = """<!doctype html>
       document.getElementById('result').textContent = `${target} ${action} requested`;
       document.getElementById('result-json').textContent = JSON.stringify(data, null, 2);
     }
+    async function itemAction(itemId, action) {
+      const r = await fetch(apiPath(`/api/item/${encodeURIComponent(itemId)}/${encodeURIComponent(action)}`), { method: 'POST' });
+      const data = await r.json();
+      lastResult = data;
+      if (!r.ok || data.ok === false) {
+        document.getElementById('result').textContent = data.message || `${action} failed`;
+        document.getElementById('result-json').textContent = JSON.stringify(data, null, 2);
+        await refresh();
+        return;
+      }
+      document.getElementById('result').textContent = `Item ${action} done`;
+      document.getElementById('result-json').textContent = JSON.stringify(data, null, 2);
+      await refresh();
+    }
     async function newSession() {
       const r = await fetch(apiPath('/api/session'), {
         method: 'POST',
@@ -1892,6 +2105,7 @@ INDEX_HTML = """<!doctype html>
     document.getElementById('action-filter')?.addEventListener('change', refreshActionLog);
     document.getElementById('session-filter')?.addEventListener('change', refreshActionLog);
     initTheme();
+    initNotifications();
     refresh();
     setRefreshInterval(10000);
     if (page === 'lifecycle') loadLifecycle();
@@ -2088,6 +2302,19 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
             self._invalidate_status_cache()
             response = set_session_from(backend_url, action)
             self._send_json(response, status=self._forward_status(response))
+            return
+
+        if path.startswith("/api/item/"):
+            parts = path.split("/")
+            if len(parts) == 5 and parts[1] == "api" and parts[2] == "item":
+                item_id = parts[3]
+                action = parts[4]
+                if action in {"pause", "resume", "remove", "retry"}:
+                    self._invalidate_status_cache()
+                    response = item_action_from(backend_url, item_id, action)
+                    self._send_json(response, status=self._forward_status(response))
+                    return
+            self._send_json({"error": "not_found"}, status=404)
             return
 
         if path == "/api/pause":

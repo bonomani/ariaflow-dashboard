@@ -164,6 +164,10 @@ def resume_from(base_url: str) -> dict:
     return _request("/api/resume", method="POST", base_url=base_url)
 
 
+def item_action_from(base_url: str, item_id: str, action: str) -> dict:
+    return _request(f"/api/item/{item_id}/{action}", method="POST", base_url=base_url)
+
+
 def lifecycle_action(target: str, action: str) -> dict:
     return _request("/api/lifecycle/action", method="POST", payload={"target": target, "action": action})
 
