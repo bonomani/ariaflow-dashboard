@@ -1,11 +1,29 @@
+# Python
 __pycache__/
 *.py[cod]
+*.egg-info/
+*.egg
+
+# Testing / Linting
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
 .venv/
+
+# Build artifacts
 dist/
 build/
-*.log
+
+# IDE / Editor
 .vscode/
+.idea/
+
+# Logs
+*.log
+
+# Project-specific
 .codexrules
