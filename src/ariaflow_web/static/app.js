@@ -513,7 +513,7 @@ document.addEventListener('alpine:init', () => {
       const state = this.loadBackendState();
       if (!state.backends.includes(backend)) state.backends.push(backend);
       this.saveBackendState(state.backends, backend);
-      this.refresh();
+      this.deferRefresh(0);
       if (this.page === 'lifecycle') this.loadLifecycle();
       if (this.page === 'log') this.refreshActionLog();
     },
@@ -524,12 +524,12 @@ document.addEventListener('alpine:init', () => {
       if (value !== this.DEFAULT_BACKEND_URL && !state.backends.includes(value)) state.backends.push(value);
       this.saveBackendState(state.backends, value);
       this.backendInput = '';
-      this.refresh();
+      this.deferRefresh(0);
     },
     removeBackend(backend) {
       const state = this.loadBackendState();
       this.saveBackendState(state.backends.filter((item) => item !== backend), state.selected === backend ? this.DEFAULT_BACKEND_URL : state.selected);
-      this.refresh();
+      this.deferRefresh(0);
     },
     async discoverBackends() {
       const r = await fetch('/api/discovery');
@@ -540,7 +540,6 @@ document.addEventListener('alpine:init', () => {
         ? `Discovered ${data.items.length} backend service(s)`
         : 'No Bonjour backends discovered';
       this.resultJson = JSON.stringify(data, null, 2);
-      await this.refresh();
     },
 
     // --- queue ---
@@ -669,6 +668,12 @@ document.addEventListener('alpine:init', () => {
       if (this.refreshInterval > 0) {
         this.refreshTimer = setInterval(() => this.refresh(), this.refreshInterval);
       }
+    },
+
+    _deferTimer: null,
+    deferRefresh(delay = 300) {
+      if (this._deferTimer) clearTimeout(this._deferTimer);
+      this._deferTimer = setTimeout(() => { this._deferTimer = null; this.refresh(); }, delay);
     },
 
     async refresh() {
@@ -812,7 +817,7 @@ document.addEventListener('alpine:init', () => {
         : `Queued: ${data.added?.[0]?.url || urls[0] || raw}`;
       this.resultJson = JSON.stringify(data, null, 2);
       this.addOutput = ''; this.addPriority = ''; this.addMirrors = '';
-      await this.refresh();
+      this.deferRefresh();
     },
     async toggleRunner() {
       return this.runnerAction(this.state?.running ? 'stop' : 'start');
@@ -826,7 +831,7 @@ document.addEventListener('alpine:init', () => {
       if (!r.ok || data.ok === false) {
         this.resultText = data.message || 'Runner request failed';
         this.resultJson = JSON.stringify(data, null, 2);
-        await this.refresh();
+        this.deferRefresh();
         return;
       }
       const result = data.result || {};
@@ -834,7 +839,7 @@ document.addEventListener('alpine:init', () => {
         ? (result.started ? 'Queue runner started' : 'Queue runner already running')
         : (result.stopped ? 'Queue runner stopped' : 'Queue runner already stopped');
       this.resultJson = JSON.stringify(data, null, 2);
-      await this.refresh();
+      this.deferRefresh();
     },
     async toggleQueue() {
       const paused = this.state?.paused;
@@ -846,7 +851,7 @@ document.addEventListener('alpine:init', () => {
       this.lastResult = data;
       this.resultText = data.paused ? 'Queue paused' : 'Pause requested';
       this.resultJson = JSON.stringify(data, null, 2);
-      await this.refresh();
+      this.deferRefresh();
     },
     async resumeQueue() {
       const r = await fetch(this.apiPath('/api/resume'), { method: 'POST' });
@@ -854,7 +859,7 @@ document.addEventListener('alpine:init', () => {
       this.lastResult = data;
       this.resultText = data.resumed ? 'Queue resumed' : 'Resume requested';
       this.resultJson = JSON.stringify(data, null, 2);
-      await this.refresh();
+      this.deferRefresh();
     },
     async newSession() {
       const r = await fetch(this.apiPath('/api/session'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'new' }) });
@@ -862,7 +867,7 @@ document.addEventListener('alpine:init', () => {
       this.lastResult = data;
       this.resultText = data.ok ? 'New session started' : 'Session change requested';
       this.resultJson = JSON.stringify(data, null, 2);
-      await this.refresh();
+      this.deferRefresh();
       if (this.page === 'lifecycle') this.loadLifecycle();
       if (this.page === 'log') this.refreshActionLog();
     },
@@ -875,7 +880,7 @@ document.addEventListener('alpine:init', () => {
       this.lastResult = data;
       this.resultText = data.ok ? 'Moved to top' : (data.message || 'Priority change requested');
       this.resultJson = JSON.stringify(data, null, 2);
-      await this.refresh();
+      this.deferRefresh();
     },
     async itemAction(itemId, action) {
       const r = await fetch(this.apiPath(`/api/item/${encodeURIComponent(itemId)}/${encodeURIComponent(action)}`), { method: 'POST' });
@@ -884,12 +889,12 @@ document.addEventListener('alpine:init', () => {
       if (!r.ok || data.ok === false) {
         this.resultText = data.message || `${action} failed`;
         this.resultJson = JSON.stringify(data, null, 2);
-        await this.refresh();
+        this.deferRefresh();
         return;
       }
       this.resultText = `Item ${action} done`;
       this.resultJson = JSON.stringify(data, null, 2);
-      await this.refresh();
+      this.deferRefresh();
     },
 
     // --- file selection ---
@@ -914,7 +919,7 @@ document.addEventListener('alpine:init', () => {
       await r.json();
       this.fileSelectionItemId = null;
       this.fileSelectionFiles = [];
-      await this.refresh();
+      this.deferRefresh();
     },
     closeFileSelection() {
       this.fileSelectionItemId = null;
@@ -933,7 +938,7 @@ document.addEventListener('alpine:init', () => {
       this.lastResult = data;
       this.resultText = data.ok ? `Cleanup complete — ${data.archived || 0} archived` : (data.message || 'Cleanup requested');
       this.resultJson = JSON.stringify(data, null, 2);
-      await this.refresh();
+      this.deferRefresh();
     },
 
     // --- bandwidth ---
@@ -942,7 +947,7 @@ document.addEventListener('alpine:init', () => {
       const data = await r.json();
       this.lastResult = data;
       await this.refreshBandwidth();
-      await this.refresh();
+      this.deferRefresh();
     },
     async refreshBandwidth() {
       try {
@@ -1034,7 +1039,7 @@ document.addEventListener('alpine:init', () => {
       this.resultText = data.status === 'pass' ? 'Preflight passed' : 'Preflight needs attention';
       this.resultJson = JSON.stringify(data, null, 2);
       this.preflightData = data;
-      await this.refresh();
+      this.deferRefresh();
     },
     async uccRun() {
       const r = await fetch(this.apiPath('/api/ucc'), { method: 'POST' });
@@ -1044,7 +1049,7 @@ document.addEventListener('alpine:init', () => {
       this.resultText = `UCC result: ${outcome}`;
       this.resultJson = JSON.stringify(data, null, 2);
       this.contractTraceItems = data;
-      await this.refresh();
+      this.deferRefresh();
       this.refreshActionLog();
     },
     contractTraceOutcome() {
