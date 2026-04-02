@@ -56,6 +56,9 @@ MOCK_PATCHES: dict[str, object] = {
     "ariaflow_web.webapp.get_declaration_from": DECLARATION_PAYLOAD,
     "ariaflow_web.webapp.get_lifecycle_from": {},
     "ariaflow_web.webapp.add_items_from": {"ok": True, "count": 0, "added": []},
+    "ariaflow_web.webapp.get_api_discovery_from": {"name": "ariaflow", "version": "0.1.48", "endpoints": {"GET": [], "POST": []}},
+    "ariaflow_web.webapp.get_bandwidth_from": {"source": "default", "downlink_mbps": 0, "cap_mbps": 2, "interface_name": "eth0"},
+    "ariaflow_web.webapp.bandwidth_probe_from": {"ok": True, "source": "networkquality", "downlink_mbps": 100, "uplink_mbps": 20, "cap_mbps": 80},
     "ariaflow_web.webapp.preflight_from": {"status": "pass"},
     "ariaflow_web.webapp.run_action_from": {"ok": True, "action": "start", "result": {"started": True}},
     "ariaflow_web.webapp.run_ucc_from": {"result": {"outcome": "converged"}},
@@ -185,13 +188,32 @@ class TestRoutes:
         assert resp.status == 200
         assert "text/html" in resp.headers.get("Content-Type", "")
 
-    @pytest.mark.parametrize("path", ["/api/status", "/api/log", "/api/declaration", "/api/options", "/api/lifecycle", "/api/discovery"])
+    @pytest.mark.parametrize("path", ["/api", "/api/status", "/api/bandwidth", "/api/log", "/api/declaration", "/api/options", "/api/lifecycle", "/api/discovery"])
     def test_api_returns_json(self, web_server: str, path: str) -> None:
         import urllib.request
         resp = urllib.request.urlopen(f"{web_server}{path}", timeout=5)
         assert resp.status == 200
         data = json.loads(resp.read().decode())
         assert isinstance(data, dict)
+
+    def test_api_discovery_has_name(self, web_server: str) -> None:
+        import urllib.request
+        resp = urllib.request.urlopen(f"{web_server}/api", timeout=5)
+        data = json.loads(resp.read().decode())
+        assert "name" in data
+
+    def test_bandwidth_probe_endpoint(self, web_server: str) -> None:
+        import urllib.request
+        req = urllib.request.Request(
+            f"{web_server}/api/bandwidth/probe",
+            data=b"{}",
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        resp = urllib.request.urlopen(req, timeout=5)
+        assert resp.status == 200
+        data = json.loads(resp.read().decode())
+        assert data.get("ok") is True
 
     def test_item_action_proxy(self, web_server: str) -> None:
         import urllib.request

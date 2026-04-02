@@ -12,6 +12,10 @@ from urllib.parse import parse_qs, urlparse
 from . import __version__
 from .bonjour import discover_http_services
 from .client import (
+    add_items_from,
+    bandwidth_probe_from,
+    get_api_discovery_from,
+    get_bandwidth_from,
     get_declaration_from,
     get_lifecycle_from,
     get_log_from,
@@ -25,7 +29,6 @@ from .client import (
     run_ucc_from,
     save_declaration_from,
     set_session_from,
-    add_items_from,
 )
 STATUS_CACHE: dict[str, object] = {"ts": 0.0, "payload": None}
 STATUS_CACHE_TTL = 2.0
@@ -1498,11 +1501,22 @@ INDEX_HTML = """<!doctype html>
     async function runProbe() {
       const badge = document.getElementById('bw-source');
       if (badge) badge.textContent = 'probing...';
-      const r = await fetch(apiPath('/api/preflight'), { method: 'POST' });
+      const r = await fetch(apiPath('/api/bandwidth/probe'), { method: 'POST' });
       const data = await r.json();
       lastResult = data;
+      await refreshBandwidth();
       await refresh();
-      updateBandwidthPanel();
+    }
+    async function refreshBandwidth() {
+      try {
+        const r = await fetch(apiPath('/api/bandwidth'));
+        const data = await r.json();
+        if (data && data.ok !== false) {
+          lastStatus = lastStatus || {};
+          lastStatus.bandwidth = data;
+        }
+        updateBandwidthPanel();
+      } catch (e) {}
     }
     function updateBandwidthPanel() {
       const bw = lastStatus?.bandwidth || {};
@@ -2388,6 +2402,14 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if path == "/api":
+            payload = get_api_discovery_from(backend_url)
+            self._send_json(payload, status=self._forward_status(payload))
+            return
+        if path == "/api/bandwidth":
+            payload = get_bandwidth_from(backend_url)
+            self._send_json(payload, status=self._forward_status(payload))
+            return
         if path == "/api/status":
             payload = self._status_payload(backend_url)
             self._send_json(payload, status=self._forward_status(payload))
@@ -2432,6 +2454,12 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
                 {"ok": False, "error": "invalid_json", "message": "request body must be valid JSON"},
                 status=400,
             )
+            return
+
+        if path == "/api/bandwidth/probe":
+            self._invalidate_status_cache()
+            response = bandwidth_probe_from(backend_url)
+            self._send_json(response, status=self._forward_status(response))
             return
 
         if path == "/api/add":

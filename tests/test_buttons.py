@@ -88,6 +88,9 @@ def web_server():
         "ariaflow_web.webapp.resume_from": {"resumed": True},
         "ariaflow_web.webapp.lifecycle_action_from": {"ok": True, "lifecycle": LIFECYCLE_PAYLOAD},
         "ariaflow_web.webapp.item_action_from": {"ok": True, "item": {"id": "item-1", "status": "paused"}},
+        "ariaflow_web.webapp.get_api_discovery_from": {"name": "ariaflow", "version": "0.1.48", "endpoints": {"GET": [], "POST": []}},
+        "ariaflow_web.webapp.get_bandwidth_from": {"source": "networkquality", "downlink_mbps": 100, "uplink_mbps": 20, "cap_mbps": 80, "interface_name": "eth0"},
+        "ariaflow_web.webapp.bandwidth_probe_from": {"ok": True, "source": "networkquality", "downlink_mbps": 100, "uplink_mbps": 20, "cap_mbps": 80},
         "ariaflow_web.webapp._local_pid_for_port": None,
     }
 
@@ -448,10 +451,10 @@ class TestBandwidthConfigButtons:
     def test_run_probe_button(self, page: Page, web_server: str) -> None:
         page.goto(f"{web_server}/bandwidth")
         page.wait_for_selector(".show-bandwidth", state="visible", timeout=5000)
-        mock_tracker["ariaflow_web.webapp.preflight_from"].reset_mock()
+        mock_tracker["ariaflow_web.webapp.bandwidth_probe_from"].reset_mock()
         page.click('button:has-text("Run probe")')
         page.wait_for_timeout(500)
-        assert mock_tracker["ariaflow_web.webapp.preflight_from"].called
+        assert mock_tracker["ariaflow_web.webapp.bandwidth_probe_from"].called
 
 
 # ---------------------------------------------------------------------------

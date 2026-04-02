@@ -53,6 +53,9 @@ class WebSmokeTests(unittest.TestCase):
                  patch("ariaflow_web.webapp.pause_from", return_value={"paused": True}), \
                  patch("ariaflow_web.webapp.resume_from", return_value={"resumed": True}), \
                  patch("ariaflow_web.webapp.lifecycle_action_from", return_value={"ok": True, "lifecycle": {}}), \
+                 patch("ariaflow_web.webapp.get_api_discovery_from", return_value={"name": "ariaflow"}), \
+                 patch("ariaflow_web.webapp.get_bandwidth_from", return_value={"source": "default"}), \
+                 patch("ariaflow_web.webapp.bandwidth_probe_from", return_value={"ok": True}), \
                  patch("ariaflow_web.webapp._local_pid_for_port", return_value=4242):
                 server = serve(host="127.0.0.1", port=8767)
                 thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -96,7 +99,10 @@ class WebSmokeTests(unittest.TestCase):
                  patch("ariaflow_web.webapp.set_session_from", return_value={"ok": True, "session": "batch-1"}), \
                  patch("ariaflow_web.webapp.pause_from", return_value={"paused": True}), \
                  patch("ariaflow_web.webapp.resume_from", return_value={"resumed": True}), \
-                 patch("ariaflow_web.webapp.lifecycle_action_from", return_value={"ok": True, "lifecycle": lifecycle_payload}):
+                 patch("ariaflow_web.webapp.lifecycle_action_from", return_value={"ok": True, "lifecycle": lifecycle_payload}), \
+                 patch("ariaflow_web.webapp.get_api_discovery_from", return_value={"name": "ariaflow"}), \
+                 patch("ariaflow_web.webapp.get_bandwidth_from", return_value={"source": "default"}), \
+                 patch("ariaflow_web.webapp.bandwidth_probe_from", return_value={"ok": True}):
                 server = serve(host="127.0.0.1", port=8766)
                 thread = threading.Thread(target=server.serve_forever, daemon=True)
                 thread.start()
@@ -144,7 +150,10 @@ class WebSmokeTests(unittest.TestCase):
                  patch("ariaflow_web.webapp.set_session_from", return_value={"ok": True, "session": lifecycle_payload["session_id"]}), \
                  patch("ariaflow_web.webapp.pause_from", return_value={"paused": True}), \
                  patch("ariaflow_web.webapp.resume_from", return_value={"resumed": True}), \
-                 patch("ariaflow_web.webapp.lifecycle_action_from", return_value={"ok": True, "lifecycle": lifecycle_payload}):
+                 patch("ariaflow_web.webapp.lifecycle_action_from", return_value={"ok": True, "lifecycle": lifecycle_payload}), \
+                 patch("ariaflow_web.webapp.get_api_discovery_from", return_value={"name": "ariaflow"}), \
+                 patch("ariaflow_web.webapp.get_bandwidth_from", return_value={"source": "default"}), \
+                 patch("ariaflow_web.webapp.bandwidth_probe_from", return_value={"ok": True}):
                 server = serve(host="127.0.0.1", port=8765)
                 thread = threading.Thread(target=server.serve_forever, daemon=True)
                 thread.start()

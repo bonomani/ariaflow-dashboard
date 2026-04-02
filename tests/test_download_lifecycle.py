@@ -201,6 +201,9 @@ def web_server():
         patch("ariaflow_web.webapp.discover_http_services", return_value={"available": False, "items": [], "reason": "none"}),
         patch("ariaflow_web.webapp.set_session_from", return_value={"ok": True, "session": "test-sess"}),
         patch("ariaflow_web.webapp.lifecycle_action_from", return_value={"ok": True, "lifecycle": {}}),
+        patch("ariaflow_web.webapp.get_api_discovery_from", return_value={"name": "ariaflow", "endpoints": {"GET": [], "POST": []}}),
+        patch("ariaflow_web.webapp.get_bandwidth_from", return_value={"source": "default", "downlink_mbps": 0, "cap_mbps": 2}),
+        patch("ariaflow_web.webapp.bandwidth_probe_from", return_value={"ok": True, "source": "default"}),
         patch("ariaflow_web.webapp._local_pid_for_port", return_value=None),
     ]
     for p in patches:
