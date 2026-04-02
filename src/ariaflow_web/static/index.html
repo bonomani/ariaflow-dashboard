@@ -261,7 +261,7 @@
             <div class="hint">Network probe, cap, and download concurrency</div>
           </div>
           <div class="row" style="margin-bottom:12px;">
-            <button class="secondary" @click="runProbe()">Run probe</button>
+            <button class="secondary" @click="runProbe()" :disabled="probeRunning" x-text="probeRunning ? 'Probing...' : 'Run probe'">Run probe</button>
           </div>
           <div class="list" style="margin-bottom:12px;">
             <div class="item">

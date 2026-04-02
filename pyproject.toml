@@ -22,6 +22,7 @@ where = ["src"]
 ariaflow_web = ["static/*"]
 
 [tool.pytest.ini_options]
+addopts = "-m 'not slow'"
 markers = [
     "slow: marks tests that require a browser (Playwright)",
 ]

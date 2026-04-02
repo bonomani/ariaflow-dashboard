@@ -870,6 +870,10 @@ document.addEventListener('alpine:init', () => {
         ? (result.started ? 'Queue runner started' : 'Queue runner already running')
         : (result.stopped ? 'Queue runner stopped' : 'Queue runner already stopped');
       this.resultJson = JSON.stringify(data, null, 2);
+      if (this.lastStatus?.state) {
+        if (action === 'start' && result.started) this.lastStatus.state.running = true;
+        if (action === 'stop' && result.stopped) this.lastStatus.state.running = false;
+      }
       this.deferRefresh();
     },
     async toggleQueue() {
@@ -882,6 +886,7 @@ document.addEventListener('alpine:init', () => {
       this.lastResult = data;
       this.resultText = data.paused ? 'Queue paused' : 'Pause requested';
       this.resultJson = JSON.stringify(data, null, 2);
+      if (data.paused && this.lastStatus?.state) this.lastStatus.state.paused = true;
       this.deferRefresh();
     },
     async resumeQueue() {
@@ -890,6 +895,7 @@ document.addEventListener('alpine:init', () => {
       this.lastResult = data;
       this.resultText = data.resumed ? 'Queue resumed' : 'Resume requested';
       this.resultJson = JSON.stringify(data, null, 2);
+      if (data.resumed && this.lastStatus?.state) this.lastStatus.state.paused = false;
       this.deferRefresh();
     },
     async newSession() {
@@ -973,12 +979,23 @@ document.addEventListener('alpine:init', () => {
     },
 
     // --- bandwidth ---
+    probeRunning: false,
     async runProbe() {
-      const r = await fetch(this.apiPath('/api/bandwidth/probe'), { method: 'POST' });
-      const data = await r.json();
-      this.lastResult = data;
-      await this.refreshBandwidth();
-      this.deferRefresh();
+      this.probeRunning = true;
+      this.resultText = 'Probe running...';
+      try {
+        const r = await fetch(this.apiPath('/api/bandwidth/probe'), { method: 'POST' });
+        const data = await r.json();
+        this.lastResult = data;
+        this.resultText = data.ok ? 'Probe complete' : (data.message || 'Probe finished');
+        this.resultJson = JSON.stringify(data, null, 2);
+        await this.refreshBandwidth();
+        this.deferRefresh();
+      } catch (e) {
+        this.resultText = `Probe failed: ${e.message}`;
+      } finally {
+        this.probeRunning = false;
+      }
     },
     async refreshBandwidth() {
       try {
