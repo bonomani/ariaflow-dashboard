@@ -174,11 +174,11 @@ class TestItemActionButtons:
         visible = page.evaluate('''Array.from(document.querySelectorAll('.item.compact button[title="Pause"]')).filter(b => getComputedStyle(b).display !== 'none').length''')
         assert visible == 0
 
-    def test_pause_button_on_queued_item(self, page: Page, web_server: str) -> None:
+    def test_dequeue_button_on_queued_item(self, page: Page, web_server: str) -> None:
         _wait_dashboard(page, web_server)
         page.click('.filter-bar .filter-btn:has-text("queued")')
         page.wait_for_timeout(300)
-        visible = page.evaluate('''Array.from(document.querySelectorAll('.item.compact button[title="Pause"]')).filter(b => getComputedStyle(b).display !== 'none').length''')
+        visible = page.evaluate('''Array.from(document.querySelectorAll('.item.compact button[title="Dequeue"]')).filter(b => getComputedStyle(b).display !== 'none').length''')
         assert visible >= 1
 
     def test_no_retry_button_on_queued_item(self, page: Page, web_server: str) -> None:

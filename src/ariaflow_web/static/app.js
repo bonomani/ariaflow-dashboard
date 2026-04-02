@@ -624,6 +624,9 @@ document.addEventListener('alpine:init', () => {
     setQueueFilter(filter) {
       this.queueFilter = filter;
     },
+    filterBtnVisible(f) {
+      return f === 'all' || (this.filterCounts[f] ?? 0) > 0 || this.queueFilter === f;
+    },
     filterBtnLabel(f) {
       const count = this.filterCounts[f] ?? 0;
       const label = f.charAt(0).toUpperCase() + f.slice(1);
@@ -681,7 +684,8 @@ document.addEventListener('alpine:init', () => {
       const ls = this.itemLiveStatus(item);
       return ls ? `${ns} · aria2:${ls}` : ns;
     },
-    itemCanPause(item) { return ['queued', 'downloading'].includes(this.itemNormalizedStatus(item)); },
+    itemCanPause(item) { return this.itemNormalizedStatus(item) === 'downloading'; },
+    itemCanDequeue(item) { return this.itemNormalizedStatus(item) === 'queued'; },
     itemCanResume(item) { return this.itemNormalizedStatus(item) === 'paused'; },
     itemCanRetry(item) { return ['error', 'failed', 'stopped'].includes(this.itemNormalizedStatus(item)); },
     itemEta(item) { return this.formatEta(this.itemTotalLength(item), this.itemCompletedLength(item), this.itemSpeed(item)); },

@@ -143,7 +143,7 @@
           </div>
           <div class="filter-bar">
             <template x-for="f in ['all','queued','discovering','downloading','paused','stopped','done','error','cancelled']" :key="f">
-              <button class="filter-btn" :class="{ active: queueFilter === f }" @click="setQueueFilter(f)" x-text="filterBtnLabel(f)"></button>
+              <button x-show="filterBtnVisible(f)" class="filter-btn" :class="{ active: queueFilter === f }" @click="setQueueFilter(f)" x-text="filterBtnLabel(f)"></button>
             </template>
           </div>
           <div class="list">
@@ -188,6 +188,7 @@
                 </template>
                 <div x-show="item.id" class="action-strip" style="margin-top:8px;">
                   <button x-show="itemCanPause(item)" class="secondary icon-btn" @click="itemAction(item.id, 'pause')" title="Pause">&#9646;&#9646;<span class="sr-only">Pause</span></button>
+                  <button x-show="itemCanDequeue(item)" class="secondary icon-btn" @click="itemAction(item.id, 'pause')" title="Dequeue">&#9723;<span class="sr-only">Dequeue</span></button>
                   <button x-show="itemCanResume(item)" class="secondary icon-btn" @click="itemAction(item.id, 'resume')" title="Resume">&#9654;<span class="sr-only">Resume</span></button>
                   <button x-show="itemCanRetry(item)" class="secondary icon-btn" @click="itemAction(item.id, 'retry')" title="Retry">&#8635;<span class="sr-only">Retry</span></button>
                   <button x-show="itemNormalizedStatus(item) === 'queued'" class="secondary icon-btn" @click="moveToTop(item.id)" title="Move to top">&#8593;<span class="sr-only">Move to top</span></button>
