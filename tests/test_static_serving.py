@@ -31,7 +31,7 @@ class TestStaticFiles:
     def test_js_served_with_correct_type(self, web_server: str) -> None:
         resp = urllib.request.urlopen(f"{web_server}/static/app.js", timeout=5)
         assert "javascript" in resp.headers.get("Content-Type", "")
-        assert "function" in resp.read().decode()
+        assert "Alpine" in resp.read().decode()
 
     def test_html_references_css_and_js(self, web_server: str) -> None:
         body = urllib.request.urlopen(f"{web_server}/", timeout=5).read().decode()

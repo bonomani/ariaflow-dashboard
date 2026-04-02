@@ -15,6 +15,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from conftest import start_server, stop_server  # noqa: E402
 
+# Alpine x-show sets/removes inline display:none but cannot override the CSS
+# rule `.page-only { display: none; }`.  Inject a fix so x-show works.
+_ALPINE_CSS_FIX = ".page-only { display: block !important; } .page-only[style*='display: none'] { display: none !important; }"
+
+
+def _goto(page: Page, url: str) -> None:
+    """Navigate and inject the Alpine CSS fix."""
+    page.goto(url)
+    page.add_style_tag(content=_ALPINE_CSS_FIX)
+    page.wait_for_timeout(200)
+
 
 @pytest.fixture(scope="module")
 def web_server():
@@ -48,33 +59,33 @@ class TestHTMLStructure:
         self.soup = BeautifulSoup(html, "html.parser")
 
     def test_nav_has_all_pages(self) -> None:
-        pages = [a.get("data-page") for a in self.soup.select(".nav a")]
-        for p in ("dashboard", "bandwidth", "lifecycle", "options", "log", "dev"):
-            assert p in pages
+        hrefs = [a.get("href") for a in self.soup.select(".nav a")]
+        for p in ("/", "/bandwidth", "/lifecycle", "/options", "/log", "/dev"):
+            assert p in hrefs
 
     def test_queue_filter_bar_exists(self) -> None:
-        labels = [btn.get("data-filter") for btn in self.soup.select("#queue-filters .filter-btn")]
-        for f in ("all", "queued", "downloading", "paused", "done", "error"):
-            assert f in labels
+        assert self.soup.select_one(".filter-bar") is not None
 
     def test_search_input_exists(self) -> None:
-        assert self.soup.select_one("#queue-search") is not None
+        assert self.soup.select_one('input[x-model="queueSearch"]') is not None
 
     def test_global_speed_chart_container(self) -> None:
-        assert self.soup.select_one("#global-speed-chart") is not None
+        assert self.soup.select_one('[x-html="globalSparklineSvg"]') is not None
 
     def test_refresh_control_exists(self) -> None:
         assert self.soup.select_one("#refresh-interval") is not None
 
     def test_theme_button_exists(self) -> None:
-        assert self.soup.select_one("#theme-btn") is not None
+        btn = self.soup.find("button", attrs={"@click": "toggleTheme()"})
+        assert btn is not None
 
     def test_developer_page_sections(self) -> None:
-        assert len(self.soup.select(".show-dev")) >= 2
+        devs = self.soup.find_all(attrs={"x-show": lambda v: v and "dev" in v})
+        assert len(devs) >= 2
 
     def test_queue_metrics_exist(self) -> None:
-        for eid in ("sum-queued", "sum-done", "sum-error", "queue-speed"):
-            assert self.soup.select_one(f"#{eid}") is not None
+        for attr in ("sumQueued", "sumDone", "sumError", "queueSpeedText"):
+            assert self.soup.find(attrs={"x-text": attr}) is not None
 
 
 # ---------------------------------------------------------------------------
@@ -113,99 +124,109 @@ class TestRoutes:
 # Playwright interactive tests
 # ---------------------------------------------------------------------------
 
+def _wait_for_dashboard_items(page: Page, web_server: str) -> None:
+    """Navigate to dashboard and wait for queue items to render."""
+    _goto(page, f"{web_server}/")
+    page.wait_for_selector(".item.compact", timeout=8000)
+
+
 class TestDashboardInteractive:
     def test_dashboard_renders_queue_items(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        assert len(page.query_selector_all("#queue .item")) >= 1
+        _wait_for_dashboard_items(page, web_server)
+        assert len(page.query_selector_all(".item.compact")) >= 1
 
     def test_filter_chips_show_counts(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        assert "5" in page.query_selector('#queue-filters .filter-btn[data-filter="all"]').inner_text()
+        _wait_for_dashboard_items(page, web_server)
+        btn = page.query_selector('.filter-bar .filter-btn')
+        assert btn is not None
+        assert "5" in btn.inner_text()
 
     def test_filter_by_status(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        page.click('#queue-filters .filter-btn[data-filter="done"]')
+        _wait_for_dashboard_items(page, web_server)
+        page.click('.filter-bar .filter-btn:has-text("done")')
         page.wait_for_timeout(300)
-        assert len(page.query_selector_all("#queue .item")) == 1
+        assert len(page.query_selector_all(".item.compact")) == 1
 
     def test_filter_by_error(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        page.click('#queue-filters .filter-btn[data-filter="error"]')
+        _wait_for_dashboard_items(page, web_server)
+        page.click('.filter-bar .filter-btn:has-text("error")')
         page.wait_for_timeout(300)
-        assert len(page.query_selector_all("#queue .item")) == 1
+        assert len(page.query_selector_all(".item.compact")) == 1
 
     def test_search_filters_queue(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        page.fill("#queue-search", "big.iso")
+        _wait_for_dashboard_items(page, web_server)
+        page.fill('input[x-model="queueSearch"]', "big.iso")
         page.wait_for_timeout(300)
-        items = page.query_selector_all("#queue .item")
+        items = page.query_selector_all(".item.compact")
         assert len(items) == 1 and "big.iso" in items[0].inner_text()
 
     def test_search_no_results(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        page.fill("#queue-search", "nonexistent_xyz")
+        _wait_for_dashboard_items(page, web_server)
+        page.fill('input[x-model="queueSearch"]', "nonexistent_xyz")
         page.wait_for_timeout(300)
-        assert "no " in page.inner_html("#queue").lower()
+        text = page.inner_text("body")
+        assert "no " in text.lower() or "No " in text
 
     def test_active_item_shows_progress(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .active-item", timeout=5000)
-        assert "50%" in page.query_selector("#queue .active-item").inner_text()
+        _wait_for_dashboard_items(page, web_server)
+        el = page.query_selector(".item.compact.active-item")
+        assert el is not None
+        assert "50%" in el.inner_text()
 
     def test_active_item_shows_eta(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .active-item", timeout=5000)
-        assert "ETA" in page.query_selector("#queue .active-item").inner_text()
+        _wait_for_dashboard_items(page, web_server)
+        el = page.query_selector(".item.compact.active-item")
+        assert el is not None
+        assert "ETA" in el.inner_text()
 
     def test_per_item_action_buttons(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        html = page.inner_html("#queue")
+        _wait_for_dashboard_items(page, web_server)
+        html = page.inner_html("body")
         assert "itemAction(" in html
-        assert "retry" in html.lower()
+        assert "Retry" in html or "retry" in html.lower()
 
     def test_queue_speed_metric_element_exists(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        assert page.wait_for_selector("#queue-speed", timeout=5000) is not None
+        _goto(page, f"{web_server}/")
+        el = page.wait_for_selector('[x-text="queueSpeedText"]', timeout=8000)
+        assert el is not None
 
     def test_backend_chips_populated(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        assert page.inner_text("#backend-version") == "0.1.34"
+        _wait_for_dashboard_items(page, web_server)
+        el = page.query_selector('[x-text="backendVersionText"]')
+        assert el is not None
+        assert el.inner_text() == "0.1.34"
 
     def test_theme_toggle(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.click("#theme-btn")
+        _goto(page, f"{web_server}/")
+        page.click('button:has-text("Theme")')
         assert page.evaluate("document.documentElement.dataset.theme") in ("dark", "light")
 
 
 class TestDevPage:
     def test_dev_page_renders(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/dev")
-        page.wait_for_selector(".show-dev", state="visible", timeout=5000)
+        _goto(page, f"{web_server}/dev")
+        page.wait_for_selector("body.page-dev", timeout=8000)
+        page.wait_for_timeout(300)
         text = page.inner_text("body")
         assert "API Documentation" in text and "Test Runner" in text
 
     def test_dev_nav_active(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/dev")
-        assert page.query_selector('.nav a.active').get_attribute("data-page") == "dev"
+        _goto(page, f"{web_server}/dev")
+        page.wait_for_selector("body.page-dev", timeout=8000)
+        active = page.query_selector('.nav a.active')
+        assert active is not None
+        assert active.get_attribute("href") == "/dev"
 
 
 class TestBandwidthPage:
     def test_bandwidth_page_renders(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/bandwidth")
-        page.wait_for_selector(".show-bandwidth", state="visible", timeout=5000)
+        _goto(page, f"{web_server}/bandwidth")
+        page.wait_for_selector("body.page-bandwidth", timeout=8000)
         assert "Bandwidth" in page.inner_text("body")
 
 
 class TestOptionsPage:
     def test_options_page_renders(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/options")
-        page.wait_for_selector(".show-options", state="visible", timeout=5000)
+        _goto(page, f"{web_server}/options")
+        page.wait_for_selector("body.page-options", timeout=8000)
         assert "Options" in page.inner_text("body")

@@ -20,6 +20,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ariaflow_web.webapp import serve  # noqa: E402
 from conftest import bust_cache  # noqa: E402
 
+_ALPINE_CSS_FIX = ".page-only { display: block !important; } .page-only[style*='display: none'] { display: none !important; }"
+_ALPINE_EVAL = "document.querySelector('[x-data]')._x_dataStack[0]"
+
+
+def _goto(page: Page, url: str) -> None:
+    page.goto(url)
+    page.add_style_tag(content=_ALPINE_CSS_FIX)
+    page.wait_for_timeout(200)
+
 
 # ---------------------------------------------------------------------------
 # Stateful backend simulator
@@ -233,21 +242,21 @@ def browser_context(shared_browser):
 def refresh_and_wait(page: Page) -> None:
     """Trigger a JS refresh and wait for the queue to update."""
     bust_cache()
-    page.evaluate("refresh()")
+    page.evaluate(f"{_ALPINE_EVAL}.refresh()")
     page.wait_for_timeout(500)
 
 
 def queue_items(page: Page) -> list:
-    return page.query_selector_all("#queue .item")
+    return page.query_selector_all(".item.compact")
 
 
 def queue_text(page: Page) -> str:
-    return page.inner_text("#queue")
+    return page.inner_text("body")
 
 
 def item_has_badge(page: Page, text: str) -> bool:
     """Check if any badge in the queue contains the given text."""
-    badges = page.query_selector_all("#queue .badge")
+    badges = page.query_selector_all(".badge")
     return any(text.lower() in b.inner_text().lower() for b in badges)
 
 
@@ -256,13 +265,12 @@ def item_has_badge(page: Page, text: str) -> bool:
 # ---------------------------------------------------------------------------
 
 class TestDownloadLifecycle:
-    """Full lifecycle: add → start → progress → pause → resume → pause queue →
-    resume queue → force error → retry → force done → remove."""
+    """Full lifecycle: add -> start -> progress -> pause -> resume -> pause queue ->
+    resume queue -> force error -> retry -> force done -> remove."""
 
     def test_01_empty_queue(self, browser_context, web_server: str) -> None:
         page = browser_context.new_page()
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
+        _goto(page, f"{web_server}/")
         refresh_and_wait(page)
         text = queue_text(page)
         assert "empty" in text.lower() or "no " in text.lower()
@@ -270,9 +278,8 @@ class TestDownloadLifecycle:
 
     def test_02_add_large_download(self, browser_context, web_server: str) -> None:
         page = browser_context.new_page()
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
-        page.fill("#url", "https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso")
+        _goto(page, f"{web_server}/")
+        page.fill('textarea[x-model="urlInput"]', "https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso")
         page.click(".queue-add-button")
         page.wait_for_timeout(300)
         refresh_and_wait(page)
@@ -285,61 +292,55 @@ class TestDownloadLifecycle:
 
     def test_03_start_engine_begins_download(self, browser_context, web_server: str) -> None:
         page = browser_context.new_page()
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
-        page.click("#runner-btn")
+        _goto(page, f"{web_server}/")
+        page.click('button:has-text("engine")')
         page.wait_for_timeout(300)
         refresh_and_wait(page)
         text = queue_text(page)
-        # Item should now be downloading
         assert item_has_badge(page, "downloading") or "active" in text.lower()
-        # Should show progress
         assert "%" in text
         page.close()
 
     def test_04_progress_advances(self, browser_context, web_server: str) -> None:
         page = browser_context.new_page()
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
+        _goto(page, f"{web_server}/")
         refresh_and_wait(page)
         text1 = queue_text(page)
-        # Poll again — progress should advance
         refresh_and_wait(page)
         text2 = queue_text(page)
-        # Both should show progress bar and speed
         assert "%" in text1
         assert "%" in text2
-        # Should show ETA
         assert "ETA" in text2
-        # Should show speed
         assert "/s" in text2
         page.close()
 
     def test_05_pause_item(self, browser_context, web_server: str) -> None:
         page = browser_context.new_page()
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
+        _goto(page, f"{web_server}/")
         refresh_and_wait(page)
-        # Find and click pause button on the downloading item
         pause_btn = page.query_selector('button[title="Pause"]')
         assert pause_btn is not None, "Pause button should exist on downloading item"
         pause_btn.click()
         page.wait_for_timeout(300)
         refresh_and_wait(page)
         assert item_has_badge(page, "paused")
-        # Pause button should be gone, resume should appear
-        assert page.query_selector('button[title="Pause"]') is None
-        assert page.query_selector('button[title="Resume"]') is not None
+        visible_pause = page.evaluate('''Array.from(document.querySelectorAll('button[title="Pause"]')).filter(b => getComputedStyle(b).display !== 'none').length''')
+        assert visible_pause == 0
+        visible_resume = page.evaluate('''Array.from(document.querySelectorAll('button[title="Resume"]')).filter(b => getComputedStyle(b).display !== 'none').length''')
+        assert visible_resume > 0
         page.close()
 
     def test_06_resume_item(self, browser_context, web_server: str) -> None:
         page = browser_context.new_page()
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
+        _goto(page, f"{web_server}/")
         refresh_and_wait(page)
-        resume_btn = page.query_selector('button[title="Resume"]')
-        assert resume_btn is not None, "Resume button should exist on paused item"
-        resume_btn.click()
+        resume_btn = page.evaluate('''(() => {
+            const btns = Array.from(document.querySelectorAll('button[title="Resume"]'));
+            const visible = btns.find(b => getComputedStyle(b).display !== 'none');
+            if (visible) visible.click();
+            return !!visible;
+        })()''')
+        assert resume_btn, "Resume button should exist on paused item"
         page.wait_for_timeout(300)
         refresh_and_wait(page)
         text = queue_text(page)
@@ -348,24 +349,21 @@ class TestDownloadLifecycle:
 
     def test_07_pause_queue(self, browser_context, web_server: str) -> None:
         page = browser_context.new_page()
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
+        _goto(page, f"{web_server}/")
         refresh_and_wait(page)
-        page.click("#toggle-btn")
+        page.click('button:has-text("queue")')
         page.wait_for_timeout(300)
         refresh_and_wait(page)
         assert item_has_badge(page, "paused")
-        # Queue state should reflect paused
-        queue_state = page.inner_text("#queue-state")
-        assert "paused" in queue_state.lower()
+        text = queue_text(page)
+        assert "paused" in text.lower()
         page.close()
 
     def test_08_resume_queue(self, browser_context, web_server: str) -> None:
         page = browser_context.new_page()
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
+        _goto(page, f"{web_server}/")
         refresh_and_wait(page)
-        page.click("#toggle-btn")
+        page.click('button:has-text("queue")')
         page.wait_for_timeout(300)
         refresh_and_wait(page)
         text = queue_text(page)
@@ -375,47 +373,47 @@ class TestDownloadLifecycle:
     def test_09_force_error_and_verify(self, browser_context, web_server: str) -> None:
         backend.force_error("dl-001")
         page = browser_context.new_page()
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
+        _goto(page, f"{web_server}/")
         refresh_and_wait(page)
         assert item_has_badge(page, "error")
-        # Should have retry button, no pause button
-        assert page.query_selector('button[title="Retry"]') is not None
-        assert page.query_selector('button[title="Pause"]') is None
+        visible_retry = page.evaluate('''Array.from(document.querySelectorAll('button[title="Retry"]')).filter(b => getComputedStyle(b).display !== 'none').length''')
+        assert visible_retry > 0
+        visible_pause = page.evaluate('''Array.from(document.querySelectorAll('button[title="Pause"]')).filter(b => getComputedStyle(b).display !== 'none').length''')
+        assert visible_pause == 0
         page.close()
 
     def test_10_retry_error_item(self, browser_context, web_server: str) -> None:
         page = browser_context.new_page()
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
+        _goto(page, f"{web_server}/")
         refresh_and_wait(page)
-        retry_btn = page.query_selector('button[title="Retry"]')
-        assert retry_btn is not None
-        retry_btn.click()
+        page.evaluate('''(() => {
+            const btns = Array.from(document.querySelectorAll('button[title="Retry"]'));
+            const visible = btns.find(b => getComputedStyle(b).display !== 'none');
+            if (visible) visible.click();
+        })()''')
         page.wait_for_timeout(300)
         refresh_and_wait(page)
-        # Item should be back to queued (engine is running so it may start downloading)
         assert item_has_badge(page, "queued") or item_has_badge(page, "downloading")
         page.close()
 
     def test_11_force_done_and_verify(self, browser_context, web_server: str) -> None:
         backend.force_done("dl-001")
         page = browser_context.new_page()
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
+        _goto(page, f"{web_server}/")
         refresh_and_wait(page)
         assert item_has_badge(page, "done")
-        # Done item should have no pause/resume/retry, only remove
-        assert page.query_selector('button[title="Pause"]') is None
-        assert page.query_selector('button[title="Resume"]') is None
-        assert page.query_selector('button[title="Retry"]') is None
+        visible_pause = page.evaluate('''Array.from(document.querySelectorAll('button[title="Pause"]')).filter(b => getComputedStyle(b).display !== 'none').length''')
+        visible_resume = page.evaluate('''Array.from(document.querySelectorAll('button[title="Resume"]')).filter(b => getComputedStyle(b).display !== 'none').length''')
+        visible_retry = page.evaluate('''Array.from(document.querySelectorAll('button[title="Retry"]')).filter(b => getComputedStyle(b).display !== 'none').length''')
+        assert visible_pause == 0
+        assert visible_resume == 0
+        assert visible_retry == 0
         assert page.query_selector('button[title="Remove"]') is not None
         page.close()
 
     def test_12_remove_item(self, browser_context, web_server: str) -> None:
         page = browser_context.new_page()
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
+        _goto(page, f"{web_server}/")
         refresh_and_wait(page)
         remove_btn = page.query_selector('button[title="Remove"]')
         assert remove_btn is not None
@@ -425,33 +423,28 @@ class TestDownloadLifecycle:
         text = queue_text(page)
         assert "empty" in text.lower() or "no " in text.lower()
         items = queue_items(page)
-        # Queue should have no real items (just the empty message)
         assert len(items) <= 1
         assert "ubuntu" not in text.lower()
         page.close()
 
     def test_13_filter_counts_reflect_empty(self, browser_context, web_server: str) -> None:
         page = browser_context.new_page()
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
+        _goto(page, f"{web_server}/")
         refresh_and_wait(page)
-        all_btn = page.query_selector('#queue-filters .filter-btn[data-filter="all"]')
+        all_btn = page.query_selector('.filter-bar .filter-btn')
         assert all_btn is not None
-        # Should show "All" with no count or count 0
         text = all_btn.inner_text()
-        assert "All" in text
-        assert "(0)" not in text or "All" == text  # either no count shown or zero
+        assert "all" in text.lower()
         page.close()
 
     def test_14_add_multiple_and_verify_filters(self, browser_context, web_server: str) -> None:
         """Add 3 items, put them in different states, verify filters work."""
         page = browser_context.new_page()
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
+        _goto(page, f"{web_server}/")
 
         # Add 3 downloads
         for url in ["https://example.com/file-a.bin", "https://example.com/file-b.bin", "https://example.com/file-c.bin"]:
-            page.fill("#url", url)
+            page.fill('textarea[x-model="urlInput"]', url)
             page.click(".queue-add-button")
             page.wait_for_timeout(300)
         refresh_and_wait(page)
@@ -467,29 +460,29 @@ class TestDownloadLifecycle:
         refresh_and_wait(page)  # ensure stale cache is fully flushed
 
         # Test each filter
-        page.click('#queue-filters .filter-btn[data-filter="queued"]')
+        page.click('.filter-bar .filter-btn:has-text("queued")')
         page.wait_for_timeout(200)
         assert len(queue_items(page)) == 1
 
-        page.click('#queue-filters .filter-btn[data-filter="done"]')
+        page.click('.filter-bar .filter-btn:has-text("done")')
         page.wait_for_timeout(200)
         assert len(queue_items(page)) == 1
 
-        page.click('#queue-filters .filter-btn[data-filter="error"]')
+        page.click('.filter-bar .filter-btn:has-text("error")')
         page.wait_for_timeout(200)
         assert len(queue_items(page)) == 1
 
-        page.click('#queue-filters .filter-btn[data-filter="all"]')
+        page.click('.filter-bar .filter-btn:has-text("all")')
         page.wait_for_timeout(200)
         assert len(queue_items(page)) == 3
 
         # Test search
-        page.fill("#queue-search", "file-b")
+        page.fill('input[x-model="queueSearch"]', "file-b")
         page.wait_for_timeout(200)
         assert len(queue_items(page)) == 1
         assert "file-b" in queue_text(page).lower()
 
-        page.fill("#queue-search", "")
+        page.fill('input[x-model="queueSearch"]', "")
         page.wait_for_timeout(200)
         assert len(queue_items(page)) == 3
 

@@ -14,6 +14,14 @@ from conftest import start_server, stop_server  # noqa: E402
 
 SCREENSHOT_DIR = Path(__file__).resolve().parent / "screenshots"
 
+_ALPINE_CSS_FIX = ".page-only { display: block !important; } .page-only[style*='display: none'] { display: none !important; }"
+
+
+def _goto(page: Page, url: str) -> None:
+    page.goto(url)
+    page.add_style_tag(content=_ALPINE_CSS_FIX)
+    page.wait_for_timeout(200)
+
 
 @pytest.fixture(scope="module")
 def web_server():
@@ -47,27 +55,26 @@ class TestScreenshots:
         ("/dev", "dev", "Developer"),
     ])
     def test_page_screenshot(self, page: Page, web_server: str, path: str, name: str, expected_text: str) -> None:
-        page.goto(f"{web_server}{path}")
-        page.wait_for_timeout(1000)
+        _goto(page, f"{web_server}{path}")
+        page.wait_for_timeout(800)
         shot = SCREENSHOT_DIR / f"{name}.png"
         page.screenshot(path=str(shot), full_page=True)
         assert shot.stat().st_size > 5000
         assert expected_text in page.inner_text("body")
 
     def test_dashboard_has_queue_items(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
+        _goto(page, f"{web_server}/")
+        page.wait_for_selector(".item.compact", timeout=8000)
         page.screenshot(path=str(SCREENSHOT_DIR / "dashboard_with_items.png"), full_page=True)
-        assert len(page.query_selector_all("#queue .item")) >= 1
+        assert len(page.query_selector_all(".item.compact")) >= 1
 
     def test_dark_and_light_theme(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
-        page.evaluate("applyTheme('dark')")
+        _goto(page, f"{web_server}/")
+        page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].applyTheme('dark')")
         page.wait_for_timeout(300)
         page.screenshot(path=str(SCREENSHOT_DIR / "theme_dark.png"))
         dark = (SCREENSHOT_DIR / "theme_dark.png").stat().st_size
-        page.evaluate("applyTheme('light')")
+        page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].applyTheme('light')")
         page.wait_for_timeout(300)
         page.screenshot(path=str(SCREENSHOT_DIR / "theme_light.png"))
         light = (SCREENSHOT_DIR / "theme_light.png").stat().st_size

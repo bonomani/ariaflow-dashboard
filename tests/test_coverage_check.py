@@ -12,8 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 STATIC_DIR = Path(__file__).resolve().parents[1] / "src" / "ariaflow_web" / "static"
 TEST_DIR = Path(__file__).resolve().parent
 
-# JS function names invoked by onclick/onchange/oninput handlers
-ACTION_RE = re.compile(r'on(?:click|change|input)="([^"(]+)\(')
+# JS function names invoked by Alpine @click/@change/@input handlers
+ACTION_RE = re.compile(r'@(?:click|change|input)(?:\.[a-z0-9.]+)?="([^"(]+)\(')
 
 # Normalize dynamic template expressions to base function name
 TEMPLATE_RE = re.compile(r'\$\{[^}]+\}')
@@ -40,11 +40,11 @@ def _extract_tested_functions() -> set[str]:
         # Function names in strings: onclick="add()", evaluate("refresh()"), etc.
         for fn in re.findall(r'["\']([a-zA-Z_]\w*)\(', content):
             tested.add(fn)
-        # Function names in selector strings: onclick*="toggleTheme"
-        for fn in re.findall(r'onclick\*?="([a-zA-Z_]\w*)', content):
+        # Function names in selector strings: @click="toggleTheme" or onclick*="toggleTheme"
+        for fn in re.findall(r'(?:onclick|@click)\*?="([a-zA-Z_]\w*)', content):
             tested.add(fn)
-        # onchange*= and oninput*= selectors
-        for fn in re.findall(r'on(?:change|input)\*?="([a-zA-Z_]\w*)', content):
+        # @change, @input, onchange*= and oninput*= selectors
+        for fn in re.findall(r'(?:on(?:change|input)|@(?:change|input))\*?="([a-zA-Z_]\w*)', content):
             tested.add(fn)
         # Function names referenced directly in test names or assertions
         for fn in re.findall(r'["\']([a-zA-Z_]\w+)["\']', content):
@@ -76,7 +76,6 @@ COVERAGE_MAP: dict[str, str] = {
     "setDuplicateAction": "test_duplicate_action_dropdown",
     "setPostActionRule": "test_post_action_rule_dropdown",
     "setQueueFilter": "test_filter_button[all-5] through test_filter_button[error-1]",
-    "setQueueSearch": "test_search_filters_queue",
     "setRefreshInterval": "test_refresh_interval_change / test_refresh_off",
     "setSimultaneousLimit": "test_simultaneous_downloads_input",
     "toggleQueue": "test_pause_resume_queue_button / test_07_pause_queue / test_08_resume_queue",

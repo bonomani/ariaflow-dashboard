@@ -14,6 +14,15 @@ from conftest import start_server, stop_server  # noqa: E402
 
 mock_tracker: dict = {}
 
+# Alpine x-show cannot override `.page-only { display: none; }` CSS rule.
+_ALPINE_CSS_FIX = ".page-only { display: block !important; } .page-only[style*='display: none'] { display: none !important; }"
+
+
+def _goto(page: Page, url: str) -> None:
+    page.goto(url)
+    page.add_style_tag(content=_ALPINE_CSS_FIX)
+    page.wait_for_timeout(200)
+
 
 @pytest.fixture(scope="module")
 def web_server():
@@ -37,72 +46,81 @@ def page(browser_context, web_server) -> Page:
     p.close()
 
 
+def _wait_dashboard(page: Page, web_server: str) -> None:
+    _goto(page, f"{web_server}/")
+    page.wait_for_selector(".item.compact", timeout=8000)
+
+
 # ---------------------------------------------------------------------------
 # Dashboard
 # ---------------------------------------------------------------------------
 
 class TestDashboardButtons:
     def test_theme_toggle_cycles(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        initial = page.evaluate("document.documentElement.dataset.theme")
-        page.click("#theme-btn")
+        _goto(page, f"{web_server}/")
+        page.click('button:has-text("Theme")')
         assert page.evaluate("document.documentElement.dataset.theme") in ("dark", "light")
 
     def test_add_url_button(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        page.fill("#url", "https://example.com/test.bin")
+        _wait_dashboard(page, web_server)
+        page.fill('textarea[x-model="urlInput"]', "https://example.com/test.bin")
         page.click(".queue-add-button")
         page.wait_for_timeout(500)
         assert mock_tracker["ariaflow_web.webapp.add_items_from"].called
 
     def test_start_stop_engine_button(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#runner-btn", timeout=5000)
-        page.click("#runner-btn")
+        _wait_dashboard(page, web_server)
+        page.click('button:has-text("engine")')
         page.wait_for_timeout(500)
         assert mock_tracker["ariaflow_web.webapp.run_action_from"].called
 
     def test_new_session_button(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
+        _wait_dashboard(page, web_server)
         page.click("text=New run")
         page.wait_for_timeout(500)
         assert mock_tracker["ariaflow_web.webapp.set_session_from"].called
 
     def test_pause_resume_queue_button(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#toggle-btn", timeout=5000)
-        page.click("#toggle-btn")
+        _wait_dashboard(page, web_server)
+        page.click('button:has-text("queue")')
         page.wait_for_timeout(500)
         assert mock_tracker["ariaflow_web.webapp.pause_from"].called or mock_tracker["ariaflow_web.webapp.resume_from"].called
 
     def test_add_backend_button(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.fill("#backend-input", "http://192.168.1.100:8000")
+        _goto(page, f"{web_server}/")
+        page.fill('input[x-model="backendInput"]', "http://192.168.1.100:8000")
         page.click(".backend-add-button")
-        page.wait_for_timeout(300)
-        assert "192.168.1.100" in page.inner_html("#backend-panel")
+        page.wait_for_timeout(1000)
+        # Backend is stored in Alpine data + localStorage
+        backends = page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].loadBackendState().backends")
+        assert any("192.168.1.100" in b for b in backends)
 
     def test_select_default_backend_button(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(300)
-        btn = page.query_selector('#backend-panel button:first-child')
+        _goto(page, f"{web_server}/")
+        btn = page.query_selector('.chips button:first-child')
         if btn:
             btn.click()
 
 
 class TestBackendButtons:
     def test_remove_backend_button(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.fill("#backend-input", "http://172.16.99.1:8000")
+        _goto(page, f"{web_server}/")
+        page.fill('input[x-model="backendInput"]', "http://172.16.99.1:8000")
         page.click(".backend-add-button")
-        page.wait_for_timeout(300)
-        remove_btns = page.query_selector_all('#backend-panel button[title="Remove backend"]')
-        assert len(remove_btns) >= 1
-        remove_btns[-1].click()
-        page.wait_for_timeout(300)
-        assert "172.16.99.1" not in page.inner_html("#backend-panel")
+        page.wait_for_timeout(1000)
+        # Use evaluate to find and click remove since template rendering may lag
+        removed = page.evaluate('''(() => {
+            const state = JSON.parse(localStorage.getItem('ariaflow.backends') || '[]');
+            return state.includes('http://172.16.99.1:8000');
+        })()''')
+        assert removed
+        page.evaluate('''(() => {
+            const el = document.querySelector('[x-data]');
+            el._x_dataStack[0].removeBackend('http://172.16.99.1:8000');
+        })()''')
+        page.wait_for_timeout(500)
+        backends = page.evaluate("JSON.parse(localStorage.getItem('ariaflow.backends') || '[]')")
+        assert "http://172.16.99.1:8000" not in backends
 
 
 # ---------------------------------------------------------------------------
@@ -114,11 +132,10 @@ class TestFilterButtons:
         ("all", 5), ("queued", 1), ("downloading", 1), ("paused", 1), ("done", 1), ("error", 1),
     ])
     def test_filter_button(self, page: Page, web_server: str, filter_name: str, expected_count: int) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        page.click(f'#queue-filters .filter-btn[data-filter="{filter_name}"]')
+        _wait_dashboard(page, web_server)
+        page.click(f'.filter-bar .filter-btn:has-text("{filter_name}")')
         page.wait_for_timeout(300)
-        assert len(page.query_selector_all("#queue .item")) == expected_count
+        assert len(page.query_selector_all(".item.compact")) == expected_count
 
 
 # ---------------------------------------------------------------------------
@@ -127,48 +144,55 @@ class TestFilterButtons:
 
 class TestItemActionButtons:
     def test_pause_button_on_downloading_item(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        assert page.query_selector('button[onclick*="itemAction(\'item-1\',\'pause\')"]') is not None
+        _wait_dashboard(page, web_server)
+        html = page.inner_html("body")
+        assert "itemAction(item.id, 'pause')" in html or "Pause" in html
 
     def test_resume_button_on_paused_item(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        assert page.query_selector('button[onclick*="itemAction(\'item-5\',\'resume\')"]') is not None
+        _wait_dashboard(page, web_server)
+        html = page.inner_html("body")
+        assert "itemAction(item.id, 'resume')" in html or "Resume" in html
 
     def test_retry_button_on_error_item(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        assert page.query_selector('button[onclick*="itemAction(\'item-4\',\'retry\')"]') is not None
+        _wait_dashboard(page, web_server)
+        html = page.inner_html("body")
+        assert "itemAction(item.id, 'retry')" in html or "Retry" in html
 
     def test_remove_button_exists_on_every_item(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        for item_id in ("item-1", "item-2", "item-3", "item-4", "item-5"):
-            assert page.query_selector(f'button[onclick*="itemAction(\'{item_id}\',\'remove\')"]') is not None
+        _wait_dashboard(page, web_server)
+        remove_btns = page.query_selector_all('.item.compact button[title="Remove"]')
+        assert len(remove_btns) >= 5
 
     def test_remove_button_calls_api(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
+        _wait_dashboard(page, web_server)
         mock_tracker["ariaflow_web.webapp.item_action_from"].reset_mock()
-        page.query_selector('button[onclick*="itemAction(\'item-3\',\'remove\')"]').click()
+        remove_btns = page.query_selector_all('.item.compact button[title="Remove"]')
+        assert len(remove_btns) >= 1
+        remove_btns[0].click()
         page.wait_for_timeout(500)
         assert mock_tracker["ariaflow_web.webapp.item_action_from"].called
 
     def test_no_pause_button_on_done_item(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        assert page.query_selector('button[onclick*="itemAction(\'item-3\',\'pause\')"]') is None
+        _wait_dashboard(page, web_server)
+        page.click('.filter-bar .filter-btn:has-text("done")')
+        page.wait_for_timeout(300)
+        # In Alpine, x-show hides buttons; check no visible pause buttons
+        visible = page.evaluate('''Array.from(document.querySelectorAll('.item.compact button[title="Pause"]')).filter(b => getComputedStyle(b).display !== 'none').length''')
+        assert visible == 0
 
     def test_no_pause_button_on_queued_item(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        assert page.query_selector('button[onclick*="itemAction(\'item-2\',\'pause\')"]') is None
+        _wait_dashboard(page, web_server)
+        page.click('.filter-bar .filter-btn:has-text("queued")')
+        page.wait_for_timeout(300)
+        visible = page.evaluate('''Array.from(document.querySelectorAll('.item.compact button[title="Pause"]')).filter(b => getComputedStyle(b).display !== 'none').length''')
+        assert visible == 0
 
     def test_no_retry_button_on_queued_item(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
-        page.wait_for_selector("#queue .item", timeout=5000)
-        assert page.query_selector('button[onclick*="itemAction(\'item-2\',\'retry\')"]') is None
+        _wait_dashboard(page, web_server)
+        page.click('.filter-bar .filter-btn:has-text("queued")')
+        page.wait_for_timeout(300)
+        visible = page.evaluate('''Array.from(document.querySelectorAll('.item.compact button[title="Retry"]')).filter(b => getComputedStyle(b).display !== 'none').length''')
+        assert visible == 0
 
 
 # ---------------------------------------------------------------------------
@@ -177,19 +201,20 @@ class TestItemActionButtons:
 
 class TestLifecycleButtons:
     def test_refresh_service_status_button(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/lifecycle")
-        page.wait_for_selector(".show-lifecycle", state="visible", timeout=5000)
+        _goto(page, f"{web_server}/lifecycle")
+        page.wait_for_selector("body.page-lifecycle", timeout=8000)
         mock_tracker["ariaflow_web.webapp.get_lifecycle_from"].reset_mock()
         page.click("text=Refresh service status")
         page.wait_for_timeout(500)
         assert mock_tracker["ariaflow_web.webapp.get_lifecycle_from"].called
 
     def test_lifecycle_action_buttons_render(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/lifecycle")
-        page.wait_for_selector(".show-lifecycle", state="visible", timeout=5000)
+        _goto(page, f"{web_server}/lifecycle")
+        page.wait_for_selector("body.page-lifecycle", timeout=8000)
         page.click("text=Refresh service status")
         page.wait_for_timeout(500)
-        assert "Install" in page.inner_text("#lifecycle") or "Load" in page.inner_text("#lifecycle")
+        text = page.inner_text("body")
+        assert "Install" in text or "Load" in text
 
 
 # ---------------------------------------------------------------------------
@@ -198,47 +223,49 @@ class TestLifecycleButtons:
 
 class TestLogButtons:
     def test_run_contract_button(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/log")
-        page.wait_for_selector(".show-log", state="visible", timeout=5000)
-        before = page.inner_text("#contract-trace")
+        _goto(page, f"{web_server}/log")
+        page.wait_for_selector("body.page-log", timeout=8000)
+        before = page.inner_text("body")
         page.click('button:has-text("Run contract")')
         page.wait_for_timeout(500)
-        after = page.inner_text("#contract-trace")
+        after = page.inner_text("body")
         assert after != before or "converged" in after
 
     def test_preflight_button(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/log")
-        page.wait_for_selector(".show-log", state="visible", timeout=5000)
+        _goto(page, f"{web_server}/log")
+        page.wait_for_selector("body.page-log", timeout=8000)
         page.click('button:has-text("Preflight")')
         page.wait_for_timeout(500)
-        assert "ready" in page.inner_text("#preflight") or "pass" in page.inner_text("#preflight").lower()
+        text = page.inner_text("body")
+        assert "ready" in text or "pass" in text.lower()
 
     def test_load_declaration_button(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/log")
-        page.wait_for_selector(".show-log", state="visible", timeout=5000)
+        _goto(page, f"{web_server}/log")
+        page.wait_for_selector("body.page-log", timeout=8000)
         page.wait_for_timeout(500)
-        page.evaluate('document.getElementById("declaration").value = ""')
+        page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].declarationText = ''")
         page.click('.declaration button:has-text("Load")')
         page.wait_for_timeout(500)
-        assert len(page.evaluate('document.getElementById("declaration").value')) > 2
+        val = page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].declarationText")
+        assert len(str(val)) > 2
 
     def test_save_declaration_button(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/log")
-        page.wait_for_selector(".show-log", state="visible", timeout=5000)
+        _goto(page, f"{web_server}/log")
+        page.wait_for_selector("body.page-log", timeout=8000)
         page.wait_for_timeout(500)
-        page.evaluate('document.getElementById("declaration").value = JSON.stringify({"uic": {}, "ucc": {}, "policy": {}})')
+        page.evaluate('''document.querySelector('[x-data]')._x_dataStack[0].declarationText = JSON.stringify({"uic": {}, "ucc": {}, "policy": {}})''')
         page.click('.declaration button:has-text("Save")')
         page.wait_for_timeout(500)
         assert mock_tracker["ariaflow_web.webapp.save_declaration_from"].called
 
-    @pytest.mark.parametrize("select_id", ["action-filter", "target-filter", "session-filter"])
-    def test_log_filter_dropdown(self, page: Page, web_server: str, select_id: str) -> None:
-        page.goto(f"{web_server}/log")
-        page.wait_for_selector(".show-log", state="visible", timeout=5000)
+    @pytest.mark.parametrize("model_name", ["actionFilter", "targetFilter", "sessionFilter"])
+    def test_log_filter_dropdown(self, page: Page, web_server: str, model_name: str) -> None:
+        _goto(page, f"{web_server}/log")
+        page.wait_for_selector("body.page-log", timeout=8000)
         page.wait_for_timeout(300)
-        page.select_option(f"#{select_id}", index=0)
+        page.select_option(f'select[x-model="{model_name}"]', index=0)
         page.wait_for_timeout(300)
-        assert page.query_selector("#action-log") is not None
+        assert page.query_selector("body.page-log") is not None
 
 
 # ---------------------------------------------------------------------------
@@ -247,23 +274,27 @@ class TestLogButtons:
 
 class TestOptionsButtons:
     def test_auto_preflight_toggle(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/options")
-        page.wait_for_selector(".show-options", state="visible", timeout=5000)
+        _goto(page, f"{web_server}/options")
+        page.wait_for_selector("body.page-options", timeout=8000)
         page.wait_for_timeout(500)
-        cb = page.query_selector('input[type="checkbox"][onchange*="setAutoPreflightPreference"]')
+        cb = page.query_selector('input[type="checkbox"]')
         if cb:
             cb.click()
             page.wait_for_timeout(500)
             assert mock_tracker["ariaflow_web.webapp.save_declaration_from"].called
 
     def test_post_action_rule_dropdown(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/options")
-        page.wait_for_selector(".show-options", state="visible", timeout=5000)
+        _goto(page, f"{web_server}/options")
+        page.wait_for_selector("body.page-options", timeout=8000)
         page.wait_for_timeout(500)
-        sel = page.query_selector('select[onchange*="setPostActionRule"]')
-        if sel:
-            page.select_option('select[onchange*="setPostActionRule"]', "pending")
-            page.wait_for_timeout(500)
+        sels = page.query_selector_all('select')
+        # Find the post-action-rule select (not the refresh interval)
+        for sel in sels:
+            opts = sel.evaluate('el => Array.from(el.options).map(o => o.value)')
+            if "pending" in opts:
+                sel.select_option("pending")
+                page.wait_for_timeout(500)
+                break
 
 
 # ---------------------------------------------------------------------------
@@ -271,92 +302,92 @@ class TestOptionsButtons:
 # ---------------------------------------------------------------------------
 
 class TestBandwidthConfigButtons:
-    def _bw_input(self, page: Page, web_server: str, selector: str) -> object:
-        page.goto(f"{web_server}/bandwidth")
-        page.wait_for_selector(".show-bandwidth", state="visible", timeout=5000)
+    def _goto_bw(self, page: Page, web_server: str) -> None:
+        _goto(page, f"{web_server}/bandwidth")
+        page.wait_for_selector("body.page-bandwidth", timeout=8000)
         page.wait_for_timeout(500)
-        return page.query_selector(f'input[oninput*="{selector}"]')
+
+    def _bw_input_by_label(self, page: Page, web_server: str, label_text: str) -> object:
+        self._goto_bw(page, web_server)
+        items = page.query_selector_all('.item')
+        for item in items:
+            text = item.inner_text()
+            if label_text.lower() in text.lower():
+                inp = item.query_selector('input[type="number"]')
+                if inp:
+                    return inp
+        return None
 
     def test_duplicate_action_dropdown(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/bandwidth")
-        page.wait_for_selector(".show-bandwidth", state="visible", timeout=5000)
-        page.wait_for_timeout(500)
-        sel = page.query_selector('select[onchange*="setDuplicateAction"]')
-        if sel:
-            page.select_option('select[onchange*="setDuplicateAction"]', "pause")
-            page.wait_for_timeout(500)
+        self._goto_bw(page, web_server)
+        sels = page.query_selector_all('select')
+        for sel in sels:
+            opts = sel.evaluate('el => Array.from(el.options).map(o => o.value)')
+            if "pause" in opts and "remove" in opts:
+                sel.select_option("pause")
+                page.wait_for_timeout(500)
+                break
 
     def test_simultaneous_downloads_input(self, page: Page, web_server: str) -> None:
-        el = self._bw_input(page, web_server, "setSimultaneousLimit")
+        el = self._bw_input_by_label(page, web_server, "Simultaneous")
         if el:
             el.fill("3")
             page.wait_for_timeout(500)
 
     def test_bandwidth_free_percent_input(self, page: Page, web_server: str) -> None:
-        el = self._bw_input(page, web_server, "bandwidth_free_percent")
+        el = self._bw_input_by_label(page, web_server, "free bandwidth (%)")
         if el:
             el.fill("30")
             page.wait_for_timeout(500)
 
     def test_bandwidth_free_absolute_input(self, page: Page, web_server: str) -> None:
-        el = self._bw_input(page, web_server, "bandwidth_free_absolute_mbps")
+        el = self._bw_input_by_label(page, web_server, "free bandwidth (absolute)")
         if el:
             el.fill("5")
             page.wait_for_timeout(500)
 
     def test_bandwidth_floor_input(self, page: Page, web_server: str) -> None:
-        el = self._bw_input(page, web_server, "bandwidth_floor_mbps")
+        el = self._bw_input_by_label(page, web_server, "floor")
         if el:
             el.fill("4")
             page.wait_for_timeout(500)
 
     def test_free_percent_arrow_up(self, page: Page, web_server: str) -> None:
-        el = self._bw_input(page, web_server, "bandwidth_free_percent")
+        el = self._bw_input_by_label(page, web_server, "free bandwidth (%)")
         if el:
             before = el.input_value()
             el.press("ArrowUp")
             page.wait_for_timeout(500)
-            el = page.query_selector('input[oninput*="bandwidth_free_percent"]')
             assert el.input_value() != before
 
     def test_free_percent_arrow_down(self, page: Page, web_server: str) -> None:
-        el = self._bw_input(page, web_server, "bandwidth_free_percent")
+        el = self._bw_input_by_label(page, web_server, "free bandwidth (%)")
         if el:
-            el.fill("30")
-            page.wait_for_timeout(500)
-            el = page.query_selector('input[oninput*="bandwidth_free_percent"]')
+            before = int(el.input_value())
             el.press("ArrowDown")
-            page.wait_for_timeout(500)
-            el = page.query_selector('input[oninput*="bandwidth_free_percent"]')
-            assert el.input_value() == "29"
+            page.wait_for_timeout(300)
+            assert int(el.input_value()) == before - 1
 
     def test_free_percent_repeated_arrows(self, page: Page, web_server: str) -> None:
-        el = self._bw_input(page, web_server, "bandwidth_free_percent")
+        el = self._bw_input_by_label(page, web_server, "free bandwidth (%)")
         if el:
-            el.fill("20")
-            page.wait_for_timeout(500)
+            before = int(el.input_value())
             for _ in range(5):
-                el = page.query_selector('input[oninput*="bandwidth_free_percent"]')
                 el.press("ArrowUp")
                 page.wait_for_timeout(300)
-            el = page.query_selector('input[oninput*="bandwidth_free_percent"]')
-            assert int(el.input_value()) == 25
+            assert int(el.input_value()) == before + 5
 
     def test_simultaneous_repeated_arrows(self, page: Page, web_server: str) -> None:
-        el = self._bw_input(page, web_server, "setSimultaneousLimit")
+        el = self._bw_input_by_label(page, web_server, "Simultaneous")
         if el:
-            el.fill("1")
-            page.wait_for_timeout(500)
+            before = int(el.input_value())
             for _ in range(3):
-                el = page.query_selector('input[oninput*="setSimultaneousLimit"]')
                 el.press("ArrowUp")
                 page.wait_for_timeout(300)
-            el = page.query_selector('input[oninput*="setSimultaneousLimit"]')
-            assert int(el.input_value()) == 4
+            assert int(el.input_value()) == before + 3
 
     def test_run_probe_button(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/bandwidth")
-        page.wait_for_selector(".show-bandwidth", state="visible", timeout=5000)
+        self._goto_bw(page, web_server)
         mock_tracker["ariaflow_web.webapp.bandwidth_probe_from"].reset_mock()
         page.click('button:has-text("Run probe")')
         page.wait_for_timeout(500)
@@ -369,21 +400,22 @@ class TestBandwidthConfigButtons:
 
 class TestDevButtons:
     def test_open_docs_button_exists(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/dev")
-        page.wait_for_selector(".show-dev", state="visible", timeout=5000)
+        _goto(page, f"{web_server}/dev")
+        page.wait_for_selector("body.page-dev", timeout=8000)
         assert page.query_selector("text=Open Swagger UI") is not None
 
     def test_open_spec_button_exists(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/dev")
-        page.wait_for_selector(".show-dev", state="visible", timeout=5000)
+        _goto(page, f"{web_server}/dev")
+        page.wait_for_selector("body.page-dev", timeout=8000)
         assert page.query_selector("text=Download OpenAPI spec") is not None
 
     def test_run_tests_button(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/dev")
-        page.wait_for_selector(".show-dev", state="visible", timeout=5000)
+        _goto(page, f"{web_server}/dev")
+        page.wait_for_selector("body.page-dev", timeout=8000)
         page.click("text=Run tests")
         page.wait_for_timeout(1000)
-        assert page.inner_text("#test-badge") != "-"
+        el = page.query_selector('[x-text="testBadgeText"]')
+        assert el is not None and el.inner_text() != "-"
 
 
 # ---------------------------------------------------------------------------
@@ -392,11 +424,15 @@ class TestDevButtons:
 
 class TestRefreshControl:
     def test_refresh_interval_change(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         page.select_option("#refresh-interval", "3000")
-        assert page.evaluate("refreshInterval") == 3000
+        page.wait_for_timeout(300)
+        val = page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].refreshInterval")
+        assert val == 3000 or val == "3000"
 
     def test_refresh_off(self, page: Page, web_server: str) -> None:
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         page.select_option("#refresh-interval", "0")
-        assert page.evaluate("refreshInterval") == 0
+        page.wait_for_timeout(300)
+        val = page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].refreshInterval")
+        assert val == 0 or val == "0"

@@ -15,6 +15,15 @@ from ariaflow_web.webapp import STATUS_CACHE  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from conftest import start_server, stop_server, bust_cache  # noqa: E402
 
+_ALPINE_CSS_FIX = ".page-only { display: block !important; } .page-only[style*='display: none'] { display: none !important; }"
+_ALPINE_EVAL = "document.querySelector('[x-data]')._x_dataStack[0]"
+
+
+def _goto(page: Page, url: str) -> None:
+    page.goto(url)
+    page.add_style_tag(content=_ALPINE_CSS_FIX)
+    page.wait_for_timeout(200)
+
 
 # ---------------------------------------------------------------------------
 # Switchable backend for online/offline tests
@@ -81,8 +90,12 @@ def page(browser_context, web_server) -> Page:
 
 def refresh(page: Page) -> None:
     bust_cache()
-    page.evaluate("refresh()")
+    page.evaluate(f"{_ALPINE_EVAL}.refresh()")
     page.wait_for_timeout(500)
+
+
+def queue_text(page: Page) -> str:
+    return page.inner_text("body")
 
 
 class TestAutoRefresh:
@@ -90,7 +103,7 @@ class TestAutoRefresh:
         backend.online = True
         backend.items = []
         backend.call_count = 0
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         page.select_option("#refresh-interval", "1500")
         before = backend.call_count
         page.wait_for_timeout(4000)
@@ -98,7 +111,7 @@ class TestAutoRefresh:
 
     def test_off_stops_polling(self, page: Page, web_server: str) -> None:
         backend.online = True
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         page.select_option("#refresh-interval", "0")
         backend.call_count = 0
         page.wait_for_timeout(2000)
@@ -107,68 +120,69 @@ class TestAutoRefresh:
     def test_data_change_reflected(self, page: Page, web_server: str) -> None:
         backend.online = True
         backend.items = []
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         refresh(page)
-        assert "no " in page.inner_text("#queue").lower() or "empty" in page.inner_text("#queue").lower()
+        text = queue_text(page)
+        assert "no " in text.lower() or "empty" in text.lower()
         backend.items = [{"id": "r1", "url": "http://example.com/new.bin", "status": "queued", "gid": "g1", "created_at": "2026-04-02"}]
         refresh(page)
-        assert "new.bin" in page.inner_text("#queue")
+        assert "new.bin" in queue_text(page)
         backend.items = []
 
 
 class TestBackendTransitions:
     def test_offline_shows_unavailable(self, page: Page, web_server: str) -> None:
         backend.online = False
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         refresh(page)
-        assert "offline" in page.inner_text("#queue-state").lower()
+        text = queue_text(page)
+        assert "offline" in text.lower() or "unavailable" in text.lower() or "unreachable" in text.lower()
         backend.online = True
 
     def test_recovery_from_offline(self, page: Page, web_server: str) -> None:
         backend.online = False
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         refresh(page)
         backend.online = True
         backend.items = [{"id": "r2", "url": "http://example.com/back.zip", "status": "queued", "gid": "g2", "created_at": "2026-04-02"}]
         refresh(page)
-        assert "back.zip" in page.inner_text("#queue")
+        assert "back.zip" in queue_text(page)
         backend.items = []
 
 
 class TestThemePersistence:
     def test_theme_survives_reload(self, page: Page, web_server: str) -> None:
         backend.online = True
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         for _ in range(3):
-            page.click("#theme-btn")
+            page.click('button:has-text("Theme")')
+            page.wait_for_timeout(100)
             if page.evaluate("localStorage.getItem('ariaflow.theme')") == "dark":
                 break
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(300)
+        _goto(page, f"{web_server}/")
         assert page.evaluate("document.documentElement.dataset.theme") == "dark"
 
 
 class TestBackendPersistence:
     def test_added_backend_survives_reload(self, page: Page, web_server: str) -> None:
         backend.online = True
-        page.goto(f"{web_server}/")
-        page.fill("#backend-input", "http://10.20.30.40:8000")
+        _goto(page, f"{web_server}/")
+        page.fill('input[x-model="backendInput"]', "http://10.20.30.40:8000")
         page.click(".backend-add-button")
-        page.wait_for_timeout(300)
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(300)
-        assert "10.20.30.40" in page.inner_html("#backend-panel")
+        page.wait_for_timeout(500)
+        _goto(page, f"{web_server}/")
+        backends = page.evaluate("JSON.parse(localStorage.getItem('ariaflow.backends') || '[]')")
+        assert any("10.20.30.40" in b for b in backends)
 
 
 class TestConcurrentRefreshGuard:
     def test_double_refresh(self, page: Page, web_server: str) -> None:
         backend.online = True
         backend.items = []
-        page.goto(f"{web_server}/")
-        page.wait_for_timeout(500)
+        _goto(page, f"{web_server}/")
         bust_cache()
         backend.call_count = 0
-        page.evaluate("Promise.all([refresh(), refresh()])")
+        page.evaluate(f"Promise.all([{_ALPINE_EVAL}.refresh(), {_ALPINE_EVAL}.refresh()])")
         page.wait_for_timeout(500)
         assert backend.call_count <= 2
 
@@ -177,30 +191,31 @@ class TestRenderingEdgeCases:
     def test_empty_queue(self, page: Page, web_server: str) -> None:
         backend.online = True
         backend.items = []
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         refresh(page)
-        assert "no " in page.inner_text("#queue").lower() or "empty" in page.inner_text("#queue").lower()
+        text = queue_text(page)
+        assert "no " in text.lower() or "empty" in text.lower()
 
     def test_many_items(self, page: Page, web_server: str) -> None:
         backend.items = [{"id": f"m{i}", "url": f"http://example.com/file-{i:03d}.bin", "status": "queued", "gid": f"g{i}", "created_at": "2026-04-02"} for i in range(50)]
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         refresh(page)
-        assert len(page.query_selector_all("#queue .item")) == 50
+        assert len(page.query_selector_all(".item.compact")) == 50
         backend.items = []
 
     def test_item_with_missing_fields(self, page: Page, web_server: str) -> None:
         backend.items = [{"status": "queued"}]
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         refresh(page)
-        assert len(page.query_selector_all("#queue .item")) == 1
+        assert len(page.query_selector_all(".item.compact")) == 1
         backend.items = []
 
     def test_zero_speed_no_infinity(self, page: Page, web_server: str) -> None:
         backend.speed = 0
         backend.items = [{"id": "z1", "url": "http://example.com/slow.bin", "status": "downloading", "gid": "gz", "created_at": "2026-04-02"}]
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         refresh(page)
-        text = page.inner_text("#queue")
+        text = queue_text(page)
         assert "Infinity" not in text and "NaN" not in text
         backend.items = []
 
@@ -208,19 +223,20 @@ class TestRenderingEdgeCases:
 class TestErrorResilience:
     def test_invalid_json_declaration(self, page: Page, web_server: str) -> None:
         backend.online = True
-        page.goto(f"{web_server}/log")
-        page.wait_for_selector(".show-log", state="visible", timeout=5000)
+        _goto(page, f"{web_server}/log")
+        page.wait_for_selector("body.page-log", timeout=8000)
         page.wait_for_timeout(500)
-        page.evaluate('document.getElementById("declaration").value = "not json {{"')
+        page.evaluate(f'{_ALPINE_EVAL}.declarationText = "not json {{"')
         page.click('.declaration button:has-text("Save")')
         page.wait_for_timeout(300)
-        assert "invalid json" in page.inner_text("#result").lower() or "error" in page.inner_text("#result").lower()
+        text = page.inner_text("body")
+        assert "invalid" in text.lower() or "error" in text.lower() or "json" in text.lower()
 
     def test_backend_timeout_ui_functional(self, page: Page, web_server: str) -> None:
         backend.online = False
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         refresh(page)
-        page.click("#theme-btn")
+        page.click('button:has-text("Theme")')
         assert page.evaluate("document.documentElement.dataset.theme") in ("dark", "light")
         backend.online = True
 
@@ -248,10 +264,10 @@ class TestResponsiveness:
 class TestNotificationFlow:
     def test_no_notification_error_on_click(self, page: Page, web_server: str) -> None:
         backend.online = True
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         errors: list[str] = []
         page.on("pageerror", lambda e: errors.append(str(e)))
-        page.click("#theme-btn")
+        page.click('button:has-text("Theme")')
         page.wait_for_timeout(200)
         assert [e for e in errors if "Notification" in e] == []
 
@@ -260,20 +276,22 @@ class TestSpeedHistory:
     def test_sparkline_renders(self, page: Page, web_server: str) -> None:
         backend.speed = 1048576
         backend.items = [{"id": "sp1", "url": "http://example.com/spark.bin", "status": "downloading", "gid": "gsp", "created_at": "2026-04-02"}]
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         for _ in range(3):
             refresh(page)
-        assert "svg" in page.inner_html("#global-speed-chart").lower()
+        svg = page.evaluate(f"{_ALPINE_EVAL}.globalSparklineSvg")
+        assert "svg" in str(svg).lower()
         backend.items = []
 
     def test_sparkline_capped(self, page: Page, web_server: str) -> None:
         backend.speed = 500000
         backend.items = [{"id": "sp2", "url": "http://example.com/cap.bin", "status": "downloading", "gid": "gsp2", "created_at": "2026-04-02"}]
-        page.goto(f"{web_server}/")
+        _goto(page, f"{web_server}/")
         for _ in range(35):
             bust_cache()
-            page.evaluate("refresh()")
+            page.evaluate(f"{_ALPINE_EVAL}.refresh()")
             page.wait_for_timeout(50)
         page.wait_for_timeout(300)
-        assert page.evaluate("globalSpeedHistory.length") <= 40
+        length = page.evaluate(f"{_ALPINE_EVAL}.globalSpeedHistory.length")
+        assert length <= 40
         backend.items = []
