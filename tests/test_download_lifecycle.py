@@ -20,13 +20,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ariaflow_web.webapp import serve  # noqa: E402
 from conftest import bust_cache  # noqa: E402
 
-_ALPINE_CSS_FIX = ".page-only { display: block !important; } .page-only[style*='display: none'] { display: none !important; }"
 _ALPINE_EVAL = "document.querySelector('[x-data]')._x_dataStack[0]"
 
 
 def _goto(page: Page, url: str) -> None:
     page.goto(url)
-    page.add_style_tag(content=_ALPINE_CSS_FIX)
     page.wait_for_timeout(200)
 
 

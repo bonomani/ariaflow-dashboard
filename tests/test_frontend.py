@@ -15,15 +15,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from conftest import start_server, stop_server  # noqa: E402
 
-# Alpine x-show sets/removes inline display:none but cannot override the CSS
-# rule `.page-only { display: none; }`.  Inject a fix so x-show works.
-_ALPINE_CSS_FIX = ".page-only { display: block !important; } .page-only[style*='display: none'] { display: none !important; }"
-
-
 def _goto(page: Page, url: str) -> None:
-    """Navigate and inject the Alpine CSS fix."""
+    """Navigate and wait for Alpine."""
     page.goto(url)
-    page.add_style_tag(content=_ALPINE_CSS_FIX)
     page.wait_for_timeout(200)
 
 

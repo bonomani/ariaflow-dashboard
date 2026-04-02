@@ -14,13 +14,8 @@ from conftest import start_server, stop_server  # noqa: E402
 
 mock_tracker: dict = {}
 
-# Alpine x-show cannot override `.page-only { display: none; }` CSS rule.
-_ALPINE_CSS_FIX = ".page-only { display: block !important; } .page-only[style*='display: none'] { display: none !important; }"
-
-
 def _goto(page: Page, url: str) -> None:
     page.goto(url)
-    page.add_style_tag(content=_ALPINE_CSS_FIX)
     page.wait_for_timeout(200)
 
 

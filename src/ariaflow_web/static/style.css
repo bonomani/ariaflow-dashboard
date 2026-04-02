@@ -501,13 +501,7 @@
       appearance: none;
       cursor: pointer;
     }
-    .page-only { display: none; }
-    body.page-dashboard .show-dashboard,
-    body.page-bandwidth .show-bandwidth,
-    body.page-lifecycle .show-lifecycle,
-    body.page-options .show-options,
-    body.page-log .show-log,
-    body.page-dev .show-dev { display: block; }
+    [x-cloak] { display: none !important; }
     @media (max-width: 980px) {
       .hero, .summary { grid-template-columns: 1fr; }
       .hero { align-items: start; }
