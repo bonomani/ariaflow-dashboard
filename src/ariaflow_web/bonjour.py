@@ -75,7 +75,7 @@ def _browse_service_names(timeout: float = 1.5) -> list[str]:
     try:
         completed = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
     except subprocess.TimeoutExpired as exc:
-        output = (exc.stdout or "") + "\n" + (exc.stderr or "")
+        output = str(exc.stdout or "") + "\n" + str(exc.stderr or "")
     else:
         output = (completed.stdout or "") + "\n" + (completed.stderr or "")
     names: list[str] = []
@@ -91,7 +91,7 @@ def _resolve_service(name: str, timeout: float = 1.5) -> dict[str, object] | Non
     try:
         completed = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
     except subprocess.TimeoutExpired as exc:
-        output = (exc.stdout or "") + "\n" + (exc.stderr or "")
+        output = str(exc.stdout or "") + "\n" + str(exc.stderr or "")
     else:
         output = (completed.stdout or "") + "\n" + (completed.stderr or "")
     host = None

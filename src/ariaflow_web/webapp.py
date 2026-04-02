@@ -79,7 +79,7 @@ def _normalize_backend_payload(payload: dict, backend_url: str) -> dict:
     return payload
 
 
-def format_bytes(value: object) -> str:
+def format_bytes(value: float | int | str | None) -> str:
     if value is None:
         return "-"
     size = float(value)
@@ -91,13 +91,13 @@ def format_bytes(value: object) -> str:
     return f"{size:.1f} TiB"
 
 
-def format_rate(value: object) -> str:
+def format_rate(value: float | int | str | None) -> str:
     if value is None:
         return "-"
     return f"{format_bytes(value)}/s"
 
 
-def format_mbps(value: object) -> str:
+def format_mbps(value: float | int | str | None) -> str:
     if value is None:
         return "-"
     return f"{value} Mbps"
@@ -1010,6 +1010,11 @@ INDEX_HTML = """<!doctype html>
     let refreshTimer = null;
     let refreshInterval = 10000;
     let lastDeclaration = null;
+    function escapeHtml(str) {
+      if (str == null) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
     let queueFilter = 'all';
     let queueSearch = '';
     const speedHistory = {};
@@ -1158,7 +1163,7 @@ INDEX_HTML = """<!doctype html>
         btn.textContent = count > 0 ? `${label} (${count})` : label;
       });
     }
-    const path = window.location.pathname.replace(/[/]+$/, "");
+    const path = window.location.pathname.replace(/\/+$/, "");
     const page = path === "/bandwidth"
       ? "bandwidth"
       : path === "/lifecycle"
@@ -1695,14 +1700,14 @@ INDEX_HTML = """<!doctype html>
         ? progress
         : (Number(totalLength || 0) > 0 ? (Number(completedLength || 0) / Number(totalLength || 1)) * 100 : 0);
       const displayUrl = item.url || live.url || "";
-      const ariaBadge = liveStatus ? `<span class="badge ${badgeClass(liveStatus)}">aria2: ${liveStatus}</span>` : "";
+      const ariaBadge = liveStatus ? `<span class="badge ${badgeClass(liveStatus)}">aria2: ${escapeHtml(liveStatus)}</span>` : "";
       const showTransferPanel = activeish || totalLength || completedLength || progress != null;
       const rateLabel = speed
         ? formatRate(speed)
         : normalizedStatus === 'paused'
           ? 'paused'
           : 'idle';
-      const recoveredMeta = item.recovered_at ? `<span>Recovered ${item.recovered_at}</span>` : "";
+      const recoveredMeta = item.recovered_at ? `<span>Recovered ${escapeHtml(item.recovered_at)}</span>` : "";
       const eta = formatEta(totalLength, completedLength, speed);
       if (item.id && activeish) recordSpeed(item.id, speed || 0);
       const sparkline = item.id ? renderSparkline(item.id) : '';
@@ -1716,33 +1721,34 @@ INDEX_HTML = """<!doctype html>
           ${totalLength ? `<span>Total ${formatBytes(totalLength)}</span>` : ""}
           ${completedLength ? `<span>Done ${formatBytes(completedLength)}</span>` : ""}
           ${recoveredMeta}
-          ${item.error_message ? `<span class="mono">${item.error_message}</span>` : ""}
+          ${item.error_message ? `<span class="mono">${escapeHtml(item.error_message)}</span>` : ""}
         </div>
         ${sparkline}
       ` : "";
-      const stateLabel = liveStatus ? `${normalizedStatus} · aria2:${liveStatus}` : normalizedStatus;
+      const stateLabel = liveStatus ? `${escapeHtml(normalizedStatus)} · aria2:${escapeHtml(liveStatus)}` : escapeHtml(normalizedStatus);
       const itemId = item.id || '';
+      const safeItemId = escapeHtml(itemId);
       const canPause = ['queued', 'downloading'].includes(normalizedStatus);
       const canResume = normalizedStatus === 'paused';
       const canRetry = ['error', 'failed', 'stopped'].includes(normalizedStatus);
-      const actionBtns = itemId ? `
+      const actionBtns = safeItemId ? `
         <div class="action-strip" style="margin-top:8px;">
-          ${canPause ? `<button class="secondary icon-btn" onclick="itemAction('${itemId}','pause')" title="Pause">&#9646;&#9646;<span class="sr-only">Pause</span></button>` : ''}
-          ${canResume ? `<button class="secondary icon-btn" onclick="itemAction('${itemId}','resume')" title="Resume">&#9654;<span class="sr-only">Resume</span></button>` : ''}
-          ${canRetry ? `<button class="secondary icon-btn" onclick="itemAction('${itemId}','retry')" title="Retry">&#8635;<span class="sr-only">Retry</span></button>` : ''}
-          <button class="secondary icon-btn" onclick="itemAction('${itemId}','remove')" title="Remove">&#10005;<span class="sr-only">Remove</span></button>
+          ${canPause ? `<button class="secondary icon-btn" onclick="itemAction('${safeItemId}','pause')" title="Pause">&#9646;&#9646;<span class="sr-only">Pause</span></button>` : ''}
+          ${canResume ? `<button class="secondary icon-btn" onclick="itemAction('${safeItemId}','resume')" title="Resume">&#9654;<span class="sr-only">Resume</span></button>` : ''}
+          ${canRetry ? `<button class="secondary icon-btn" onclick="itemAction('${safeItemId}','retry')" title="Retry">&#8635;<span class="sr-only">Retry</span></button>` : ''}
+          <button class="secondary icon-btn" onclick="itemAction('${safeItemId}','remove')" title="Remove">&#10005;<span class="sr-only">Remove</span></button>
         </div>
       ` : '';
       return `
         <div class="item compact ${activeish ? 'active-item' : ''}">
         <div class="item-top">
-          <div class="item-url">${shortUrl}</div>
+          <div class="item-url">${escapeHtml(shortUrl)}</div>
           <span class="${badgeClass(normalizedStatus)}">${stateLabel}</span>
         </div>
         <div class="meta">
           ${ariaBadge}
-          ${displayUrl ? `<span title="${displayUrl}">${displayUrl}</span>` : ""}
-          ${detail ? `<span class="mono">${detail}</span>` : ""}
+          ${displayUrl ? `<span title="${escapeHtml(displayUrl)}">${escapeHtml(displayUrl)}</span>` : ""}
+          ${detail ? `<span class="mono">${escapeHtml(detail)}</span>` : ""}
         </div>
           ${activePanel}
           ${actionBtns}
@@ -1794,19 +1800,19 @@ INDEX_HTML = """<!doctype html>
     function renderLifecycleItem(name, record, actions = []) {
       const result = record && record.result ? record.result : {};
       const lines = [];
-      if (result.message) lines.push(result.message);
-      if (result.reason) lines.push(`Reason: ${result.reason}`);
-      if (result.completion) lines.push(`Completion: ${result.completion}`);
+      if (result.message) lines.push(escapeHtml(result.message));
+      if (result.reason) lines.push(`Reason: ${escapeHtml(result.reason)}`);
+      if (result.completion) lines.push(`Completion: ${escapeHtml(result.completion)}`);
       const buttons = actions.length ? `
         <div class="action-strip" style="justify-content:flex-start; margin-top:8px;">
-          ${actions.map((action) => `<button class="secondary icon-btn" onclick="lifecycleAction('${action.target}','${action.action}')" title="${action.label}">${action.label}</button>`).join("")}
+          ${actions.map((action) => `<button class="secondary icon-btn" onclick="lifecycleAction('${escapeHtml(action.target)}','${escapeHtml(action.action)}')" title="${escapeHtml(action.label)}">${escapeHtml(action.label)}</button>`).join("")}
         </div>
       ` : "";
       return `
         <div class="item">
           <div class="item-top">
-            <div class="item-url">${name}</div>
-            <span class="${badgeClass(result.outcome)}">${lifecycleStateLabel(name, record)}</span>
+            <div class="item-url">${escapeHtml(name)}</div>
+            <span class="${badgeClass(result.outcome)}">${escapeHtml(lifecycleStateLabel(name, record))}</span>
           </div>
           <div class="meta">
             <span>${lines.join(" · ") || "No details"}</span>
@@ -1850,11 +1856,11 @@ INDEX_HTML = """<!doctype html>
             <div class="item-url">Run</div>
             <span class="badge ${data.session_closed_at ? 'warn' : 'good'}">${data.session_closed_at ? 'closed' : 'current'}</span>
           </div>
-          <div class="meta"><span class="mono">${data.session_id}</span></div>
+          <div class="meta"><span class="mono">${escapeHtml(data.session_id)}</span></div>
           <div class="meta">
-            <span>${data.session_started_at ? `Started ${data.session_started_at}` : 'Start time unknown'}</span>
-            <span>${data.session_last_seen_at ? `Last seen ${data.session_last_seen_at}` : 'Last seen unknown'}</span>
-            ${data.session_closed_at ? `<span>Closed ${data.session_closed_at}${data.session_closed_reason ? ` · ${data.session_closed_reason}` : ''}</span>` : ""}
+            <span>${data.session_started_at ? `Started ${escapeHtml(data.session_started_at)}` : 'Start time unknown'}</span>
+            <span>${data.session_last_seen_at ? `Last seen ${escapeHtml(data.session_last_seen_at)}` : 'Last seen unknown'}</span>
+            ${data.session_closed_at ? `<span>Closed ${escapeHtml(data.session_closed_at)}${data.session_closed_reason ? ` · ${escapeHtml(data.session_closed_reason)}` : ''}</span>` : ""}
           </div>
         </div>
       ` : "";
@@ -1869,25 +1875,25 @@ INDEX_HTML = """<!doctype html>
       const gates = (data.gates || []).map((gate) => `
         <div class="item">
           <div class="item-top">
-            <div class="item-url">${gate.name}</div>
+            <div class="item-url">${escapeHtml(gate.name)}</div>
             <span class="${gate.satisfied ? 'badge good' : 'badge bad'}">${gate.satisfied ? 'ready' : 'blocked'}</span>
           </div>
-          <div class="meta"><span>${gate.class || 'gate'} · ${gate.blocking || 'unknown'}</span></div>
+          <div class="meta"><span>${escapeHtml(gate.class || 'gate')} · ${escapeHtml(gate.blocking || 'unknown')}</span></div>
         </div>
       `).join("");
       const warnings = (data.warnings || []).map((warning) => `
         <div class="item">
           <div class="item-top">
-            <div class="item-url">${warning.name}</div>
+            <div class="item-url">${escapeHtml(warning.name)}</div>
             <span class="badge warn">warning</span>
           </div>
-          <div class="meta"><span>${warning.message}</span></div>
+          <div class="meta"><span>${escapeHtml(warning.message)}</span></div>
         </div>
       `).join("");
       const failures = (data.hard_failures || []).map((failure) => `
         <div class="item">
           <div class="item-top">
-            <div class="item-url">${failure}</div>
+            <div class="item-url">${escapeHtml(failure)}</div>
             <span class="badge bad">blocked</span>
           </div>
         </div>
@@ -1903,18 +1909,18 @@ INDEX_HTML = """<!doctype html>
       const result = data.result || {};
       const preflight = data.preflight || {};
       const lines = [
-        `Contract: ${data.meta?.contract || "unknown"} v${data.meta?.version || "-"}`,
-        `Outcome: ${result.outcome || "unknown"}`,
-        `Observation: ${result.observation || "unknown"}`,
-        result.message ? `Message: ${result.message}` : null,
-        result.reason ? `Reason: ${result.reason}` : null,
-        preflight.status ? `Preflight: ${preflight.status}` : null,
+        `Contract: ${escapeHtml(data.meta?.contract || "unknown")} v${escapeHtml(data.meta?.version || "-")}`,
+        `Outcome: ${escapeHtml(result.outcome || "unknown")}`,
+        `Observation: ${escapeHtml(result.observation || "unknown")}`,
+        result.message ? `Message: ${escapeHtml(result.message)}` : null,
+        result.reason ? `Reason: ${escapeHtml(result.reason)}` : null,
+        preflight.status ? `Preflight: ${escapeHtml(preflight.status)}` : null,
       ].filter(Boolean);
       return `
         <div class="item">
           <div class="item-top">
             <div class="item-url">UCC execution</div>
-            <span class="${badgeClass(result.outcome)}">${result.outcome || "unknown"}</span>
+            <span class="${badgeClass(result.outcome)}">${escapeHtml(result.outcome || "unknown")}</span>
           </div>
           <div class="meta"><span>${lines.join(" · ")}</span></div>
         </div>
@@ -1981,24 +1987,24 @@ INDEX_HTML = """<!doctype html>
         .map((entry) => {
         const status = entry.outcome || entry.status || "unknown";
         const lines = entry.action === 'poll'
-          ? [summarizePollEntry(entry)]
+          ? [escapeHtml(summarizePollEntry(entry))]
           : [
-          entry.timestamp ? `At ${entry.timestamp}` : null,
-          entry.session_id ? `Session: ${entry.session_id}` : null,
-          entry.action ? `Action: ${entry.action}` : null,
-          entry.target ? `Target: ${entry.target}` : null,
-          entry.reason ? `Reason: ${entry.reason}` : null,
-          entry.detail ? `Detail: ${JSON.stringify(sanitizeLogValue(entry.detail))}` : null,
-          entry.observed_before ? `Before: ${JSON.stringify(sanitizeLogValue(entry.observed_before))}` : null,
-          entry.observed_after ? `After: ${JSON.stringify(sanitizeLogValue(entry.observed_after))}` : null,
-          entry.message ? `Message: ${entry.message}` : null,
+          entry.timestamp ? `At ${escapeHtml(entry.timestamp)}` : null,
+          entry.session_id ? `Session: ${escapeHtml(entry.session_id)}` : null,
+          entry.action ? `Action: ${escapeHtml(entry.action)}` : null,
+          entry.target ? `Target: ${escapeHtml(entry.target)}` : null,
+          entry.reason ? `Reason: ${escapeHtml(entry.reason)}` : null,
+          entry.detail ? `Detail: ${escapeHtml(JSON.stringify(sanitizeLogValue(entry.detail)))}` : null,
+          entry.observed_before ? `Before: ${escapeHtml(JSON.stringify(sanitizeLogValue(entry.observed_before)))}` : null,
+          entry.observed_after ? `After: ${escapeHtml(JSON.stringify(sanitizeLogValue(entry.observed_after)))}` : null,
+          entry.message ? `Message: ${escapeHtml(entry.message)}` : null,
         ].filter(Boolean).join(" · ");
         const hint = entry.action === 'poll' ? 'Historical event' : 'Historical record';
         return `
           <div class="item">
             <div class="item-top">
-              <div class="item-url">${entry.action || "event"}</div>
-              <span class="${badgeClass(status)}">${status}</span>
+              <div class="item-url">${escapeHtml(entry.action || "event")}</div>
+              <span class="${badgeClass(status)}">${escapeHtml(status)}</span>
             </div>
             <div class="meta"><span>${hint} · ${lines || "No details"}</span></div>
           </div>
@@ -2219,10 +2225,14 @@ INDEX_HTML = """<!doctype html>
       return loadBackendState().selected || DEFAULT_BACKEND_URL;
     }
     function openDocs() {
-      window.open(`${backendBaseUrl()}/api/docs`, '_blank');
+      const url = backendBaseUrl();
+      if (!/^https?:\/\//i.test(url)) return;
+      window.open(`${url}/api/docs`, '_blank');
     }
     function openSpec() {
-      window.open(`${backendBaseUrl()}/api/openapi.yaml`, '_blank');
+      const url = backendBaseUrl();
+      if (!/^https?:\/\//i.test(url)) return;
+      window.open(`${url}/api/openapi.yaml`, '_blank');
     }
     async function runTests() {
       const summary = document.getElementById('test-summary');
@@ -2295,7 +2305,13 @@ INDEX_HTML = """<!doctype html>
     }
     async function saveDeclaration() {
       const value = document.getElementById('declaration').value;
-      const parsed = JSON.parse(value);
+      let parsed;
+      try {
+        parsed = JSON.parse(value);
+      } catch (e) {
+        document.getElementById('result').textContent = `Invalid JSON: ${e.message}`;
+        return;
+      }
       const r = await fetch(apiPath('/api/declaration'), { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(parsed) });
       const data = await r.json();
       lastResult = data;
@@ -2365,7 +2381,7 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
             not force
             and cached is not None
             and STATUS_CACHE.get("backend") == backend_url
-            and now - float(STATUS_CACHE.get("ts", 0.0)) < STATUS_CACHE_TTL
+            and now - float(STATUS_CACHE.get("ts") or 0.0) < STATUS_CACHE_TTL  # type: ignore[arg-type]
         ):
             return cached  # type: ignore[return-value]
         payload = _normalize_backend_payload(get_status_from(backend_url), backend_url)
@@ -2386,7 +2402,7 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
     def _forward_status(payload: dict[str, object]) -> int:
         raw_status = payload.get("http_status")
         try:
-            return int(raw_status) if raw_status is not None else 200
+            return int(str(raw_status)) if raw_status is not None else 200
         except (TypeError, ValueError):
             return 200
 
@@ -2416,7 +2432,15 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/log":
             limit = 120
-            query = dict(part.split("=", 1) if "=" in part else (part, "") for part in parsed.query.split("&") if part)
+            query: dict[str, str] = {}
+            for part in parsed.query.split("&"):
+                if not part:
+                    continue
+                if "=" in part:
+                    k, v = part.split("=", 1)
+                    query[k] = v
+                else:
+                    query[part] = ""
             try:
                 limit = max(1, min(500, int(query.get("limit", "120"))))
             except ValueError:
