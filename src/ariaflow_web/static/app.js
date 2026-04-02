@@ -250,15 +250,24 @@ document.addEventListener('alpine:init', () => {
 
       this.initTheme();
       this.initNotifications();
-      this.refresh();
+
+      // Dashboard needs status immediately; other pages defer it
+      if (this.page === 'dashboard') {
+        this.refresh();
+        this.loadDeclaration().catch(() => {});
+      } else {
+        this.deferRefresh(1000);
+      }
       this.setRefreshInterval(10000);
+
       if (this.page === 'lifecycle') this.loadLifecycle();
       if (this.page === 'bandwidth') this.loadDeclaration();
       if (this.page === 'options') this.loadDeclaration();
       if (this.page === 'log') { this.loadDeclaration(); this.refreshActionLog(); }
-      if (this.page === 'dashboard') this.loadDeclaration().catch(() => {});
       if (this.page === 'archive') this.loadArchive();
-      this.discoverBackends().catch(() => {});
+
+      // Discovery is non-critical, defer it
+      setTimeout(() => this.discoverBackends().catch(() => {}), 2000);
     },
 
     // --- formatting ---
