@@ -262,6 +262,14 @@ class TestPostMisc:
         data = _post(f"{web_server}/api/bandwidth/probe")
         assert data.get("ok") is True
 
+    def test_archive(self, web_server: str) -> None:
+        data = _get(f"{web_server}/api/archive")
+        assert isinstance(data, dict)
+
+    def test_cleanup(self, web_server: str) -> None:
+        data = _post(f"{web_server}/api/cleanup")
+        assert isinstance(data, dict)
+
     def test_unknown_post_returns_404(self, web_server: str) -> None:
         data = _post(f"{web_server}/api/nonexistent", {}, expect_status=404)
         assert data.get("error") == "not_found"
@@ -312,6 +320,8 @@ class TestApiParamCoverage:
         "POST /api/pause": "test_pause",
         "POST /api/resume": "test_resume",
         "POST /api/bandwidth/probe": "test_bandwidth_probe",
+        "GET /api/archive": "test_archive",
+        "POST /api/cleanup": "test_cleanup",
         # Error handling
         "POST invalid JSON": "test_invalid_json_body",
         "GET unknown": "test_unknown_get_returns_404",

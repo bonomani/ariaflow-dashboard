@@ -16,13 +16,17 @@ from .bonjour import discover_http_services
 from .client import (
     add_items_from,
     bandwidth_probe_from,
+    cleanup_from,
     get_api_discovery_from,
+    get_archive_from,
     get_bandwidth_from,
     get_declaration_from,
+    get_item_files_from,
     get_lifecycle_from,
     get_log_from,
     get_status_from,
     item_action_from,
+    item_priority_from,
     lifecycle_action_from,
     pause_from,
     preflight_from,
@@ -30,11 +34,16 @@ from .client import (
     run_action_from,
     run_ucc_from,
     save_declaration_from,
+    set_item_files_from,
     set_session_from,
 )
 STATUS_CACHE: dict[str, object] = {"ts": 0.0, "payload": None}
 STATUS_CACHE_TTL = 2.0
 DEFAULT_BACKEND_URL = "http://127.0.0.1:8000"
+
+# PID cache — lsof is expensive, PID rarely changes
+_PID_CACHE: dict[str, object] = {"ts": 0.0, "pid": None, "port": 0}
+_PID_CACHE_TTL = 60.0
 
 
 def _is_local_backend(hostname: str | None) -> bool:
@@ -43,6 +52,20 @@ def _is_local_backend(hostname: str | None) -> bool:
 
 
 def _local_pid_for_port(port: int) -> int | None:
+    now = time.time()
+    if (
+        _PID_CACHE["port"] == port
+        and now - float(_PID_CACHE.get("ts") or 0.0) < _PID_CACHE_TTL  # type: ignore[arg-type]
+    ):
+        return _PID_CACHE["pid"]  # type: ignore[return-value]
+    pid = _local_pid_for_port_uncached(port)
+    _PID_CACHE["ts"] = now
+    _PID_CACHE["pid"] = pid
+    _PID_CACHE["port"] = port
+    return pid
+
+
+def _local_pid_for_port_uncached(port: int) -> int | None:
     lsof = shutil.which("lsof")
     if not lsof:
         return None
@@ -132,7 +155,7 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
         return payload
 
     def _send_json(self, payload: dict, status: int = 200) -> None:
-        body = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
@@ -151,7 +174,7 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         backend_url = self._backend_url(parsed)
-        if path in {"/", "/index.html", "/bandwidth", "/lifecycle", "/options", "/log", "/dev"}:
+        if path in {"/", "/index.html", "/bandwidth", "/lifecycle", "/options", "/log", "/dev", "/archive"}:
             body = INDEX_HTML.encode("utf-8")
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -223,6 +246,17 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
         if path == "/api/discovery":
             self._send_json(discover_http_services())
             return
+        if path == "/api/archive":
+            payload = get_archive_from(backend_url)
+            self._send_json(payload, status=self._forward_status(payload))
+            return
+        if path.startswith("/api/item/"):
+            parts = path.split("/")
+            if len(parts) == 5 and parts[4] == "files":
+                item_id = parts[3]
+                payload = get_item_files_from(backend_url, item_id)
+                self._send_json(payload, status=self._forward_status(payload))
+                return
         self._send_json({"error": "not_found"}, status=404)
 
     def do_POST(self) -> None:  # noqa: N802
@@ -327,7 +361,25 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
                     response = item_action_from(backend_url, item_id, action)
                     self._send_json(response, status=self._forward_status(response))
                     return
+                if action == "priority":
+                    priority = int(payload.get("priority", 0))
+                    self._invalidate_status_cache()
+                    response = item_priority_from(backend_url, item_id, priority)
+                    self._send_json(response, status=self._forward_status(response))
+                    return
+                if action == "files":
+                    selected = payload.get("select", [])
+                    self._invalidate_status_cache()
+                    response = set_item_files_from(backend_url, item_id, selected)
+                    self._send_json(response, status=self._forward_status(response))
+                    return
             self._send_json({"error": "not_found"}, status=404)
+            return
+
+        if path == "/api/cleanup":
+            self._invalidate_status_cache()
+            response = cleanup_from(backend_url)
+            self._send_json(response, status=self._forward_status(response))
             return
 
         if path == "/api/pause":

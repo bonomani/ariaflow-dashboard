@@ -17,6 +17,7 @@
       <a href="/options" :class="{ active: page === 'options' }">Options</a>
       <a href="/log" :class="{ active: page === 'log' }">Log</a>
       <a href="/dev" :class="{ active: page === 'dev' }">Developer</a>
+      <a href="/archive" :class="{ active: page === 'archive' }" @click.prevent="page = 'archive'; loadArchive()">Archive</a>
       <div class="spacer"></div>
       <label class="refresh-control" for="refresh-interval">
         Refresh
@@ -82,6 +83,14 @@
               <textarea x-model="urlInput" rows="1" placeholder="Paste one or more URLs, one per line"></textarea>
               <button class="secondary queue-add-button" @click="add()">Add</button>
             </div>
+            <details style="margin-top:8px;">
+              <summary style="cursor:pointer;color:var(--muted);font-size:0.88rem;">Advanced options</summary>
+              <div style="display:grid;gap:8px;margin-top:8px;">
+                <input x-model="addOutput" placeholder="Output filename (optional)">
+                <input x-model="addPriority" type="number" placeholder="Priority (optional, higher = first)">
+                <textarea x-model="addMirrors" rows="2" placeholder="Mirror URLs, one per line (optional)" style="min-height:auto;"></textarea>
+              </div>
+            </details>
           </div>
         </div>
       </div>
@@ -133,7 +142,7 @@
             <input type="text" placeholder="Search by URL or filename..." x-model="queueSearch" style="padding:8px 12px; border-radius:999px; font-size:0.88rem;">
           </div>
           <div class="filter-bar">
-            <template x-for="f in ['all','queued','downloading','paused','done','error']" :key="f">
+            <template x-for="f in ['all','queued','discovering','downloading','paused','stopped','done','error','cancelled']" :key="f">
               <button class="filter-btn" :class="{ active: queueFilter === f }" @click="setQueueFilter(f)" x-text="filterBtnLabel(f)"></button>
             </template>
           </div>
@@ -149,6 +158,10 @@
                 <div class="item-top">
                   <div class="item-url" x-text="itemShortUrl(item)"></div>
                   <span :class="badgeClass(itemNormalizedStatus(item))" x-text="itemStateLabel(item)"></span>
+                  <template x-if="itemModeBadge(item)">
+                    <span class="badge" x-text="itemModeBadge(item)"></span>
+                  </template>
+                  <span x-show="itemPriority(item) != null" class="badge" x-text="'P' + itemPriority(item)"></span>
                 </div>
                 <div class="meta">
                   <template x-if="itemLiveStatus(item)">
@@ -177,10 +190,42 @@
                   <button x-show="itemCanPause(item)" class="secondary icon-btn" @click="itemAction(item.id, 'pause')" title="Pause">&#9646;&#9646;<span class="sr-only">Pause</span></button>
                   <button x-show="itemCanResume(item)" class="secondary icon-btn" @click="itemAction(item.id, 'resume')" title="Resume">&#9654;<span class="sr-only">Resume</span></button>
                   <button x-show="itemCanRetry(item)" class="secondary icon-btn" @click="itemAction(item.id, 'retry')" title="Retry">&#8635;<span class="sr-only">Retry</span></button>
-                  <button class="secondary icon-btn" @click="itemAction(item.id, 'remove')" title="Remove">&#10005;<span class="sr-only">Remove</span></button>
+                  <button x-show="itemNormalizedStatus(item) === 'queued'" class="secondary icon-btn" @click="moveToTop(item.id)" title="Move to top">&#8593;<span class="sr-only">Move to top</span></button>
+                  <button x-show="itemModeBadge(item) === 'torrent' || itemModeBadge(item) === 'metalink'" class="secondary icon-btn" @click="openFileSelection(item.id)" title="Select files">&#128193;<span class="sr-only">Files</span></button>
+                  <button x-show="itemNormalizedStatus(item) !== 'cancelled'" class="secondary icon-btn" @click="itemAction(item.id, 'remove')" title="Remove">&#10005;<span class="sr-only">Remove</span></button>
                 </div>
               </div>
             </template>
+          </div>
+          <!-- File selection panel (torrent/metalink) -->
+          <template x-if="fileSelectionItemId">
+            <div class="system-card" style="margin-top:12px;">
+              <div class="system-head">
+                <div class="system-copy"><h3>File Selection</h3></div>
+                <button class="secondary" @click="closeFileSelection()">Close</button>
+              </div>
+              <template x-if="fileSelectionLoading"><div class="item">Loading files...</div></template>
+              <template x-if="!fileSelectionLoading">
+                <div>
+                  <div class="list">
+                    <template x-for="(file, idx) in fileSelectionFiles" :key="idx">
+                      <div class="item compact">
+                        <label style="display:flex;gap:8px;align-items:center;">
+                          <input type="checkbox" x-model="file.selected">
+                          <span x-text="file.path || file.name || ('File ' + file.index)"></span>
+                          <span x-show="file.length" class="mono" x-text="formatBytes(file.length)"></span>
+                        </label>
+                      </div>
+                    </template>
+                  </div>
+                  <div class="system-actions"><button @click="saveFileSelection()">Save selection</button></div>
+                </div>
+              </template>
+            </div>
+          </template>
+          <!-- Cleanup -->
+          <div style="margin-top:12px;text-align:right;">
+            <button class="secondary" @click="cleanup()" style="font-size:0.85rem;">Cleanup old items</button>
           </div>
         </div>
       </div>
@@ -583,6 +628,29 @@
               <template x-if="t._placeholder">
                 <div class="item" x-text="t.name"></div>
               </template>
+            </template>
+          </div>
+        </div>
+      </div>
+      <!-- ARCHIVE -->
+      <div class="span-12" x-show="page === 'archive'">
+        <div class="panel">
+          <div class="section-title"><h2>Archive</h2><div class="hint">Recently removed items</div></div>
+          <div class="list">
+            <template x-if="archiveItems.length === 0">
+              <div class="item">No archived items.</div>
+            </template>
+            <template x-for="item in archiveItems" :key="item.id || item.url">
+              <div class="item compact">
+                <div class="item-top">
+                  <div class="item-url" x-text="shortName(item.output || item.url || '(no url)')"></div>
+                  <span :class="badgeClass(item.status || 'cancelled')" x-text="item.status || 'cancelled'"></span>
+                </div>
+                <div class="meta">
+                  <span x-show="item.cancelled_at" x-text="'Removed ' + relativeTime(item.cancelled_at)"></span>
+                  <span x-show="item.url" :title="item.url" x-text="item.url"></span>
+                </div>
+              </div>
             </template>
           </div>
         </div>

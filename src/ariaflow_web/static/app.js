@@ -15,16 +15,24 @@ document.addEventListener('alpine:init', () => {
     GLOBAL_SPEED_MAX: 40,
     previousItemStatuses: {},
     refreshInFlight: false,
+    lastRev: null,
     page: 'dashboard',
     DEFAULT_BACKEND_URL: 'http://127.0.0.1:8000',
     backendInput: '',
     urlInput: '',
+    addOutput: '',
+    addPriority: '',
+    addMirrors: '',
     declarationText: '',
     actionFilter: 'all',
     targetFilter: 'all',
     sessionFilter: 'current',
     _bwSaveTimer: null,
     _simSaveTimer: null,
+    fileSelectionItemId: null,
+    fileSelectionFiles: [],
+    fileSelectionLoading: false,
+    archiveItems: [],
 
     // computed-like getters
     get backends() { return this.loadBackendState().backends; },
@@ -46,14 +54,17 @@ document.addEventListener('alpine:init', () => {
     },
     get filterCounts() {
       const items = this.enrichedItems;
-      const counts = { all: items.length, queued: 0, downloading: 0, paused: 0, done: 0, error: 0 };
+      const counts = { all: items.length, queued: 0, discovering: 0, downloading: 0, paused: 0, stopped: 0, done: 0, error: 0, cancelled: 0 };
       items.forEach((item) => {
         const status = ((item.status || 'unknown') === 'recovered' ? 'paused' : (item.status || 'unknown')).toLowerCase();
         if (status === 'queued') counts.queued++;
+        else if (status === 'discovering') counts.discovering++;
         else if (['downloading', 'active'].includes(status)) counts.downloading++;
         else if (status === 'paused') counts.paused++;
+        else if (status === 'stopped') counts.stopped++;
         else if (status === 'done') counts.done++;
-        else if (status === 'error') counts.error++;
+        else if (['error', 'failed'].includes(status)) counts.error++;
+        else if (status === 'cancelled') counts.cancelled++;
       });
       return counts;
     },
@@ -234,6 +245,7 @@ document.addEventListener('alpine:init', () => {
         : path === '/options' ? 'options'
         : path === '/log' ? 'log'
         : path === '/dev' ? 'dev'
+        : path === '/archive' ? 'archive'
         : 'dashboard';
 
       this.initTheme();
@@ -245,6 +257,7 @@ document.addEventListener('alpine:init', () => {
       if (this.page === 'options') this.loadDeclaration();
       if (this.page === 'log') { this.loadDeclaration(); this.refreshActionLog(); }
       if (this.page === 'dashboard') this.loadDeclaration().catch(() => {});
+      if (this.page === 'archive') this.loadArchive();
       this.discoverBackends().catch(() => {});
     },
 
@@ -298,13 +311,26 @@ document.addEventListener('alpine:init', () => {
         return parts.length ? parts[parts.length - 1] : value;
       }
     },
-    timestampLabel(value) { return value || '-'; },
+    relativeTime(value) {
+      if (!value) return '-';
+      const now = Date.now();
+      const then = new Date(value).getTime();
+      if (isNaN(then)) return value;
+      const diff = Math.floor((now - then) / 1000);
+      if (diff < 0) return value;
+      if (diff < 60) return 'just now';
+      if (diff < 3600) return Math.floor(diff / 60) + ' min ago';
+      if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+      return Math.floor(diff / 86400) + 'd ago';
+    },
+    timestampLabel(value) { return value ? this.relativeTime(value) : '-'; },
 
     // --- badge ---
     badgeClass(status) {
       if (['done', 'converged', 'ok', 'complete'].includes(status)) return 'badge good';
-      if (['error', 'failed', 'missing'].includes(status)) return 'badge bad';
-      if (['paused', 'queued', 'unchanged', 'skipped'].includes(status)) return 'badge warn';
+      if (['error', 'failed', 'missing', 'stopped'].includes(status)) return 'badge bad';
+      if (['paused', 'queued', 'unchanged', 'skipped', 'cancelled'].includes(status)) return 'badge warn';
+      if (status === 'discovering') return 'badge';
       return 'badge';
     },
 
@@ -584,7 +610,9 @@ document.addEventListener('alpine:init', () => {
     },
     itemDetail(item) {
       return [
-        item.created_at ? `Created ${item.created_at}` : null,
+        item.created_at ? `Added ${this.relativeTime(item.created_at)}` : null,
+        item.completed_at ? `Done ${this.relativeTime(item.completed_at)}` : null,
+        item.error_at ? `Failed ${this.relativeTime(item.error_at)}` : null,
         item.gid ? `GID ${item.gid}` : null,
       ].filter(Boolean).join(' · ');
     },
@@ -608,13 +636,19 @@ document.addEventListener('alpine:init', () => {
       if (speed) return this.formatRate(speed);
       return this.itemNormalizedStatus(item) === 'paused' ? 'paused' : 'idle';
     },
+    itemModeBadge(item) {
+      const mode = item.mode || item.download_mode || null;
+      if (!mode || mode === 'http') return null;
+      return mode;
+    },
+    itemPriority(item) { return item.priority != null ? item.priority : null; },
     itemDisplayUrl(item) { return item.url || item.live?.url || ''; },
     itemStateLabel(item) {
       const ns = this.itemNormalizedStatus(item);
       const ls = this.itemLiveStatus(item);
       return ls ? `${ns} · aria2:${ls}` : ns;
     },
-    itemCanPause(item) { return this.itemNormalizedStatus(item) === 'downloading'; },
+    itemCanPause(item) { return ['queued', 'downloading'].includes(this.itemNormalizedStatus(item)); },
     itemCanResume(item) { return this.itemNormalizedStatus(item) === 'paused'; },
     itemCanRetry(item) { return ['error', 'failed', 'stopped'].includes(this.itemNormalizedStatus(item)); },
     itemEta(item) { return this.formatEta(this.itemTotalLength(item), this.itemCompletedLength(item), this.itemSpeed(item)); },
@@ -643,6 +677,8 @@ document.addEventListener('alpine:init', () => {
       try {
         const r = await fetch(this.apiPath('/api/status'));
         const data = await r.json();
+        if (data?._rev && this.lastRev === data._rev) return;
+        this.lastRev = data?._rev || null;
         this.lastStatus = data;
         if (data?.ok === false || data?.backend?.reachable === false) {
           return;
@@ -753,7 +789,15 @@ document.addEventListener('alpine:init', () => {
     async add() {
       const raw = this.urlInput.trim();
       const urls = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-      const payload = { items: urls.map((url) => ({ url })) };
+      const items = urls.map((url) => {
+        const item = { url };
+        if (this.addOutput.trim()) item.output = this.addOutput.trim();
+        if (this.addPriority !== '') item.priority = Number(this.addPriority);
+        const mirrors = this.addMirrors.trim().split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+        if (mirrors.length) item.mirrors = mirrors;
+        return item;
+      });
+      const payload = { items };
       const r = await fetch(this.apiPath('/api/add'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await r.json();
       this.lastResult = data;
@@ -767,6 +811,7 @@ document.addEventListener('alpine:init', () => {
         ? `Queued ${queued} items`
         : `Queued: ${data.added?.[0]?.url || urls[0] || raw}`;
       this.resultJson = JSON.stringify(data, null, 2);
+      this.addOutput = ''; this.addPriority = ''; this.addMirrors = '';
       await this.refresh();
     },
     async toggleRunner() {
@@ -821,6 +866,17 @@ document.addEventListener('alpine:init', () => {
       if (this.page === 'lifecycle') this.loadLifecycle();
       if (this.page === 'log') this.refreshActionLog();
     },
+    async moveToTop(itemId) {
+      const r = await fetch(this.apiPath(`/api/item/${encodeURIComponent(itemId)}/priority`), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priority: 0 }),
+      });
+      const data = await r.json();
+      this.lastResult = data;
+      this.resultText = data.ok ? 'Moved to top' : (data.message || 'Priority change requested');
+      this.resultJson = JSON.stringify(data, null, 2);
+      await this.refresh();
+    },
     async itemAction(itemId, action) {
       const r = await fetch(this.apiPath(`/api/item/${encodeURIComponent(itemId)}/${encodeURIComponent(action)}`), { method: 'POST' });
       const data = await r.json();
@@ -832,6 +888,50 @@ document.addEventListener('alpine:init', () => {
         return;
       }
       this.resultText = `Item ${action} done`;
+      this.resultJson = JSON.stringify(data, null, 2);
+      await this.refresh();
+    },
+
+    // --- file selection ---
+    async openFileSelection(itemId) {
+      this.fileSelectionItemId = itemId;
+      this.fileSelectionLoading = true;
+      try {
+        const r = await fetch(this.apiPath(`/api/item/${encodeURIComponent(itemId)}/files`));
+        const data = await r.json();
+        this.fileSelectionFiles = (data.files || []).map((f) => ({ ...f, selected: f.selected !== false }));
+      } catch (e) {
+        this.fileSelectionFiles = [];
+      }
+      this.fileSelectionLoading = false;
+    },
+    async saveFileSelection() {
+      const selected = this.fileSelectionFiles.filter((f) => f.selected).map((f) => f.index);
+      const r = await fetch(this.apiPath(`/api/item/${encodeURIComponent(this.fileSelectionItemId)}/files`), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ select: selected }),
+      });
+      await r.json();
+      this.fileSelectionItemId = null;
+      this.fileSelectionFiles = [];
+      await this.refresh();
+    },
+    closeFileSelection() {
+      this.fileSelectionItemId = null;
+      this.fileSelectionFiles = [];
+    },
+
+    // --- archive & cleanup ---
+    async loadArchive() {
+      const r = await fetch(this.apiPath('/api/archive'));
+      const data = await r.json();
+      this.archiveItems = data.items || [];
+    },
+    async cleanup() {
+      const r = await fetch(this.apiPath('/api/cleanup'), { method: 'POST' });
+      const data = await r.json();
+      this.lastResult = data;
+      this.resultText = data.ok ? `Cleanup complete — ${data.archived || 0} archived` : (data.message || 'Cleanup requested');
       this.resultJson = JSON.stringify(data, null, 2);
       await this.refresh();
     },

@@ -1,58 +1,83 @@
 from __future__ import annotations
 
+import http.client
 import json
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+import socket
+import threading
+from urllib.parse import urlencode, urlparse
+
+# Keep-alive connection pool — one persistent connection per host:port
+_pool: dict[str, http.client.HTTPConnection] = {}
+_pool_lock = threading.Lock()
+_TIMEOUT = 10
+
+
+def _get_conn(scheme: str, host: str, port: int) -> http.client.HTTPConnection:
+    key = f"{scheme}://{host}:{port}"
+    with _pool_lock:
+        conn = _pool.get(key)
+        if conn is not None:
+            return conn
+        if scheme == "https":
+            conn = http.client.HTTPSConnection(host, port, timeout=_TIMEOUT)
+        else:
+            conn = http.client.HTTPConnection(host, port, timeout=_TIMEOUT)
+        _pool[key] = conn
+        return conn
+
+
+def _drop_conn(scheme: str, host: str, port: int) -> None:
+    key = f"{scheme}://{host}:{port}"
+    with _pool_lock:
+        conn = _pool.pop(key, None)
+    if conn is not None:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 def _request(path: str, method: str = "GET", payload: dict | None = None, base_url: str = "http://127.0.0.1:8000") -> dict:
+    parsed = urlparse(base_url)
+    scheme = parsed.scheme or "http"
+    host = parsed.hostname or "127.0.0.1"
+    port = parsed.port or (443 if scheme == "https" else 80)
     url = f"{base_url.rstrip('/')}{path}"
-    headers = {}
-    data = None
+
+    headers: dict[str, str] = {"Connection": "keep-alive"}
+    body: bytes | None = None
     if payload is not None:
-        data = json.dumps(payload).encode("utf-8")
+        body = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
-    req = Request(url, data=data, headers=headers, method=method)
-    try:
-        with urlopen(req, timeout=10) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
+
+    for attempt in range(2):
+        conn = _get_conn(scheme, host, port)
         try:
-            result = json.loads(body) if body else {}
-        except json.JSONDecodeError:
-            result = {
-                "ok": False,
-                "error": "http_error",
-                "message": body or str(exc),
-            }
-        if not isinstance(result, dict):
-            result = {
-                "ok": False,
-                "error": "http_error",
-                "message": str(result),
-            }
-        result.setdefault("ok", False)
-        result.setdefault("http_status", exc.code)
-        result.setdefault(
-            "backend",
-            {
-                "reachable": True,
-                "status": exc.code,
-                "url": url,
-            },
-        )
-        return result
-    except URLError as exc:
-        return {
-            "ok": False,
-            "backend": {
-                "reachable": False,
-                "error": str(exc),
-                "url": url,
-            },
-        }
+            conn.request(method, path, body=body, headers=headers)
+            resp = conn.getresponse()
+            raw = resp.read().decode("utf-8")
+            if resp.status >= 400:
+                try:
+                    result = json.loads(raw) if raw else {}
+                except json.JSONDecodeError:
+                    result = {"ok": False, "error": "http_error", "message": raw or str(resp.status)}
+                if not isinstance(result, dict):
+                    result = {"ok": False, "error": "http_error", "message": str(result)}
+                result.setdefault("ok", False)
+                result.setdefault("http_status", resp.status)
+                result.setdefault("backend", {"reachable": True, "status": resp.status, "url": url})
+                return result
+            return json.loads(raw)
+        except (http.client.RemoteDisconnected, ConnectionResetError, BrokenPipeError):
+            # Stale keep-alive connection — drop and retry once
+            _drop_conn(scheme, host, port)
+            if attempt > 0:
+                return {"ok": False, "backend": {"reachable": False, "error": "connection reset", "url": url}}
+        except (OSError, socket.timeout, http.client.HTTPException) as exc:
+            _drop_conn(scheme, host, port)
+            return {"ok": False, "backend": {"reachable": False, "error": str(exc), "url": url}}
+
+    return {"ok": False, "backend": {"reachable": False, "error": "connection failed", "url": url}}
 
 
 def get_api_discovery_from(base_url: str) -> dict:
@@ -121,6 +146,26 @@ def resume_from(base_url: str) -> dict:
 
 def item_action_from(base_url: str, item_id: str, action: str) -> dict:
     return _request(f"/api/item/{item_id}/{action}", method="POST", base_url=base_url)
+
+
+def item_priority_from(base_url: str, item_id: str, priority: int) -> dict:
+    return _request(f"/api/item/{item_id}/priority", method="POST", payload={"priority": priority}, base_url=base_url)
+
+
+def get_item_files_from(base_url: str, item_id: str) -> dict:
+    return _request(f"/api/item/{item_id}/files", base_url=base_url)
+
+
+def set_item_files_from(base_url: str, item_id: str, selected: list[int]) -> dict:
+    return _request(f"/api/item/{item_id}/files", method="POST", payload={"select": selected}, base_url=base_url)
+
+
+def get_archive_from(base_url: str, limit: int = 100) -> dict:
+    return _request(f"/api/archive?{urlencode({'limit': limit})}", base_url=base_url)
+
+
+def cleanup_from(base_url: str) -> dict:
+    return _request("/api/cleanup", method="POST", base_url=base_url)
 
 
 def lifecycle_action_from(base_url: str, target: str, action: str) -> dict:

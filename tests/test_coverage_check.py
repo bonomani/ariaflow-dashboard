@@ -82,6 +82,12 @@ COVERAGE_MAP: dict[str, str] = {
     "toggleRunner": "test_start_stop_engine_button / test_03_start_engine",
     "toggleTheme": "test_theme_toggle_cycles",
     "uccRun": "test_run_contract_button",
+    "cleanup": "test_cleanup",
+    "moveToTop": "test_move_to_top_button",
+    "openFileSelection": "test_file_selection",
+    "closeFileSelection": "test_file_selection",
+    "saveFileSelection": "test_file_selection",
+    "page = 'archive'; loadArchive": "test_archive",
 }
 
 

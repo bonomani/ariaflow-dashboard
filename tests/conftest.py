@@ -129,6 +129,11 @@ def make_mock_patches(
         "ariaflow_web.webapp.get_api_discovery_from": {"name": "ariaflow", "version": "0.1.48", "endpoints": {"GET": [], "POST": []}},
         "ariaflow_web.webapp.get_bandwidth_from": {"source": "networkquality", "downlink_mbps": 100, "uplink_mbps": 20, "cap_mbps": 80, "interface_name": "eth0"},
         "ariaflow_web.webapp.bandwidth_probe_from": {"ok": True, "source": "networkquality", "downlink_mbps": 100, "uplink_mbps": 20, "cap_mbps": 80},
+        "ariaflow_web.webapp.item_priority_from": {"ok": True, "item": {"id": "item-1", "priority": 0}},
+        "ariaflow_web.webapp.get_item_files_from": {"files": []},
+        "ariaflow_web.webapp.set_item_files_from": {"ok": True, "selected": []},
+        "ariaflow_web.webapp.get_archive_from": {"items": []},
+        "ariaflow_web.webapp.cleanup_from": {"ok": True, "archived": 0, "remaining": 0},
         "ariaflow_web.webapp._local_pid_for_port": None,
     }
     if extra:
