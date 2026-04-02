@@ -931,6 +931,15 @@ document.addEventListener('alpine:init', () => {
       }
       this.resultText = `Item ${action} done`;
       this.resultJson = JSON.stringify(data, null, 2);
+      // Optimistically update item status so buttons reflect new state immediately
+      const statusMap = { pause: 'paused', resume: 'queued', retry: 'queued' };
+      if (this.lastStatus?.items && statusMap[action]) {
+        const item = this.lastStatus.items.find((i) => i.id === itemId);
+        if (item) item.status = statusMap[action];
+      }
+      if (action === 'remove' && this.lastStatus?.items) {
+        this.lastStatus.items = this.lastStatus.items.filter((i) => i.id !== itemId);
+      }
       this.deferRefresh();
     },
 
