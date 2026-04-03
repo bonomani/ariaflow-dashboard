@@ -48,8 +48,8 @@
           <div class="chip">Scheduler <strong x-text="schedulerStatusText">idle</strong></div>
           <div class="chip">Preflight mode <strong x-text="preflightModeText">manual</strong></div>
           <div class="chip">Download cap <strong x-text="backendCapText">-</strong></div>
-          <div class="chip">Last error <strong x-text="backendErrorText">none</strong></div>
-          <div class="chip">Session <strong x-text="backendSessionText">-</strong></div>
+          <div class="chip">Last error <strong x-text="lastErrorText">none</strong></div>
+          <div class="chip">Session <strong x-text="sessionIdText">-</strong></div>
         </div>
         <div class="backend-add-row" style="margin-top:8px;">
           <div class="backend-add-group">
@@ -137,7 +137,7 @@
               <div class="system-fact"><span>Active transfer</span><strong x-text="queueActiveText">none</strong></div>
             </div>
             <div class="system-actions">
-              <button class="secondary" @click="toggleDownloads()" x-text="toggleBtnText">Pause downloads</button>
+              <button class="secondary" @click="toggleDownloads()" x-text="downloadToggleBtnText">Pause downloads</button>
             </div>
           </div>
           <div style="margin-bottom:10px;">
@@ -150,13 +150,13 @@
           </div>
           <div class="list">
             <template x-if="!backendReachable">
-              <div class="item" x-text="_backendUnavailableLabel()"></div>
+              <div class="item" x-text="_offlineStatusLabel()"></div>
             </template>
             <template x-if="backendReachable && filteredItems.length === 0">
               <div class="item" x-text="'No ' + (queueFilter === 'all' ? '' : queueFilter + ' ') + 'items.'"></div>
             </template>
             <template x-for="item in filteredItems" :key="item.id || item.url">
-              <div class="item compact" :class="{ 'active-item': itemIsActiveish(item) }">
+              <div class="item compact" :class="{ 'active-item': itemHasActiveStatus(item) }">
                 <div class="item-top">
                   <div class="item-url" x-text="itemShortUrl(item)"></div>
                   <span :class="badgeClass(itemNormalizedStatus(item))" x-text="itemStateLabel(item)"></span>

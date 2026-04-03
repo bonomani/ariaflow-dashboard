@@ -49,12 +49,12 @@ document.addEventListener('alpine:init', () => {
     get actives() {
       return Array.isArray(this.lastStatus?.actives) ? this.lastStatus.actives : (this.lastStatus?.active ? [this.lastStatus.active] : []);
     },
-    get liveActive() { return this.activeTransfer(this.actives, this.active, this.state); },
-    get currentSpeed() { return this.liveActive?.downloadSpeed || this.active?.downloadSpeed || this.state?.download_speed || null; },
-    get enrichedItems() {
-      return this.enrichQueueItems(this.lastStatus?.items || [], this.actives, this.state);
+    get currentTransfer() { return this.activeTransfer(this.actives, this.active, this.state); },
+    get currentSpeed() { return this.currentTransfer?.downloadSpeed || this.active?.downloadSpeed || this.state?.download_speed || null; },
+    get itemsWithStatus() {
+      return this.annotateQueueItems(this.lastStatus?.items || [], this.actives, this.state);
     },
-    get filteredItems() { return this.filterQueueItems(this.enrichedItems); },
+    get filteredItems() { return this.filterQueueItems(this.itemsWithStatus); },
     get backendReachable() {
       if (!this.lastStatus) return true;
       return this.lastStatus?.ok !== false && this.lastStatus?.ariaflow?.reachable !== false;
@@ -77,7 +77,7 @@ document.addEventListener('alpine:init', () => {
         };
       }
       // Fallback: count from items (needed when search is active)
-      const items = this.enrichedItems;
+      const items = this.itemsWithStatus;
       const counts = { all: items.length, queued: 0, waiting: 0, discovering: 0, downloading: 0, paused: 0, stopped: 0, done: 0, error: 0, cancelled: 0 };
       items.forEach((item) => {
         const status = ((item.status || 'unknown') === 'recovered' ? 'paused' : (item.status || 'unknown')).toLowerCase();
@@ -94,7 +94,7 @@ document.addEventListener('alpine:init', () => {
       return counts;
     },
     get schedulerStateLabelText() {
-      return this.schedulerOverviewLabel(this.state, this.enrichedItems, this.liveActive);
+      return this.schedulerOverviewLabel(this.state, this.itemsWithStatus, this.currentTransfer);
     },
     get schedulerDetailText() {
       if (!this.backendReachable) return 'Backend unavailable';
@@ -104,7 +104,7 @@ document.addEventListener('alpine:init', () => {
     },
     get queueActiveText() {
       if (!this.backendReachable) return 'none';
-      return this.summarizeActiveItem(this.liveActive, this.state, this.enrichedItems);
+      return this.summarizeActiveItem(this.currentTransfer, this.state, this.itemsWithStatus);
     },
     get queueSpeedText() {
       if (!this.backendReachable) return 'idle';
@@ -140,7 +140,7 @@ document.addEventListener('alpine:init', () => {
     get schedulerBtnDisabled() {
       return !this.backendReachable || !!this.state?.stop_requested;
     },
-    get toggleBtnText() {
+    get downloadToggleBtnText() {
       if (!this.backendReachable) return 'Pause downloads';
       return this.state?.paused ? 'Resume downloads' : 'Pause downloads';
     },
@@ -164,11 +164,11 @@ document.addEventListener('alpine:init', () => {
       const bw = this.lastStatus?.bandwidth;
       return bw?.cap_mbps ? this.humanCap(this.formatMbps(bw.cap_mbps)) : this.humanCap(bw?.limit || '-');
     },
-    get backendErrorText() {
+    get lastErrorText() {
       if (!this.backendReachable) return this.lastStatus?.ariaflow?.error || 'connection refused';
       return this.state.last_error || this.lastStatus?.bandwidth?.reason || 'none';
     },
-    get backendSessionText() {
+    get sessionIdText() {
       if (!this.backendReachable) return '-';
       return this.sessionLabel(this.state);
     },
@@ -183,7 +183,7 @@ document.addEventListener('alpine:init', () => {
       return this.bw.interface_name || 'unknown';
     },
     get bwInterfaceDetailText() {
-      if (!this.backendReachable) return this._backendUnavailableLabel();
+      if (!this.backendReachable) return this._offlineStatusLabel();
       return this.bw.interface_name ? `Active network interface: ${this.bw.interface_name}` : 'Interface not detected';
     },
     get bwSourceText() {
@@ -191,7 +191,7 @@ document.addEventListener('alpine:init', () => {
       return this.bw.source || '-';
     },
     get bwDownText() {
-      if (!this.backendReachable) return this._backendUnavailableLabel();
+      if (!this.backendReachable) return this._offlineStatusLabel();
       return this.bw.source === 'networkquality'
         ? `Downlink ${this.formatMbps(this.bw.downlink_mbps)}${this.bw.partial ? ' (partial)' : ''}`
         : `No probe available${this.bw.reason ? ` · ${this.bw.reason}` : ''}`;
@@ -201,7 +201,7 @@ document.addEventListener('alpine:init', () => {
       return this.bw.downlink_mbps ? this.formatMbps(this.bw.downlink_mbps) : '-';
     },
     get bwDownDetailText() {
-      if (!this.backendReachable) return this._backendUnavailableLabel();
+      if (!this.backendReachable) return this._offlineStatusLabel();
       return this.bw.downlink_mbps
         ? `Measured downlink: ${this.formatMbps(this.bw.downlink_mbps)}${this.bw.partial ? ' (partial capture)' : ''}`
         : 'No downlink measurement available';
@@ -211,7 +211,7 @@ document.addEventListener('alpine:init', () => {
       return this.bw.uplink_mbps ? this.formatMbps(this.bw.uplink_mbps) : '-';
     },
     get bwUpDetailText() {
-      if (!this.backendReachable) return this._backendUnavailableLabel();
+      if (!this.backendReachable) return this._offlineStatusLabel();
       return this.bw.uplink_mbps
         ? `Measured uplink: ${this.formatMbps(this.bw.uplink_mbps)}`
         : 'No uplink measurement available';
@@ -229,7 +229,7 @@ document.addEventListener('alpine:init', () => {
       return this.bw.source || '-';
     },
     get bwProbeDetailText() {
-      if (!this.backendReachable) return this._backendUnavailableLabel();
+      if (!this.backendReachable) return this._offlineStatusLabel();
       return this.bw.source === 'networkquality'
         ? `Measured ${this.formatMbps(this.bw.downlink_mbps)} down${this.bw.uplink_mbps ? `, ${this.formatMbps(this.bw.uplink_mbps)} up` : ''}, capped at ${this.formatMbps(this.bw.cap_mbps)}${this.bw.partial ? ' from partial output' : ''}`
         : 'Using default floor because no probe was available';
@@ -279,7 +279,7 @@ document.addEventListener('alpine:init', () => {
     aria2OptionValue: '',
     aria2OptionResult: '',
 
-    // test runner
+    // test suite
     testRunning: false,
     testSummaryVisible: false,
     testBadgeText: '-',
@@ -455,7 +455,7 @@ document.addEventListener('alpine:init', () => {
       return state?.running ? 'running' : 'idle';
     },
     schedulerOverviewLabel(state, items, active) {
-      if (!state?.running) return 'waiting for engine';
+      if (!state?.running) return 'scheduler idle';
       if (state?.paused) return 'paused';
       if (active && active.status && active.status !== 'idle') return active.status;
       if ((items || []).length) return 'ready';
@@ -466,7 +466,7 @@ document.addEventListener('alpine:init', () => {
       if (state?.session_id && state?.session_closed_at) return 'closed';
       return 'none';
     },
-    _backendUnavailableLabel() {
+    _offlineStatusLabel() {
       const data = this.lastStatus;
       const error = data?.ariaflow?.error || data?.error || 'backend unavailable';
       return `Backend unavailable · ${error}`;
@@ -638,7 +638,7 @@ document.addEventListener('alpine:init', () => {
     },
 
     // --- queue ---
-    enrichQueueItems(items, active, state) {
+    annotateQueueItems(items, active, state) {
       const liveItems = Array.isArray(active) ? active : (active ? [active] : []);
       return (items || []).map((item) => {
         const matches = liveItems.find((live) => live && (item.gid === live.gid || (state?.active_gid && item.gid === state.active_gid) || (item.url && live.url && item.url === live.url)));
@@ -700,7 +700,7 @@ document.addEventListener('alpine:init', () => {
     itemNormalizedStatus(item) {
       return (item.status || 'unknown') === 'recovered' ? 'paused' : (item.status || 'unknown');
     },
-    itemIsActiveish(item) {
+    itemHasActiveStatus(item) {
       const status = item.status || 'unknown';
       return ['downloading', 'paused', 'recovered'].includes(status) || item.recovered;
     },
@@ -728,7 +728,7 @@ document.addEventListener('alpine:init', () => {
       return total > 0 ? (completed / total) * 100 : 0;
     },
     itemShowTransferPanel(item) {
-      return this.itemIsActiveish(item) || this.itemTotalLength(item) || this.itemCompletedLength(item) || (item.live?.percent != null || item.percent != null);
+      return this.itemHasActiveStatus(item) || this.itemTotalLength(item) || this.itemCompletedLength(item) || (item.live?.percent != null || item.percent != null);
     },
     itemRateLabel(item) {
       const speed = this.itemSpeed(item);
@@ -754,7 +754,7 @@ document.addEventListener('alpine:init', () => {
     itemEta(item) { return this.formatEta(this.itemTotalLength(item), this.itemCompletedLength(item), this.itemSpeed(item)); },
     itemSparklineSvg(item) {
       if (!item.id) return '';
-      if (this.itemIsActiveish(item)) this.recordSpeed(item.id, this.itemSpeed(item) || 0);
+      if (this.itemHasActiveStatus(item)) this.recordSpeed(item.id, this.itemSpeed(item) || 0);
       return this.renderSparkline(item.id);
     },
 
@@ -784,7 +784,7 @@ document.addEventListener('alpine:init', () => {
             this._consecutiveFailures = 0;
             this.lastStatus = data;
             this.lastRev = data._rev || null;
-            this.checkNotifications(this.enrichedItems);
+            this.checkNotifications(this.itemsWithStatus);
             this.recordGlobalSpeed(this.currentSpeed || 0);
           } else if (data?.rev != null && data.rev !== this.lastRev) {
             // Lightweight event with just rev — fetch full status
@@ -863,7 +863,7 @@ document.addEventListener('alpine:init', () => {
         }
         this._consecutiveFailures = 0;
         this.lastStatus = data;
-        const items = this.enrichedItems;
+        const items = this.itemsWithStatus;
         this.checkNotifications(items);
         this.recordGlobalSpeed(this.currentSpeed || 0);
       } catch (e) {
