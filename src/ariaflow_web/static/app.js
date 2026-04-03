@@ -320,6 +320,7 @@ document.addEventListener('alpine:init', () => {
       if (this.page === 'bandwidth') this.loadDeclaration();
       if (this.page === 'options') this.loadDeclaration();
       if (this.page === 'log') { this.loadDeclaration(); this.refreshActionLog(); this.loadSessionHistory(); }
+      if (this.page === 'dev') this.loadApiDiscovery();
       if (this.page === 'archive') this.loadArchive();
 
       // SSE for real-time updates (falls back to polling on failure)
@@ -832,7 +833,11 @@ document.addEventListener('alpine:init', () => {
     _statusUrl() {
       let url = this.apiPath('/api/status');
       const params = [];
-      if (this.queueFilter && this.queueFilter !== 'all') params.push(`status=${encodeURIComponent(this.queueFilter)}`);
+      if (this.queueFilter && this.queueFilter !== 'all') {
+        // Map display names back to backend status names
+        const backendStatus = { downloading: 'active', done: 'complete' }[this.queueFilter] || this.queueFilter;
+        params.push(`status=${encodeURIComponent(backendStatus)}`);
+      }
       if (this.sessionFilter && this.sessionFilter === 'current') params.push('session=current');
       if (params.length) url += '?' + params.join('&');
       return url;
