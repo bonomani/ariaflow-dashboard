@@ -1426,16 +1426,21 @@ document.addEventListener('alpine:init', () => {
     },
 
     // --- aria2 options ---
-    async setAria2Option(key, value) {
+    _aria2OptTimer: null,
+    setAria2Option(key, value) {
       const v = String(value).trim();
       if (!v) return;
+      if (this._aria2OptTimer) clearTimeout(this._aria2OptTimer);
+      this._aria2OptTimer = setTimeout(() => this._sendAria2Option(key, v), 400);
+    },
+    async _sendAria2Option(key, value) {
       try {
         const r = await this._fetch(this.apiPath('/api/aria2/options'), {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ [key]: v }),
+          body: JSON.stringify({ [key]: value }),
         });
         const data = await r.json();
-        this.aria2OptionResult = data.ok !== false ? `${key} set to ${v}` : (data.message || 'Failed');
+        this.aria2OptionResult = data.ok !== false ? `${key} = ${value}` : (data.message || 'Failed');
       } catch (e) {
         this.aria2OptionResult = `Error: ${e.message}`;
       }
