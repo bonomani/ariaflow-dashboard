@@ -15,104 +15,87 @@ The UI should stay orthogonal to the engine:
 - the browser may store preferences locally
 - the UI must not become a second source of truth
 
-## 3. What the UI Is For
+## 3. Technology
 
-Question: how do we expose the backend in the simplest useful way?
+- **Framework:** Alpine.js — single `Alpine.data('ariaflow', ...)` object on `<body>`
+- **Rendering:** Reactive DOM patching via `x-text`, `x-show`, `:class`, `x-for`
+- **No build step:** Plain JS + HTML, no bundler, no transpiler
+- **State:** One flat object with computed getters. All state derives from `lastStatus` (backend response)
+- **Navigation:** Manual `history.pushState()` + `popstate` listener. `page` property controls visibility
 
-The UI should help a human or AI:
+## 4. Data Flow
 
-- see what the backend is handling
-- understand engine status and queue state
-- inspect logs and evidence
-- change policy or actions only through the backend API
+```
+Backend API → _fetch() / SSE → this.lastStatus → Alpine re-renders DOM
+User click → action handler → POST to backend → SSE push or polling updates state
+```
 
-## 4. UI Pages
+### Real-time updates
 
-### Summary / Home
+1. **SSE primary:** `EventSource` connects to `GET /api/events`
+2. **Polling fallback:** `setInterval` at configurable rate (1.5s–30s)
+3. **ETag caching:** `If-None-Match` header on status polls, skip on 304
+4. **Revision skip:** `_rev` field compared to avoid unnecessary DOM updates
+5. **Failure dampening:** Offline state shown only after 3 consecutive failures
 
-Shows a view of the current engine state at a glance.
+### Optimistic UI
 
-- active backend
-- running state
-- active job
-- main warning or error
+Item actions (pause/resume/retry/remove) snapshot state, update immediately,
+rollback on API failure.
 
-### Queue
+### Preference writes
 
-Shows the engine queue being handled now.
+Debounced read-modify-write: queue changes → 400ms delay → GET declaration →
+merge → POST back. Last-write-per-name wins.
 
-- queue items
-- progress
-- grouping
-- per-job state
+## 5. UI Pages
 
-### Status
+| Page | Route | Purpose | Data source |
+|------|-------|---------|-------------|
+| Dashboard | `/` | Queue, engine controls, active transfers | `GET /api/status` |
+| Bandwidth | `/bandwidth` | Probe, bandwidth settings | `GET /api/declaration` |
+| Service Status | `/lifecycle` | Component install status | `GET /api/lifecycle` |
+| Options | `/options` | Auto-preflight, post-action rule | `GET /api/declaration` |
+| Log | `/log` | Action history, preflight, UCC, declaration editor, session history | `GET /api/log`, `/api/sessions`, `/api/session/stats` |
+| Developer | `/dev` | Swagger UI, OpenAPI spec, test runner, aria2 options, API discovery | `GET /api/tests`, `/api`, `POST /api/aria2/options` |
+| Archive | `/archive` | Completed/removed items | `GET /api/archive` |
 
-Shows engine readiness and health.
-
-- service status
-- preflight
-- dependency checks
-
-### Settings / Policy
-
-Shows policy defaults and editable behavior settings.
-
-- run policy
-- queue policy
-- group policy
-- job policy
-
-### Logs / Evidence
-
-Shows debugging evidence from the engine.
-
-- action history
-- contract trace
-- declaration JSON
-- raw diagnostics
-
-## 5. UI Layout Rule
+## 6. UI Layout Rule
 
 The page layout should stay simple and human-readable:
 
-- top: global summary
-- middle: work area
+- top: global summary + backend management
+- middle: work area (tab content)
 - bottom: logs or evidence
 
 This keeps the originating engine object close to its debug signal.
 
-## 6. Backend Selection
+## 7. Backend Selection
 
-The UI may support multiple backend URLs, but only as a browser preference.
+The UI supports multiple backend URLs as a browser preference.
 
 - default backend: `http://127.0.0.1:8000`
 - selected backend stored in localStorage
+- Bonjour discovery merges found backends into the list
+- SSE reconnects on backend switch
 - the backend remains the source of truth
 - the UI only routes requests to the chosen backend
 
-## 7. UI State Rules
+## 8. UI State Rules
 
 - do not duplicate backend truth in the browser
 - do not treat localStorage as canonical state
 - do not hide failures behind empty loading states
 - show backend-unavailable errors clearly
 
-## 8. UI / Backend Boundary
+## 9. UI / Backend Boundary
 
 ```text
 Backend -> owns queue, session, run, policy, logs
 UI -> renders engine state, sends actions, stores preferences
 Browser storage -> remembers selected backend and UI preferences only
+SSE -> real-time push from backend, polling as fallback
 ```
-
-## 9. Practical Questions
-
-- `Summary`: what is happening?
-- `Queue`: what is being processed?
-- `Status`: can the backend run?
-- `Settings`: how should it behave?
-- `Logs`: why did it happen?
 
 ## 10. Design Rules
 

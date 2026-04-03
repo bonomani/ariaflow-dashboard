@@ -1,6 +1,7 @@
 # Release
 
-`ariaflow-web` uses the same stable tag-push release pattern as `ariaflow`.
+`ariaflow-web` uses a stable tag-push release pattern. Every push to `main`
+triggers a GitHub Actions workflow that auto-releases.
 
 ## Version Sources
 
@@ -9,61 +10,54 @@ Keep these two files aligned:
 - `pyproject.toml`
 - `src/ariaflow_web/__init__.py`
 
-The existing repo tags use the stable pattern `vX.Y.Z`, for example `v0.1.13`.
+The existing repo tags use the stable pattern `vX.Y.Z`, for example `v0.1.71`.
 Do not publish alpha tags or prereleases from this repo.
 
-## Preferred Flow
+## Automatic Flow (preferred)
 
-Run the helper from a clean checkout on `main`:
+Push to `main`. The workflow (`.github/workflows/release.yml`) will:
+
+1. Bump the patch version automatically
+2. Run `pip install -e .` + test suite (`tests.test_web tests.test_cli`)
+3. Build the source distribution
+4. Commit the version bump and push the tag
+5. Update `bonomani/homebrew-ariaflow/Formula/ariaflow-web.rb`
+6. Verify the published tap formula matches
+7. Create a GitHub release with the sdist artifact
+
+## Helper Script
+
+For explicit version control:
 
 ```bash
-python3 scripts/publish.py plan
-python3 scripts/publish.py push
+python3 scripts/publish.py plan                    # preview
+python3 scripts/publish.py push                    # push to main (auto-release)
+python3 scripts/publish.py release --version 0.1.75  # dispatch explicit version
 ```
-
-The helper will:
-
-- validate that `pyproject.toml` and `src/ariaflow_web/__init__.py` agree
-- refuse to reuse an existing tag
-- run `py_compile` and `python3 -m unittest tests.test_web tests.test_cli -v` unless `--no-tests` is used
-- `push`: push `main` with a `pull --rebase` retry
-- `release --version X.Y.Z`: trigger `workflow_dispatch` for an explicit stable version after the same rebase-safe sync
 
 Useful flags:
 
-- `plan`: print the release plan without changing files
-- `release --version 0.1.18`: dispatch an explicit stable release on GitHub Actions
+- `plan`: print release plan without changing files
 - `--no-tests`: skip local tests
-- `plan --allow-dirty`: bypass the clean-tree check for preview only
-
-## After Push
-
-The GitHub workflow in `.github/workflows/release.yml` runs automatically on
-`main` pushes and can also be triggered explicitly with `workflow_dispatch`. It will:
-
-- run the test suite again on GitHub Actions
-- build the source distribution
-- create the GitHub release
-- update `bonomani/homebrew-ariaflow/Formula/ariaflow-web.rb` directly
+- `plan --allow-dirty`: bypass clean-tree check for preview
 
 ## Manual Flow
 
 1. Start from a clean checkout on `main`.
-2. Run the local checks:
+2. Run local checks:
 
 ```bash
-python3 -m unittest tests.test_web tests.test_cli
-python3 -m py_compile src/aria_queue/webapp.py src/aria_queue/cli.py src/ariaflow_web/cli.py
+pip install -e .
+python -m unittest tests.test_web tests.test_cli -v
 ```
 
-3. Commit the code change on `main`.
-4. Push `main`.
-5. Let GitHub Actions create the release commit, stable tag, GitHub release, and Homebrew update.
+3. Commit and push to `main`.
+4. GitHub Actions handles the rest.
 
-If you need to force a specific stable version:
+For a specific version:
 
 ```bash
-python3 scripts/publish.py release --version 0.1.18
+python3 scripts/publish.py release --version 0.1.75
 ```
 
 ## Verification
@@ -71,10 +65,8 @@ python3 scripts/publish.py release --version 0.1.18
 After release:
 
 - confirm the new tag exists in the repo
-- confirm the GitHub release is published as a normal release
-- confirm the Homebrew tap formula updated to the same version
-- confirm `ariaflow-web --version` reports the released version
-- on macOS, check:
+- confirm the GitHub release is published
+- confirm the Homebrew tap formula updated
 
 ```bash
 brew tap bonomani/ariaflow
