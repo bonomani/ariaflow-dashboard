@@ -482,8 +482,15 @@
       border: 1px solid var(--line);
       cursor: default;
     }
-    .nav button, .nav select {
+    .nav button {
       border-radius: 999px;
+    }
+    .nav .refresh-control select {
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      font-weight: 600;
+      padding: 0;
     }
     .refresh-control {
       display: inline-flex;
