@@ -51,10 +51,10 @@
           <div class="chip">Last error <strong x-text="lastErrorText">none</strong></div>
           <div class="chip">Session <strong x-text="sessionIdText">-</strong></div>
         </div>
-        <div class="backend-add-row" class="mt-sm">
-          <div class="backend-add-group">
+        <div class="add-row" class="mt-sm">
+          <div class="add-group">
             <input x-model="backendInput" placeholder="http://127.0.0.1:8000" @keydown.enter="addBackend()">
-            <button x-show="backendInput.trim()" class="backend-add-button" @click="addBackend()">Add</button>
+            <button x-show="backendInput.trim()" class="add-btn" @click="addBackend()">Add</button>
           </div>
         </div>
         <div class="chips" class="mt-sm">
@@ -72,10 +72,10 @@
       <!-- DASHBOARD -->
       <div class="span-12" x-show="page === 'dashboard'">
         <div class="panel toolbar">
-          <div class="queue-add-row">
-            <div class="queue-add-group">
+          <div class="add-row">
+            <div class="add-group">
               <textarea x-model="urlInput" rows="1" placeholder="Paste one or more URLs, one per line"></textarea>
-              <button x-show="urlInput.trim()" class="queue-add-button" @click="add()">Add</button>
+              <button x-show="urlInput.trim()" class="add-btn" @click="add()">Add</button>
             </div>
             <details class="mt-sm">
               <summary class="text-muted text-sm cursor-pointer">Advanced options</summary>
