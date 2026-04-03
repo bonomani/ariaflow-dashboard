@@ -258,121 +258,92 @@
       </div>
 
       <!-- BANDWIDTH -->
-      <div class="span-6" x-show="page === 'bandwidth'">
+      <div class="span-12" x-show="page === 'bandwidth'">
         <div class="panel">
           <div class="section-title">
-            <h2>Bandwidth Probe</h2>
-            <div class="hint">networkquality measurement and current download limits</div>
+            <h2>Bandwidth</h2>
+            <div class="hint">Probe, reservation policy, and download concurrency</div>
           </div>
-          <div class="row" style="margin-bottom:12px;">
-            <button class="secondary" @click="runProbe()" :disabled="probeRunning" x-text="probeRunning ? 'Probing...' : 'Run probe'">Run probe</button>
+          <div class="chips" style="margin-bottom:12px;">
+            <div class="chip">Interface <strong x-text="bwInterfaceText">-</strong></div>
+            <div class="chip">Download <strong x-text="bwDownBadgeText">-</strong></div>
+            <div class="chip">Upload <strong x-text="bwUpBadgeText">-</strong></div>
+            <div class="chip">Cap <strong x-text="bwCapText">-</strong></div>
+            <div class="chip">Source <strong x-text="bwSourceText">-</strong></div>
           </div>
-          <div class="list">
-            <div class="item">
-              <div class="item-top"><div class="item-url">Interface</div><span class="badge" x-text="bwInterfaceText">-</span></div>
-              <div class="meta"><span x-text="bwInterfaceDetailText">Detecting...</span></div>
-            </div>
-            <div class="item">
-              <div class="item-top"><div class="item-url">Download</div><span class="badge" x-text="bwDownBadgeText">-</span></div>
-              <div class="meta"><span x-text="bwDownDetailText">Measured downlink from last probe</span></div>
-            </div>
-            <div class="item">
-              <div class="item-top"><div class="item-url">Upload</div><span class="badge" x-text="bwUpBadgeText">-</span></div>
-              <div class="meta"><span x-text="bwUpDetailText">Measured uplink from last probe</span></div>
-            </div>
-            <div class="item">
-              <div class="item-top"><div class="item-url">Download cap</div><span class="badge" x-text="bwCapText">-</span></div>
-              <div class="meta"><span x-text="bwGlobalText">Configured limit unavailable</span></div>
-            </div>
-            <div class="item">
-              <div class="item-top"><div class="item-url">Source</div><span class="badge" x-text="bwSourceText">-</span></div>
-              <div class="meta"><span x-text="bwProbeDetailText">No probe yet</span></div>
-            </div>
-            <div class="item">
-              <div class="item-top">
-                <div class="item-url">Auto-probe interval</div>
-                <label class="refresh-control" style="justify-content:flex-start;">
-                  <select :value="bwProbeInterval" @change="setBandwidthPref('bandwidth_probe_interval_seconds', Number($el.value), 180)">
-                    <option value="60">60s</option>
-                    <option value="120">120s</option>
-                    <option value="180">180s</option>
-                    <option value="300">300s</option>
-                  </select>
-                </label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <div>
+              <h3 style="margin:0 0 8px;">Probe</h3>
+              <div class="list">
+                <div class="item">
+                  <div class="row" style="margin-bottom:8px;">
+                    <button class="secondary" @click="runProbe()" :disabled="probeRunning" x-text="probeRunning ? 'Probing...' : 'Run probe'">Run probe</button>
+                  </div>
+                  <div class="meta"><span x-text="bwProbeDetailText">No probe yet</span></div>
+                </div>
+                <div class="item">
+                  <div class="item-top">
+                    <div class="item-url">Auto-probe interval</div>
+                    <label class="refresh-control" style="justify-content:flex-start;">
+                      <select :value="bwProbeInterval" @change="setBandwidthPref('bandwidth_probe_interval_seconds', Number($el.value), 180)">
+                        <option value="60">60s</option>
+                        <option value="120">120s</option>
+                        <option value="180">180s</option>
+                        <option value="300">300s</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
               </div>
-              <div class="meta"><span>Seconds between automatic probes. Default: 180s.</span></div>
             </div>
-          </div>
-        </div>
-      </div>
-      <div class="span-6" x-show="page === 'bandwidth'">
-        <div class="panel">
-          <div class="section-title">
-            <h2>Bandwidth Policy</h2>
-            <div class="hint">Reserve bandwidth and control download concurrency</div>
-          </div>
-          <div class="list">
-            <div class="item">
-              <div class="item-top">
-                <div class="item-url">Downlink free (%)</div>
-                <label class="refresh-control" style="justify-content:flex-start;">
-                  <input type="number" min="0" max="90" step="1" :value="bwDownFreePercent" @input="setBandwidthPref('bandwidth_down_free_percent', Number($el.value), 20)" style="width:80px; padding:0 8px; height:32px;">
-                  <span>%</span>
-                </label>
+            <div>
+              <h3 style="margin:0 0 8px;">Policy</h3>
+              <div class="list">
+                <div class="item">
+                  <div class="item-top">
+                    <div class="item-url">Downlink reserve</div>
+                    <label class="refresh-control" style="justify-content:flex-start;">
+                      <input type="number" min="0" max="90" step="1" :value="bwDownFreePercent" @input="setBandwidthPref('bandwidth_down_free_percent', Number($el.value), 20)" style="width:60px; padding:0 8px; height:32px;">
+                      <span>%</span>
+                      <input type="number" min="0" step="0.5" :value="bwDownFreeAbsolute" @input="setBandwidthPref('bandwidth_down_free_absolute_mbps', Number($el.value), 0)" style="width:70px; padding:0 8px; height:32px;">
+                      <span>Mbps</span>
+                    </label>
+                  </div>
+                  <div class="meta"><span>Reserve % or absolute Mbps of downlink. Stricter wins.</span></div>
+                </div>
+                <div class="item">
+                  <div class="item-top">
+                    <div class="item-url">Uplink reserve</div>
+                    <label class="refresh-control" style="justify-content:flex-start;">
+                      <input type="number" min="0" max="90" step="1" :value="bwUpFreePercent" @input="setBandwidthPref('bandwidth_up_free_percent', Number($el.value), 50)" style="width:60px; padding:0 8px; height:32px;">
+                      <span>%</span>
+                      <input type="number" min="0" step="0.5" :value="bwUpFreeAbsolute" @input="setBandwidthPref('bandwidth_up_free_absolute_mbps', Number($el.value), 0)" style="width:70px; padding:0 8px; height:32px;">
+                      <span>Mbps</span>
+                    </label>
+                  </div>
+                  <div class="meta"><span>Reserve % or absolute Mbps of uplink. Stricter wins.</span></div>
+                </div>
+                <div class="item">
+                  <div class="item-top">
+                    <div class="item-url">Concurrent downloads</div>
+                    <label class="refresh-control" style="justify-content:flex-start;">
+                      <input type="number" min="1" step="1" :value="bwConcurrency" @input="setSimultaneousLimit($el.value)" style="width:60px; padding:0 8px; height:32px;">
+                    </label>
+                  </div>
+                  <div class="meta"><span>Max parallel downloads. Default: 1 (sequential).</span></div>
+                </div>
+                <div class="item">
+                  <div class="item-top">
+                    <div class="item-url">Duplicate transfers</div>
+                    <select :value="bwDedupValue" @change="setDuplicateAction($el.value)">
+                      <option value="remove">Remove</option>
+                      <option value="pause">Pause</option>
+                      <option value="ignore">Ignore</option>
+                    </select>
+                  </div>
+                  <div class="meta"><span>Action for duplicate active jobs on the same URL.</span></div>
+                </div>
               </div>
-              <div class="meta"><span>Reserve this percentage of measured downlink. Downloads capped to the remainder. Default: 20%.</span></div>
-            </div>
-            <div class="item">
-              <div class="item-top">
-                <div class="item-url">Downlink free (absolute)</div>
-                <label class="refresh-control" style="justify-content:flex-start;">
-                  <input type="number" min="0" step="0.5" :value="bwDownFreeAbsolute" @input="setBandwidthPref('bandwidth_down_free_absolute_mbps', Number($el.value), 0)" style="width:100px; padding:0 8px; height:32px;">
-                  <span>Mbps</span>
-                </label>
-              </div>
-              <div class="meta"><span>Always reserve at least this many Mbps downlink. Stricter of % and absolute wins. Default: 0.</span></div>
-            </div>
-            <div class="item">
-              <div class="item-top">
-                <div class="item-url">Uplink free (%)</div>
-                <label class="refresh-control" style="justify-content:flex-start;">
-                  <input type="number" min="0" max="90" step="1" :value="bwUpFreePercent" @input="setBandwidthPref('bandwidth_up_free_percent', Number($el.value), 50)" style="width:80px; padding:0 8px; height:32px;">
-                  <span>%</span>
-                </label>
-              </div>
-              <div class="meta"><span>Reserve this percentage of measured uplink. Default: 50%.</span></div>
-            </div>
-            <div class="item">
-              <div class="item-top">
-                <div class="item-url">Uplink free (absolute)</div>
-                <label class="refresh-control" style="justify-content:flex-start;">
-                  <input type="number" min="0" step="0.5" :value="bwUpFreeAbsolute" @input="setBandwidthPref('bandwidth_up_free_absolute_mbps', Number($el.value), 0)" style="width:100px; padding:0 8px; height:32px;">
-                  <span>Mbps</span>
-                </label>
-              </div>
-              <div class="meta"><span>Always reserve at least this many Mbps uplink. Default: 0.</span></div>
-            </div>
-            <div class="item">
-              <div class="item-top">
-                <div class="item-url">Simultaneous downloads</div>
-                <label class="refresh-control" style="justify-content:flex-start;">
-                  <span>Max</span>
-                  <input type="number" min="1" step="1" :value="bwConcurrency" @input="setSimultaneousLimit($el.value)" style="width:110px; padding:0 8px; height:32px;">
-                  <span>jobs</span>
-                </label>
-              </div>
-              <div class="meta"><span>Limit how many downloads ariaflow may keep active at once. Default is 1 for sequential downloads.</span></div>
-            </div>
-            <div class="item">
-              <div class="item-top">
-                <div class="item-url">Duplicate active transfer</div>
-                <select :value="bwDedupValue" @change="setDuplicateAction($el.value)">
-                  <option value="remove">Remove duplicates</option>
-                  <option value="pause">Pause duplicates</option>
-                  <option value="ignore">Ignore duplicates</option>
-                </select>
-              </div>
-              <div class="meta"><span>When aria2 exposes duplicate active jobs for the same URL, choose the action.</span></div>
             </div>
           </div>
         </div>
