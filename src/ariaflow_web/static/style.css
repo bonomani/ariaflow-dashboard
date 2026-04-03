@@ -244,6 +244,7 @@
     .text-mono { font-family: monospace; white-space: pre-wrap; word-break: break-word; }
     .cursor-pointer { cursor: pointer; }
     .align-end { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+    .dimmed { opacity: 0.35; }
     input::placeholder, textarea::placeholder { color: #64748b; }
     input:focus, textarea:focus { border-color: rgba(125, 211, 252, 0.65); box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.12); }
 
