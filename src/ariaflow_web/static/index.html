@@ -276,10 +276,9 @@
               <h3 style="margin:0 0 8px;">Probe</h3>
               <div class="list">
                 <div class="item">
-                  <div class="row" style="margin-bottom:8px;">
+                  <div class="row">
                     <button class="secondary" @click="runProbe()" :disabled="probeRunning" x-text="probeRunning ? 'Probing...' : 'Run probe'">Run probe</button>
                   </div>
-                  <div class="meta"><span x-text="bwProbeDetailText">No probe yet</span></div>
                 </div>
                 <div class="item">
                   <div class="item-top">
