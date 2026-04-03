@@ -312,7 +312,7 @@
               <div class="item-top">
                 <div class="item-url">Downlink free (%)</div>
                 <label class="refresh-control" style="justify-content:flex-start;">
-                  <input type="number" min="0" max="90" step="1" :value="bwDownFreePercent" @input.debounce.400ms="setBandwidthPref('bandwidth_down_free_percent', Number($el.value), 20)" style="width:80px; padding:0 8px; height:32px;">
+                  <input type="number" min="0" max="90" step="1" :value="bwDownFreePercent" @input="setBandwidthPref('bandwidth_down_free_percent', Number($el.value), 20)" style="width:80px; padding:0 8px; height:32px;">
                   <span>%</span>
                 </label>
               </div>
@@ -322,7 +322,7 @@
               <div class="item-top">
                 <div class="item-url">Downlink free (absolute)</div>
                 <label class="refresh-control" style="justify-content:flex-start;">
-                  <input type="number" min="0" step="0.5" :value="bwDownFreeAbsolute" @input.debounce.400ms="setBandwidthPref('bandwidth_down_free_absolute_mbps', Number($el.value), 0)" style="width:100px; padding:0 8px; height:32px;">
+                  <input type="number" min="0" step="0.5" :value="bwDownFreeAbsolute" @input="setBandwidthPref('bandwidth_down_free_absolute_mbps', Number($el.value), 0)" style="width:100px; padding:0 8px; height:32px;">
                   <span>Mbps</span>
                 </label>
               </div>
@@ -332,7 +332,7 @@
               <div class="item-top">
                 <div class="item-url">Uplink free (%)</div>
                 <label class="refresh-control" style="justify-content:flex-start;">
-                  <input type="number" min="0" max="90" step="1" :value="bwUpFreePercent" @input.debounce.400ms="setBandwidthPref('bandwidth_up_free_percent', Number($el.value), 50)" style="width:80px; padding:0 8px; height:32px;">
+                  <input type="number" min="0" max="90" step="1" :value="bwUpFreePercent" @input="setBandwidthPref('bandwidth_up_free_percent', Number($el.value), 50)" style="width:80px; padding:0 8px; height:32px;">
                   <span>%</span>
                 </label>
               </div>
@@ -342,7 +342,7 @@
               <div class="item-top">
                 <div class="item-url">Uplink free (absolute)</div>
                 <label class="refresh-control" style="justify-content:flex-start;">
-                  <input type="number" min="0" step="0.5" :value="bwUpFreeAbsolute" @input.debounce.400ms="setBandwidthPref('bandwidth_up_free_absolute_mbps', Number($el.value), 0)" style="width:100px; padding:0 8px; height:32px;">
+                  <input type="number" min="0" step="0.5" :value="bwUpFreeAbsolute" @input="setBandwidthPref('bandwidth_up_free_absolute_mbps', Number($el.value), 0)" style="width:100px; padding:0 8px; height:32px;">
                   <span>Mbps</span>
                 </label>
               </div>
@@ -367,7 +367,7 @@
                 <div class="item-url">Simultaneous downloads</div>
                 <label class="refresh-control" style="justify-content:flex-start;">
                   <span>Max</span>
-                  <input type="number" min="1" step="1" :value="bwConcurrency" @input.debounce.400ms="setSimultaneousLimit($el.value)" style="width:110px; padding:0 8px; height:32px;">
+                  <input type="number" min="1" step="1" :value="bwConcurrency" @input="setSimultaneousLimit($el.value)" style="width:110px; padding:0 8px; height:32px;">
                   <span>jobs</span>
                 </label>
               </div>
