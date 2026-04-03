@@ -476,12 +476,12 @@
       background: rgba(8, 17, 31, 0.55);
       color: var(--text);
       border: 1px solid var(--line);
+      font-weight: 600;
     }
     .nav a.active {
       background: linear-gradient(180deg, #7dd3fc, #38bdf8);
       color: #082f49;
       border-color: transparent;
-      font-weight: 700;
     }
     .nav button, .nav select {
       padding: 8px 12px;
