@@ -72,7 +72,7 @@ class TestHTMLValidation:
     def test_html_is_valid_structure(self, web_server: str) -> None:
         soup = BeautifulSoup(urllib.request.urlopen(f"{web_server}/", timeout=5).read().decode(), "html.parser")
         assert soup.find("html") and soup.find("head") and soup.find("body")
-        assert soup.find("title").string == "ariaflow"
+        assert soup.find("title").string == "ariaflow-web"
 
     def test_all_ids_are_unique(self, web_server: str) -> None:
         soup = BeautifulSoup(urllib.request.urlopen(f"{web_server}/", timeout=5).read().decode(), "html.parser")
