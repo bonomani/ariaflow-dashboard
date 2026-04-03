@@ -1,44 +1,46 @@
 # Backend Gaps — Missing from ariaflow backend
 
-Features that require backend code changes in `ariaflow/webapp.py` (or core modules).
-These cannot be solved by frontend wiring alone.
+Features that require code changes in `ariaflow/src/aria_queue/webapp.py`
+or core modules. Based on a fresh scan of both codebases.
+
+**Backend scanned:** `/home/bc/repos/github/bonomani/ariaflow/src/aria_queue/webapp.py`
+**Frontend scanned:** `/home/bc/repos/github/bonomani/ariaflow-web/src/ariaflow_web/static/app.js`
 
 ---
 
-## GAP-1: No `POST /api/item/{id}/priority` endpoint
+## GAP-1: No `POST /api/item/{id}/priority` endpoint — BROKEN
 
-**Status: BROKEN** — the frontend calls this endpoint but it doesn't exist.
+The frontend `moveToTop()` calls this endpoint. The backend `_post_item_action`
+only handles `pause|resume|remove|retry`. Returns 400 "unknown item action: priority".
 
-`moveToTop()` sends `POST /api/item/{id}/priority` with `{priority: max+1}`.
-Backend `_post_item_action` only maps `pause|resume|remove|retry`.
+**Fix:** Add `priority` case to `_post_item_action`. Backend already has
+`_aria2_apply_priority()` and `_aria2_position_for_priority()` in `queue_ops.py`.
 
-**Fix:** Add `priority` handler using existing `_aria2_apply_priority()` helper in `queue_ops.py`.
-
-**Effort:** Small | **Impact:** Critical
+**Effort:** Small | **Impact:** Critical (button is broken)
 
 ---
 
-## GAP-2: SSE pushes rev only, not full payload
+## GAP-2: SSE pushes `{rev, server_version}` only
 
-`_sse_publish()` sends `{rev, server_version}`. The frontend (now wired for SSE)
-handles both modes: full payload → assign directly, rev-only → fetch on change.
-Pushing full payload would eliminate the extra round-trip.
+`_invalidate_status_cache()` publishes `_sse_publish("state_changed", {rev, server_version})`.
+The frontend receives this and must do a full `GET /api/status` round-trip.
 
-**Fix:** In `_invalidate_status_cache()`, include `_status_payload(force=True)` in SSE data.
+**Fix:** Push `_status_payload(force=True)` as the SSE event data.
 
-**Effort:** Small | **Impact:** High (zero-polling mode)
+**Effort:** Small | **Impact:** High (eliminates polling entirely)
 
 ---
 
 ## GAP-3: No bulk item operations
 
-No endpoint to act on multiple items at once.
+No endpoint to act on multiple items. Frontend does N individual calls.
 
 **What's needed:**
 ```
 POST /api/items/bulk
 {"action": "pause|resume|retry|remove", "ids": ["id1", "id2"]}
 ```
+Response: `{"ok": true, "results": [{id, ok, error?}, ...]}`
 
 **Effort:** Medium | **Impact:** Medium
 
@@ -46,9 +48,10 @@ POST /api/items/bulk
 
 ## GAP-4: No pagination on `/api/status` items
 
-Backend returns the entire queue. No `offset`/`limit` on items.
+Backend returns entire queue. Frontend downloads all items every poll.
 
-**What's needed:** `GET /api/status?offset=0&limit=50` → `{items, total_count, offset, limit}`.
+**What's needed:** `?offset=0&limit=50` on `/api/status`.
+Response adds `total_count`, `offset`, `limit`.
 
 **Effort:** Medium | **Impact:** Medium (matters above ~100 items)
 
@@ -56,39 +59,54 @@ Backend returns the entire queue. No `offset`/`limit` on items.
 
 ## GAP-5: No server-side search
 
-No `?q=keyword` on `/api/status`.
+No `?q=keyword` on `/api/status`. Frontend searches client-side.
 
-**What's needed:** Match against item URL, output, and GID.
+**What's needed:** Match against item URL, output, GID.
 
 **Effort:** Small | **Impact:** Small
 
 ---
 
-## GAP-6: No PATCH for individual preferences
+## GAP-6: No PATCH for preferences
 
-Frontend does read-modify-write for every preference change.
+Frontend does GET → merge → POST for every preference change.
+Race-prone with multiple tabs.
 
-**What's needed:** `PATCH /api/declaration/preferences` with `{name: value}` pairs.
+**What's needed:**
+```
+PATCH /api/declaration/preferences
+{"bandwidth_free_percent": 25, "max_simultaneous_downloads": 3}
+```
+Also needs `do_PATCH` method and `PATCH` in `Access-Control-Allow-Methods`.
 
 **Effort:** Small | **Impact:** Medium
 
 ---
 
-## GAP-7: No per-item error reporting in batch add
+## GAP-7: No per-item error in batch add
 
-Whole batch fails if one item is invalid.
+`_parse_add_items` validates all items upfront — one bad item fails the batch.
 
-**What's needed:** Per-item results: `{results: [{url, status, error?}]}`.
+**What's needed:** Per-item results:
+```json
+{"ok": true, "results": [
+  {"url": "...", "status": "queued"},
+  {"url": "bad", "status": "error", "message": "..."}
+]}
+```
 
 **Effort:** Small | **Impact:** Small
 
 ---
 
-## GAP-8: No retry policy configuration
+## GAP-8: No retry policy
 
-No max retries, backoff, or auto-retry.
+No auto-retry on transient failures. Frontend retry button re-queues manually.
 
-**What's needed:** Declaration preferences `max_retries`, `retry_backoff_seconds`. Item field `retry_count`. Scheduler auto-retries.
+**What's needed:**
+- Declaration preferences: `max_retries` (default 3), `retry_backoff_seconds` (default 30)
+- Item field: `retry_count`
+- Scheduler auto-retries with backoff
 
 **Effort:** Medium | **Impact:** Medium
 
@@ -96,9 +114,10 @@ No max retries, backoff, or auto-retry.
 
 ## GAP-9: No post-download hooks
 
-`post_action_rule` field exists but no actions are defined or executed.
+`post_action_rule` field exists on items and declarations but nothing executes.
 
-**What's needed:** Hook types: move file, run command, extract, notify. Definitions in declaration.
+**What's needed:** Definable hook types: move file, run command, extract, notify.
+Scheduler calls hook after item completion.
 
 **Effort:** Large | **Impact:** Medium
 
@@ -106,19 +125,27 @@ No max retries, backoff, or auto-retry.
 
 ## GAP-10: No webhooks
 
-Notifications are browser-only.
+Browser notifications only work when tab is open.
 
-**What's needed:** `GET/POST/DELETE /api/webhooks`. Backend fires HTTP POST on events.
+**What's needed:**
+```
+GET/POST/DELETE /api/webhooks
+```
+Backend fires HTTP POST on events (done, error, session end).
 
 **Effort:** Medium | **Impact:** Medium
 
 ---
 
-## GAP-11: No transfer speed history
+## GAP-11: No speed history
 
-Speed data is ephemeral (frontend memory only).
+Speed data is frontend-only, in-memory, lost on reload.
 
-**What's needed:** `GET /api/stats/speed?range=1h` with timestamped samples.
+**What's needed:**
+```
+GET /api/stats/speed?range=1h
+→ {samples: [{t: "ISO8601", speed: 12345}, ...]}
+```
 
 **Effort:** Medium | **Impact:** Small
 
@@ -127,6 +154,7 @@ Speed data is ephemeral (frontend memory only).
 ## GAP-12: No authentication
 
 All endpoints open. `Access-Control-Allow-Origin: *`.
+`do_OPTIONS` declares `GET, POST, OPTIONS` only.
 
 **What's needed:** API key header, CORS restrictions, optional roles.
 
@@ -138,7 +166,7 @@ All endpoints open. `Access-Control-Allow-Origin: *`.
 
 No time-based bandwidth caps or download scheduling.
 
-**What's needed:** Declaration rules: `{start: "22:00", end: "06:00", cap_mbps: 0}`.
+**What's needed:** Declaration rules with time windows affecting bandwidth cap.
 
 **Effort:** Large | **Impact:** Medium
 
@@ -146,9 +174,9 @@ No time-based bandwidth caps or download scheduling.
 
 ## GAP-14: No item labels / categories
 
-No tagging or grouping.
+No tagging or grouping of downloads.
 
-**What's needed:** `tags` field on items, `?tag=` filter param.
+**What's needed:** `tags` field on items, `?tag=` filter on `/api/status`.
 
 **Effort:** Medium | **Impact:** Small
 
@@ -158,29 +186,48 @@ No tagging or grouping.
 
 ### Must fix
 
-| # | Gap | Effort |
-|---|-----|--------|
-| 1 | Priority endpoint (broken) | Small |
-| 2 | SSE full payload | Small |
-| 6 | PATCH preferences | Small |
+| # | Gap | Effort | Why |
+|---|-----|--------|-----|
+| 1 | Priority endpoint | Small | Move-to-top is broken |
+| 2 | SSE full payload | Small | Eliminates polling |
+| 6 | PATCH preferences | Small | Removes race condition |
 
 ### Should fix
 
-| # | Gap | Effort |
-|---|-----|--------|
-| 3 | Bulk operations | Medium |
-| 4 | Pagination | Medium |
-| 7 | Batch add errors | Small |
-| 8 | Retry policies | Medium |
+| # | Gap | Effort | Why |
+|---|-----|--------|-----|
+| 3 | Bulk operations | Medium | Large queue usability |
+| 4 | Pagination | Medium | Large queue performance |
+| 7 | Batch add errors | Small | Better feedback |
+| 8 | Retry policies | Medium | Reduces manual work |
 
 ### Nice to have
 
-| # | Gap | Effort |
-|---|-----|--------|
-| 5 | Server-side search | Small |
-| 9 | Post-download hooks | Large |
-| 10 | Webhooks | Medium |
-| 11 | Speed history | Medium |
-| 12 | Authentication | Medium |
-| 13 | Scheduling | Large |
-| 14 | Labels/categories | Medium |
+| # | Gap | Effort | Why |
+|---|-----|--------|-----|
+| 5 | Server-side search | Small | Convenience |
+| 9 | Post-download hooks | Large | Automation |
+| 10 | Webhooks | Medium | Server notifications |
+| 11 | Speed history | Medium | Persistent sparklines |
+| 12 | Authentication | Medium | Security |
+| 13 | Scheduling | Large | Power feature |
+| 14 | Labels/categories | Medium | Organization |
+
+---
+
+## Backend Endpoint Inventory (for reference)
+
+**16 GET endpoints:**
+`/api`, `/api/status`, `/api/events`, `/api/scheduler`, `/api/bandwidth`,
+`/api/declaration`, `/api/options`, `/api/lifecycle`, `/api/log`, `/api/archive`,
+`/api/sessions`, `/api/session/stats`, `/api/item/{id}/files`,
+`/api/docs`, `/api/openapi.yaml`, `/api/tests`
+
+**14 POST endpoints:**
+`/api/add`, `/api/run`, `/api/pause`, `/api/resume`, `/api/session`,
+`/api/declaration`, `/api/cleanup`, `/api/bandwidth/probe`, `/api/preflight`,
+`/api/ucc`, `/api/lifecycle/action`, `/api/aria2/options`,
+`/api/item/{id}/{action}` (pause/resume/remove/retry),
+`/api/item/{id}/files`
+
+**Missing:** No PATCH, PUT, or DELETE methods. No priority action on items.
