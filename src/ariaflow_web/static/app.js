@@ -102,11 +102,11 @@ document.addEventListener('alpine:init', () => {
       if (this.state?.running) return 'Scheduler running';
       return 'Scheduler idle';
     },
-    get queueActiveText() {
+    get activeTransferText() {
       if (!this.backendReachable) return 'none';
       return this.summarizeActiveItem(this.currentTransfer, this.state, this.itemsWithStatus);
     },
-    get queueSpeedText() {
+    get transferSpeedText() {
       if (!this.backendReachable) return 'idle';
       return this.currentSpeed ? this.formatRate(this.currentSpeed) : 'idle';
     },
@@ -159,7 +159,7 @@ document.addEventListener('alpine:init', () => {
     get preflightModeText() {
       return this.getDeclarationPreference('auto_preflight_on_run') ? 'auto-check' : 'manual';
     },
-    get backendCapText() {
+    get downloadCapText() {
       if (!this.backendReachable) return '-';
       const bw = this.lastStatus?.bandwidth;
       return bw?.cap_mbps ? this.humanCap(this.formatMbps(bw.cap_mbps)) : this.humanCap(bw?.limit || '-');

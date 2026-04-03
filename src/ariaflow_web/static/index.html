@@ -35,7 +35,7 @@
     <div class="hero">
       <div class="title">
         <h1>ariaflow-web</h1>
-        <p>Headless queue engine with a local dashboard.</p>
+        <p>Headless download scheduler with a local dashboard.</p>
       </div>
       <div class="panel">
         <div class="chips">
@@ -47,7 +47,7 @@
           <div class="chip">Backend PID <strong x-text="backendPidText">-</strong></div>
           <div class="chip">Scheduler <strong x-text="schedulerStatusText">idle</strong></div>
           <div class="chip">Preflight mode <strong x-text="preflightModeText">manual</strong></div>
-          <div class="chip">Download cap <strong x-text="backendCapText">-</strong></div>
+          <div class="chip">Download cap <strong x-text="downloadCapText">-</strong></div>
           <div class="chip">Last error <strong x-text="lastErrorText">none</strong></div>
           <div class="chip">Session <strong x-text="sessionIdText">-</strong></div>
         </div>
@@ -123,7 +123,7 @@
                 <div class="metric"><div class="label">Queued</div><div class="value" x-text="sumQueued">0</div><div class="sub">pending items</div></div>
                 <div class="metric"><div class="label">Complete</div><div class="value" x-text="sumDone">0</div><div class="sub">finished</div></div>
                 <div class="metric"><div class="label">Errors</div><div class="value" x-text="sumError">0</div><div class="sub">failed items</div></div>
-                <div class="metric"><div class="label">Speed</div><div class="value" x-text="queueSpeedText">idle</div><div class="sub">current transfer rate</div><div x-html="globalSparklineSvg" style="margin-top:6px;"></div></div>
+                <div class="metric"><div class="label">Speed</div><div class="value" x-text="transferSpeedText">idle</div><div class="sub">current transfer rate</div><div x-html="globalSparklineSvg" style="margin-top:6px;"></div></div>
               </div>
             </div>
             <div class="system-head">
@@ -134,7 +134,7 @@
               <span class="badge" x-text="schedulerStateLabelText">idle</span>
             </div>
             <div class="system-facts">
-              <div class="system-fact"><span>Active transfer</span><strong x-text="queueActiveText">none</strong></div>
+              <div class="system-fact"><span>Active transfer</span><strong x-text="activeTransferText">none</strong></div>
             </div>
             <div class="system-actions">
               <button class="secondary" @click="toggleDownloads()" x-text="downloadToggleBtnText">Pause downloads</button>
@@ -775,7 +775,7 @@
       </div>
     </div>
     <div class="footer">
-      Local-only dashboard. Web UI is optional; the engine stays headless.
+      Local-only dashboard. Web UI is optional; the scheduler stays headless.
     </div>
   </div>
 </body>
