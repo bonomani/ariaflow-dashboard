@@ -54,7 +54,7 @@
         <div class="backend-add-row" style="margin-top:8px;">
           <div class="backend-add-group">
             <input x-model="backendInput" placeholder="http://127.0.0.1:8000" @keydown.enter="addBackend()">
-            <button class="backend-add-button" @click="addBackend()">Add</button>
+            <button x-show="backendInput.trim()" class="backend-add-button" @click="addBackend()">Add</button>
           </div>
         </div>
         <div class="chips" style="margin-top:8px;">
@@ -75,7 +75,7 @@
           <div class="queue-add-row">
             <div class="queue-add-group">
               <textarea x-model="urlInput" rows="1" placeholder="Paste one or more URLs, one per line"></textarea>
-              <button class="queue-add-button" @click="add()">Add</button>
+              <button x-show="urlInput.trim()" class="queue-add-button" @click="add()">Add</button>
             </div>
             <details style="margin-top:8px;">
               <summary style="cursor:pointer;color:var(--muted);font-size:0.88rem;">Advanced options</summary>
