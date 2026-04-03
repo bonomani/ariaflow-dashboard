@@ -480,11 +480,14 @@
       padding: 8px 12px;
       border-radius: 999px;
       font-weight: 600;
+      background: linear-gradient(180deg, #7dd3fc, #38bdf8);
+      color: #082f49;
+      border: 1px solid transparent;
     }
     .nav a.active {
       background: rgba(8, 17, 31, 0.55);
       color: var(--text);
-      border: 1px solid var(--line);
+      border-color: var(--line);
       cursor: default;
     }
     .nav button {
