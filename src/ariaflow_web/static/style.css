@@ -201,12 +201,12 @@
       box-shadow: none;
     }
     input, textarea, button { font: inherit; }
-    input, textarea {
+    input, textarea, select {
       width: 100%;
       border-radius: 12px;
       border: 1px solid var(--line);
       background: var(--panel-2);
-      color: var(--text);
+      color: var(--accent);
       padding: 12px 14px;
       outline: none;
     }
