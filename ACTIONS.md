@@ -1,43 +1,23 @@
 # ariaflow-web — Actionable Elements Reference
 
-Complete inventory of all triggers in the UI: user-facing actions, internal
-behaviors, and automatic events. Organized by tab, then by trigger type.
-
-## Classification Key
-
-| Label | Meaning |
-|-------|---------|
-| **Simple** | Single API call, no branching logic |
-| **Complex** | Multiple API calls, multi-step logic, or optimistic UI |
-| **Not API** | Purely frontend state change (localStorage, filtering, navigation) |
-| **Internal** | Automatic behavior triggered by the framework or other actions |
-
----
+Complete inventory of all triggers in the UI.
 
 ## Internal / Automatic Triggers
 
-| Trigger | When | What it does | Endpoint(s) |
-|---------|------|-------------|-------------|
-| `init()` | Page load | Sets page, inits theme/notifications/SSE, loads page data, starts polling, defers discovery | varies |
-| `_initSSE()` | `init()` + backend switch | Opens `EventSource` to `/api/events`, pauses polling on connect, resumes on error | `GET /api/events` |
-| `popstate` listener | Browser back/forward | Updates `page`, calls `_loadPageData()` | varies |
-| `setInterval` polling | Every N seconds (fallback when SSE disconnected) | `refresh()` → `GET /api/status` with ETag | `GET /api/status` |
-| `deferRefresh(delay)` | After backend selection (delay=0 or 300ms) | Debounced `refresh()` | `GET /api/status` |
-| `_flushPrefQueue()` | 400ms after last preference change | Batch read-modify-write of preferences | `GET + POST /api/declaration` |
-| `discoverBackends()` | 2s after `init()` | Bonjour backend discovery | `GET /api/discovery` |
-| `checkNotifications(items)` | Every status update | Browser notification on `done`/`error` | — |
-| `initNotifications()` | `init()` | One-shot click handler for Notification permission | — |
-| `initTheme()` | `init()` | localStorage theme + OS prefers-color-scheme listener | — |
-| `_loadPageData(target)` | Navigation | Loads data for target tab | varies |
-| Revision skip | Every `refresh()` | Skip DOM update if `_rev` unchanged | — |
-| Failure dampening | Failed `refresh()` | Offline after 3 consecutive failures | — |
-| Optimistic rollback | Item action failure | Restore `lastStatus.items` from snapshot | — |
-| `recordSpeed()` / `recordGlobalSpeed()` | Every status update | Speed sparkline history (in-memory) | — |
+| Trigger | What it does | Endpoint(s) |
+|---------|-------------|-------------|
+| `init()` | Sets page, inits theme/notifications/SSE, loads page data, starts polling | varies |
+| `_initSSE()` | EventSource to `/api/events`, pauses polling on connect, 2s debounce fallback | `GET /api/events` |
+| `popstate` | Browser back/forward → `_loadPageData()` | varies |
+| Polling (fallback) | `refresh()` with ETag, backoff on failure | `GET /api/status` |
+| `_flushPrefQueue()` | Debounced read-modify-write of preferences | `GET + POST /api/declaration` |
+| `discoverBackends()` | Bonjour discovery (2s after init) | `GET /api/discovery` |
+| `checkNotifications()` | Browser notification on done/error | — |
 
-### Data loaded per page navigation
+### Data loaded per page
 
-| Page | Calls triggered |
-|------|----------------|
+| Page | Calls |
+|------|-------|
 | dashboard | `refresh()`, `loadDeclaration()` |
 | bandwidth | `loadDeclaration()` |
 | lifecycle | `loadLifecycle()` |
@@ -50,116 +30,109 @@ behaviors, and automatic events. Organized by tab, then by trigger type.
 
 ## Global / Backend Management
 
-| Element | Classification | Endpoint(s) |
-|---------|----------------|-------------|
-| Tab navigation links | Not API | `history.pushState()` + `_loadPageData()` |
-| Refresh interval dropdown | Not API | localStorage + `setInterval` reset |
-| Theme toggle | Not API | localStorage |
-| Add backend | Not API | localStorage + `deferRefresh(0)` |
-| Select backend | Complex | localStorage + `_initSSE()` + `deferRefresh(0)` + page loads |
-| Remove backend | Not API | localStorage + `deferRefresh(0)` |
+| Element | Endpoint(s) |
+|---------|-------------|
+| Tab navigation | `history.pushState()` + `_loadPageData()` |
+| Refresh interval | localStorage |
+| Theme toggle | localStorage |
+| Add/select/remove backend | localStorage + `_initSSE()` + `deferRefresh()` |
 
 ---
 
 ## Dashboard
 
-### Queue Controls
-
-| Element | Classification | Endpoint(s) |
-|---------|----------------|-------------|
-| Add URLs | Simple | `POST /api/add` (supports torrent_data, metalink_data, post_action_rule) |
-| Start / Stop engine | Complex | `POST /api/run` + optimistic state |
-| New session | Complex | `POST /api/session` + conditional reloads |
-| Pause / Resume queue | Complex | `POST /api/pause` or `/api/resume` + optimistic UI |
-| Cleanup old items | Simple | `POST /api/cleanup` (with max_done_age_days, max_done_count) |
-
-### Per-Item Actions
-
-| Element | Classification | Endpoint(s) | Notes |
-|---------|----------------|-------------|-------|
-| Pause item | Simple | `POST /api/item/{id}/pause` | optimistic |
-| Dequeue item | Simple | `POST /api/item/{id}/pause` | same endpoint |
-| Resume item | Simple | `POST /api/item/{id}/resume` | optimistic |
-| Retry item | Simple | `POST /api/item/{id}/retry` | optimistic |
-| Remove item | Simple | `POST /api/item/{id}/remove` | optimistic |
-| Move to top | Simple | `POST /api/item/{id}/priority` | **backend missing** |
-| Open file selection | Complex | `GET /api/item/{id}/files` | modal |
-| Save file selection | Simple | `POST /api/item/{id}/files` | |
-| Close file selection | Not API | — | |
-
-### Filtering
-
-| Element | Classification | Endpoint(s) |
-|---------|----------------|-------------|
-| Filter chips | Not API + Simple | `?status=` forwarded to backend when not `all` |
-| Queue search | Not API | client-side |
+| Element | Endpoint(s) | Notes |
+|---------|-------------|-------|
+| Add URLs | `POST /api/add` | supports torrent_data, metalink_data, post_action_rule |
+| Start / Stop engine | `POST /api/run` | optimistic state |
+| New session | `POST /api/session` | |
+| Pause / Resume queue | `POST /api/pause` or `/api/resume` | optimistic |
+| Cleanup | `POST /api/cleanup` | configurable max_done_age_days, max_done_count |
+| Pause item | `POST /api/item/{id}/pause` | optimistic |
+| Dequeue item | `POST /api/item/{id}/pause` | |
+| Resume item | `POST /api/item/{id}/resume` | optimistic |
+| Retry item | `POST /api/item/{id}/retry` | optimistic |
+| Remove item | `POST /api/item/{id}/remove` | optimistic |
+| Open file selection | `GET /api/item/{id}/files` | modal |
+| Save file selection | `POST /api/item/{id}/files` | |
+| Filter chips | `?status=` forwarded to backend | all/queued/waiting/discovering/downloading/paused/stopped/done/error/cancelled |
+| Queue search | client-side | |
 
 ---
 
 ## Bandwidth
 
-| Element | Classification | Endpoint(s) |
-|---------|----------------|-------------|
-| Run probe | Complex | `POST /api/bandwidth/probe` → `GET /api/bandwidth` |
-| Min free bandwidth (%) | Complex | debounced `GET + POST /api/declaration` |
-| Min free bandwidth (abs) | Complex | debounced `GET + POST /api/declaration` |
-| Bandwidth floor | Complex | debounced `GET + POST /api/declaration` |
-| Simultaneous downloads | Complex | debounced `GET + POST /api/declaration` |
-| Duplicate active transfer | Complex | `GET + POST /api/declaration` |
+| Element | Endpoint(s) | Notes |
+|---------|-------------|-------|
+| Run probe | `POST /api/bandwidth/probe` → `GET /api/bandwidth` | |
+| Downlink free (%) | `GET + POST /api/declaration` | pref: `bandwidth_down_free_percent` |
+| Downlink free (abs) | `GET + POST /api/declaration` | pref: `bandwidth_down_free_absolute_mbps` |
+| Uplink free (%) | `GET + POST /api/declaration` | pref: `bandwidth_up_free_percent` |
+| Uplink free (abs) | `GET + POST /api/declaration` | pref: `bandwidth_up_free_absolute_mbps` |
+| Probe interval | `GET + POST /api/declaration` | pref: `bandwidth_probe_interval_seconds` |
+| Simultaneous downloads | `GET + POST /api/declaration` | pref: `max_simultaneous_downloads` |
+| Duplicate transfer action | `GET + POST /api/declaration` | pref: `duplicate_active_transfer_action` |
 
 ---
 
 ## Service Status
 
-| Element | Classification | Endpoint(s) |
-|---------|----------------|-------------|
-| Refresh status | Simple | `GET /api/lifecycle` |
-| Install / Update ariaflow | Simple | `POST /api/lifecycle/action` → `GET /api/lifecycle` |
-| Remove ariaflow | Simple | `POST /api/lifecycle/action` → `GET /api/lifecycle` |
-| Load aria2 autostart | Simple | `POST /api/lifecycle/action` → `GET /api/lifecycle` |
-| Unload aria2 autostart | Simple | `POST /api/lifecycle/action` → `GET /api/lifecycle` |
+| Element | Endpoint(s) |
+|---------|-------------|
+| Refresh | `GET /api/lifecycle` |
+| Install/Update ariaflow | `POST /api/lifecycle/action` |
+| Remove ariaflow | `POST /api/lifecycle/action` |
+| Load/Unload aria2 autostart | `POST /api/lifecycle/action` |
 
 ---
 
 ## Options
 
-| Element | Classification | Endpoint(s) |
-|---------|----------------|-------------|
-| Auto preflight checkbox | Complex | `GET + POST /api/declaration` |
-| Post-action rule dropdown | Complex | `GET + POST /api/declaration` |
+| Element | Endpoint(s) | Notes |
+|---------|-------------|-------|
+| Auto preflight | `GET + POST /api/declaration` | pref: `auto_preflight_on_run` |
+| Post-action rule | `GET + POST /api/declaration` | pref: `post_action_rule` |
 
 ---
 
 ## Log
 
-| Element | Classification | Endpoint(s) |
-|---------|----------------|-------------|
-| Run contract | Simple | `POST /api/ucc` + `refreshActionLog()` |
-| Preflight | Simple | `POST /api/preflight` |
-| Action / Target / Session filters | Not API | client-side filtering |
-| Log limit dropdown | Simple | `GET /api/log?limit=N` |
-| Load declaration | Simple | `GET /api/declaration` |
-| Save declaration | Simple | `POST /api/declaration` |
-| Session history list | Simple | `GET /api/sessions?limit=50` |
-| Session stats (click) | Simple | `GET /api/session/stats?session_id=X` |
+| Element | Endpoint(s) |
+|---------|-------------|
+| Run contract | `POST /api/ucc` |
+| Preflight | `POST /api/preflight` |
+| Action/Target/Session filters | client-side |
+| Log limit dropdown | `GET /api/log?limit=N` |
+| Load/Save declaration | `GET/POST /api/declaration` |
+| Session history | `GET /api/sessions?limit=50` |
+| Session stats | `GET /api/session/stats?session_id=X` |
 
 ---
 
 ## Developer
 
-| Element | Classification | Endpoint(s) |
-|---------|----------------|-------------|
-| Open Swagger UI | Not API | opens `{backend}/api/docs` |
-| Download OpenAPI spec | Not API | opens `{backend}/api/openapi.yaml` |
-| Run tests | Simple | `GET /api/tests` |
-| API endpoint catalog | Simple | `GET /api` |
-| Set aria2 option | Simple | `POST /api/aria2/options` |
+| Element | Endpoint(s) |
+|---------|-------------|
+| Swagger UI | opens `{backend}/api/docs` |
+| OpenAPI spec | opens `{backend}/api/openapi.yaml` |
+| Run tests | `GET /api/tests` |
+| API endpoint catalog | `GET /api` |
+| Set aria2 option | `POST /api/aria2/options` |
 
 ---
 
 ## Archive
 
-| Element | Classification | Endpoint(s) |
-|---------|----------------|-------------|
-| Auto-load on navigation | Internal | `GET /api/archive?limit=N` |
-| Load more | Simple | `GET /api/archive?limit=N` (increased) |
+| Element | Endpoint(s) |
+|---------|-------------|
+| Auto-load | `GET /api/archive?limit=N` |
+| Load more | increases limit, re-fetches |
+
+---
+
+## Dropped Features
+
+| Feature | Reason |
+|---------|--------|
+| Move to top button | `POST /api/item/{id}/priority` does not exist in backend |
+| Bandwidth floor input | `bandwidth_floor_mbps` preference does not exist in backend |

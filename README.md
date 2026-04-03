@@ -2,71 +2,54 @@
 
 Local dashboard frontend for `ariaflow`.
 
-It expects an `ariaflow` backend running on the same machine, reachable via:
-
-```bash
-ARIAFLOW_API_URL=http://127.0.0.1:8000
-```
-
-## Run
-
 ```bash
 ariaflow-web --host 127.0.0.1 --port 8001
 ```
 
+Expects an `ariaflow` backend at `http://127.0.0.1:8000` (configurable in UI).
+
 ## Homebrew
 
-When installed from the tap, the service is intended to run alongside the
-`ariaflow` backend:
-
 ```bash
+brew tap bonomani/ariaflow
+brew install ariaflow-web
 brew services start ariaflow
 brew services start ariaflow-web
 ```
 
-Stable GitHub releases now update `bonomani/homebrew-ariaflow/Formula/ariaflow-web.rb`
-automatically. The generated formula also depends on `ariaflow`, so a fresh
-`brew install ariaflow-web` pulls in the backend package.
-
 ## Features
 
 - **7 tabs:** Dashboard, Bandwidth, Service Status, Options, Log, Developer, Archive
-- **Real-time updates:** SSE (`/api/events`) with polling fallback
-- **Server-side filtering:** Status and session filters forwarded to backend
-- **ETag caching:** HTTP 304 support on status polling
-- **Optimistic UI:** Item actions update instantly, rollback on failure
+- **Real-time:** SSE with polling fallback, exponential backoff, ETag caching
+- **9 item states:** discovering, queued, waiting, active, paused, complete, error, stopped, cancelled
+- **4 scheduler states:** idle, running, paused, stopping
+- **Bandwidth controls:** Downlink/uplink reservation (% and absolute), probe interval
+- **Torrent/metalink:** File upload via base64, file selection picker
+- **Session tracking:** History and per-session stats
 - **Multi-backend:** Switch between backends, Bonjour discovery
-- **Torrent/metalink upload:** File picker with base64 encoding
-- **Session history:** View past sessions and per-session stats
-- **aria2 options:** Direct aria2 global option tuning
-- **Configurable cleanup:** Threshold inputs for max age and count
+- **aria2 options:** Direct tuning of global aria2 settings
 - **Browser notifications:** On download complete or failure
 
 ## Architecture
 
-Built with **Alpine.js** — single `Alpine.data()` object, reactive DOM patching,
-no build step.
-
-Full details in [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+Alpine.js single-page app — no build step. See [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
 ## Documentation
 
 | File | Content |
 |------|---------|
-| [`ARCHITECTURE.md`](./ARCHITECTURE.md) | UI design rules and backend boundary |
-| [`ACTIONS.md`](./ACTIONS.md) | All actionable elements by tab + API spec |
-| [`FRONTEND_GAPS.md`](./FRONTEND_GAPS.md) | Remaining frontend gaps (blocked by backend) |
+| [`ARCHITECTURE.md`](./ARCHITECTURE.md) | Design, data flow, preference names |
+| [`ACTIONS.md`](./ACTIONS.md) | All UI actions by tab with endpoints |
+| [`FRONTEND_GAPS.md`](./FRONTEND_GAPS.md) | Remaining gaps (blocked by backend) |
 | [`BACKEND_GAPS.md`](./BACKEND_GAPS.md) | Missing backend features |
-| [`RELEASE.md`](./RELEASE.md) | Release workflow and checklist |
+| [`RELEASE.md`](./RELEASE.md) | Release workflow |
 
 ## Release
 
-Prefer the helper:
+Push to `main` auto-releases via GitHub Actions: bumps version, runs tests,
+builds sdist, creates GitHub release, updates Homebrew tap.
 
 ```bash
-python3 scripts/publish.py plan
-python3 scripts/publish.py push
+python3 scripts/publish.py plan    # preview
+python3 scripts/publish.py push    # push to main
 ```
-
-Or push to `main` — the GitHub Actions workflow auto-releases, creates a tag,
-builds the sdist, updates the Homebrew tap, and creates a GitHub release.
