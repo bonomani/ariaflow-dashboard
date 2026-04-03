@@ -7,6 +7,8 @@ document.addEventListener('alpine:init', () => {
     lastDeclaration: null,
     refreshTimer: null,
     refreshInterval: 10000,
+    _sse: null,
+    _sseConnected: false,
     queueFilter: 'all',
     queueSearch: '',
     speedHistory: {},
@@ -23,6 +25,9 @@ document.addEventListener('alpine:init', () => {
     addOutput: '',
     addPriority: '',
     addMirrors: '',
+    addTorrentData: null,
+    addMetalinkData: null,
+    addPostActionRule: '',
     declarationText: '',
     actionFilter: 'all',
     targetFilter: 'all',
@@ -107,7 +112,11 @@ document.addEventListener('alpine:init', () => {
     },
     get runnerBtnText() {
       if (!this.backendReachable) return 'Start engine';
+      if (this.state?.stop_requested) return 'Stopping...';
       return this.state?.running ? 'Stop engine' : 'Start engine';
+    },
+    get runnerBtnDisabled() {
+      return !this.backendReachable || !!this.state?.stop_requested;
     },
     get toggleBtnText() {
       if (!this.backendReachable) return 'Pause queue';
@@ -220,12 +229,31 @@ document.addEventListener('alpine:init', () => {
     lifecycleSessionHtml: '',
     _lifecycleSession: null,
 
+    // cleanup & pagination
+    cleanupMaxAge: 7,
+    cleanupMaxCount: 100,
+    archiveLimit: 100,
+    logLimit: 120,
+
+    // session history
+    sessionHistory: [],
+    selectedSessionId: null,
+    selectedSessionStats: null,
+
     // log state
     resultText: 'Idle',
     resultJson: 'Idle',
     contractTraceItems: null,
     preflightData: null,
     actionLogEntries: [],
+
+    // api discovery
+    apiEndpoints: null,
+
+    // aria2 options
+    aria2OptionKey: '',
+    aria2OptionValue: '',
+    aria2OptionResult: '',
 
     // test runner
     testRunning: false,
@@ -267,8 +295,11 @@ document.addEventListener('alpine:init', () => {
       if (this.page === 'lifecycle') this.loadLifecycle();
       if (this.page === 'bandwidth') this.loadDeclaration();
       if (this.page === 'options') this.loadDeclaration();
-      if (this.page === 'log') { this.loadDeclaration(); this.refreshActionLog(); }
+      if (this.page === 'log') { this.loadDeclaration(); this.refreshActionLog(); this.loadSessionHistory(); }
       if (this.page === 'archive') this.loadArchive();
+
+      // SSE for real-time updates (falls back to polling on failure)
+      this._initSSE();
 
       // Discovery is non-critical, defer it
       setTimeout(() => this.discoverBackends().catch(() => {}), 2000);
@@ -286,8 +317,9 @@ document.addEventListener('alpine:init', () => {
       if (target === 'lifecycle') this.loadLifecycle();
       if (target === 'bandwidth') this.loadDeclaration();
       if (target === 'options') this.loadDeclaration();
-      if (target === 'log') { this.loadDeclaration(); this.refreshActionLog(); }
+      if (target === 'log') { this.loadDeclaration(); this.refreshActionLog(); this.loadSessionHistory(); }
       if (target === 'archive') this.loadArchive();
+      if (target === 'dev') this.loadApiDiscovery();
     },
 
     // --- formatting ---
@@ -394,6 +426,7 @@ document.addEventListener('alpine:init', () => {
     },
     runnerStateLabel(state, reachable = true) {
       if (!reachable) return 'offline';
+      if (state?.stop_requested) return 'stopping';
       return state?.running ? 'running' : 'idle';
     },
     queueStateLabel(state, items, active) {
@@ -547,6 +580,7 @@ document.addEventListener('alpine:init', () => {
       const state = this.loadBackendState();
       if (!state.backends.includes(backend)) state.backends.push(backend);
       this.saveBackendState(state.backends, backend);
+      this._initSSE();
       this.deferRefresh(0);
       if (this.page === 'lifecycle') this.loadLifecycle();
       if (this.page === 'log') this.refreshActionLog();
@@ -623,6 +657,7 @@ document.addEventListener('alpine:init', () => {
     },
     setQueueFilter(filter) {
       this.queueFilter = filter;
+      this._statusETag = null;
     },
     filterBtnVisible(f) {
       return f === 'all' || (this.filterCounts[f] ?? 0) > 0 || this.queueFilter === f;
@@ -695,6 +730,52 @@ document.addEventListener('alpine:init', () => {
       return this.renderSparkline(item.id);
     },
 
+    // --- SSE ---
+    _initSSE() {
+      if (this._sse) { this._sse.close(); this._sse = null; }
+      const url = this.apiPath('/api/events');
+      let es;
+      try { es = new EventSource(url); } catch (e) { return; }
+      this._sse = es;
+      es.addEventListener('connected', () => {
+        this._sseConnected = true;
+        // Pause polling — SSE will push updates
+        if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
+      });
+      es.addEventListener('state_changed', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          // If backend pushes full payload (has items array), assign directly
+          if (data?.items) {
+            if (data?.ok === false || data?.ariaflow?.reachable === false) {
+              this._consecutiveFailures++;
+              if (!this.lastStatus || this._consecutiveFailures >= 3) this.lastStatus = data;
+              return;
+            }
+            this._consecutiveFailures = 0;
+            this.lastStatus = data;
+            this.lastRev = data._rev || null;
+            this.checkNotifications(this.enrichedItems);
+            this.recordGlobalSpeed(this.currentSpeed || 0);
+          } else if (data?.rev != null && data.rev !== this.lastRev) {
+            // Lightweight event with just rev — fetch full status
+            this.refresh();
+          }
+        } catch (err) {}
+      });
+      es.onerror = () => {
+        this._sseConnected = false;
+        // Resume polling as fallback
+        if (!this.refreshTimer && this.refreshInterval > 0) {
+          this.refreshTimer = setInterval(() => this.refresh(), this.refreshInterval);
+        }
+      };
+    },
+    _closeSSE() {
+      if (this._sse) { this._sse.close(); this._sse = null; }
+      this._sseConnected = false;
+    },
+
     // --- refresh ---
     setRefreshInterval(value) {
       this.refreshInterval = Number(value) || 0;
@@ -715,11 +796,25 @@ document.addEventListener('alpine:init', () => {
     },
 
     _consecutiveFailures: 0,
+    _statusETag: null,
+    _statusUrl() {
+      let url = this.apiPath('/api/status');
+      const params = [];
+      if (this.queueFilter && this.queueFilter !== 'all') params.push(`status=${encodeURIComponent(this.queueFilter)}`);
+      if (this.sessionFilter && this.sessionFilter === 'current') params.push('session=current');
+      if (params.length) url += '?' + params.join('&');
+      return url;
+    },
     async refresh() {
       if (this.refreshInFlight) return;
       this.refreshInFlight = true;
       try {
-        const r = await this._fetch(this.apiPath('/api/status'));
+        const opts = {};
+        if (this._statusETag) opts.headers = { 'If-None-Match': this._statusETag };
+        const r = await this._fetch(this._statusUrl(), opts);
+        if (r.status === 304) return; // Not modified
+        const etag = r.headers.get('ETag');
+        if (etag) this._statusETag = etag;
         const data = await r.json();
         if (data?._rev && this.lastRev === data._rev) return;
         this.lastRev = data?._rev || null;
@@ -830,6 +925,9 @@ document.addEventListener('alpine:init', () => {
         if (this.addPriority !== '') item.priority = Number(this.addPriority);
         const mirrors = this.addMirrors.trim().split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
         if (mirrors.length) item.mirrors = mirrors;
+        if (this.addTorrentData) item.torrent_data = this.addTorrentData;
+        if (this.addMetalinkData) item.metalink_data = this.addMetalinkData;
+        if (this.addPostActionRule) item.post_action_rule = this.addPostActionRule;
         return item;
       });
       const payload = { items };
@@ -847,6 +945,19 @@ document.addEventListener('alpine:init', () => {
         : `Queued: ${data.added?.[0]?.url || urls[0] || raw}`;
       this.resultJson = JSON.stringify(data, null, 2);
       this.addOutput = ''; this.addPriority = ''; this.addMirrors = '';
+      this.addTorrentData = null; this.addMetalinkData = null; this.addPostActionRule = '';
+    },
+    handleFileUpload(event, type) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        // Extract base64 portion from data URL
+        const base64 = reader.result.split(',')[1] || '';
+        if (type === 'torrent') this.addTorrentData = base64;
+        else if (type === 'metalink') this.addMetalinkData = base64;
+      };
+      reader.readAsDataURL(file);
     },
     async toggleRunner() {
       return this.runnerAction(this.state?.running ? 'stop' : 'start');
@@ -968,12 +1079,19 @@ document.addEventListener('alpine:init', () => {
 
     // --- archive & cleanup ---
     async loadArchive() {
-      const r = await this._fetch(this.apiPath('/api/archive'));
+      const r = await this._fetch(this.apiPath(`/api/archive?limit=${this.archiveLimit}`));
       const data = await r.json();
       this.archiveItems = data.items || [];
     },
+    loadMoreArchive() {
+      this.archiveLimit += 100;
+      this.loadArchive();
+    },
     async cleanup() {
-      const r = await this._fetch(this.apiPath('/api/cleanup'), { method: 'POST' });
+      const r = await this._fetch(this.apiPath('/api/cleanup'), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ max_done_age_days: this.cleanupMaxAge, max_done_count: this.cleanupMaxCount }),
+      });
       const data = await r.json();
       this.lastResult = data;
       this.resultText = data.ok ? `Cleanup complete — ${data.archived || 0} archived` : (data.message || 'Cleanup requested');
@@ -1119,7 +1237,7 @@ document.addEventListener('alpine:init', () => {
 
     async refreshActionLog() {
       if (this.page !== 'log') return;
-      const r = await this._fetch(this.apiPath('/api/log?limit=120'));
+      const r = await this._fetch(this.apiPath(`/api/log?limit=${this.logLimit}`));
       const data = await r.json();
       if (data?.ok === false || data?.ariaflow?.reachable === false) {
         this.actionLogEntries = [];
@@ -1185,12 +1303,60 @@ document.addEventListener('alpine:init', () => {
       ].filter(Boolean).join(' · ');
     },
 
+    // --- session history ---
+    async loadSessionHistory() {
+      try {
+        const r = await this._fetch(this.apiPath('/api/sessions?limit=50'));
+        const data = await r.json();
+        this.sessionHistory = data.sessions || [];
+      } catch (e) {
+        this.sessionHistory = [];
+      }
+    },
+    async loadSessionStats(sessionId) {
+      this.selectedSessionId = sessionId;
+      this.selectedSessionStats = null;
+      try {
+        const r = await this._fetch(this.apiPath(`/api/session/stats?session_id=${encodeURIComponent(sessionId)}`));
+        this.selectedSessionStats = await r.json();
+      } catch (e) {
+        this.selectedSessionStats = { error: 'Failed to load stats' };
+      }
+    },
+
     // --- active transfer helper ---
     activeTransfer(items, active, state) {
       const liveItems = Array.isArray(items) ? items : [];
       return liveItems.find((item) => item && (item.gid === active?.gid || (state?.active_gid && item.gid === state.active_gid) || (active?.url && item.url && active.url === item.url)))
         || active
         || null;
+    },
+
+    // --- api discovery ---
+    async loadApiDiscovery() {
+      try {
+        const r = await this._fetch(this.apiPath('/api'));
+        this.apiEndpoints = await r.json();
+      } catch (e) {
+        this.apiEndpoints = null;
+      }
+    },
+
+    // --- aria2 options ---
+    async setAria2Option() {
+      const key = this.aria2OptionKey.trim();
+      const value = this.aria2OptionValue.trim();
+      if (!key || !value) { this.aria2OptionResult = 'Key and value required'; return; }
+      try {
+        const r = await this._fetch(this.apiPath('/api/aria2/options'), {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [key]: value }),
+        });
+        const data = await r.json();
+        this.aria2OptionResult = data.ok !== false ? `Set ${key} = ${value}` : (data.message || 'Failed');
+      } catch (e) {
+        this.aria2OptionResult = `Error: ${e.message}`;
+      }
     },
 
     // --- dev ---
