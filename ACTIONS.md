@@ -74,7 +74,7 @@ Complete inventory of all triggers in the UI, based on a fresh scan of
 
 | Element | Handler | Notes |
 |---------|---------|-------|
-| Filter chips | `setQueueFilter(f)` | `?status=` forwarded to backend |
+| Filter chips | `setQueueFilter(f)` | `?status=` mapped to backend names (downloading→active, done→complete) |
 | Search input | `x-model="queueSearch"` | client-side |
 
 **Filter states:** all, queued, waiting, discovering, downloading, paused, stopped, done, error, cancelled
