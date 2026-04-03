@@ -51,7 +51,7 @@
           <div class="chip">Last error <strong x-text="lastErrorText">none</strong></div>
           <div class="chip">Session <strong x-text="sessionIdText">-</strong></div>
         </div>
-        <div class="add-row" class="mt-sm">
+        <div class="mt-sm">
           <div class="add-group">
             <input x-model="backendInput" placeholder="http://127.0.0.1:8000" @keydown.enter="addBackend()">
             <button x-show="backendInput.trim()" class="add-btn" @click="addBackend()">Add</button>
@@ -72,7 +72,7 @@
       <!-- DASHBOARD -->
       <div class="span-12" x-show="page === 'dashboard'">
         <div class="panel toolbar">
-          <div class="add-row">
+          <div>
             <div class="add-group">
               <textarea x-model="urlInput" rows="1" placeholder="Paste one or more URLs, one per line"></textarea>
               <button x-show="urlInput.trim()" class="add-btn" @click="add()">Add</button>
