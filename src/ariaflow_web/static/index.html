@@ -30,7 +30,7 @@
           <option value="0">Off</option>
         </select>
       </label>
-      <button class="secondary" @click="toggleTheme()" x-text="themeLabel">Theme</button>
+      <button @click="toggleTheme()" x-text="themeLabel">Theme</button>
     </div>
     <div class="hero">
       <div class="title">
@@ -54,7 +54,7 @@
         <div class="backend-add-row" style="margin-top:8px;">
           <div class="backend-add-group">
             <input x-model="backendInput" placeholder="http://127.0.0.1:8000" @keydown.enter="addBackend()">
-            <button class="secondary backend-add-button" @click="addBackend()">Add</button>
+            <button class="backend-add-button" :class="{ secondary: !backendInput.trim() }" @click="addBackend()">Add</button>
           </div>
         </div>
         <div class="chips" style="margin-top:8px;">
@@ -101,7 +101,7 @@
           <div class="action-bar">
             <div class="action-buttons">
               <button :class="{ secondary: schedulerBtnDisabled }" @click="toggleScheduler()" x-text="schedulerBtnText" :disabled="schedulerBtnDisabled">Start scheduler</button>
-              <button class="secondary" @click="newSession()">New session</button>
+              <button :class="{ secondary: !backendReachable }" @click="newSession()" :disabled="!backendReachable">New session</button>
             </div>
           </div>
         </div>
@@ -189,11 +189,11 @@
                   </div>
                 </template>
                 <div x-show="item.id" class="action-strip" style="margin-top:8px;">
-                  <button x-show="itemCanPause(item)" class="secondary icon-btn" @click="itemAction(item.id, 'pause')" title="Pause transfer">&#9646;&#9646;<span class="sr-only">Pause transfer</span></button>
-                  <button x-show="itemCanDequeue(item)" class="secondary icon-btn" @click="itemAction(item.id, 'pause')" title="Remove from queue">&#9723;<span class="sr-only">Remove from queue</span></button>
-                  <button x-show="itemCanResume(item)" class="secondary icon-btn" @click="itemAction(item.id, 'resume')" title="Resume transfer">&#9654;<span class="sr-only">Resume transfer</span></button>
-                  <button x-show="itemCanRetry(item)" class="secondary icon-btn" @click="itemAction(item.id, 'retry')" title="Retry download">&#8635;<span class="sr-only">Retry download</span></button>
-                  <button x-show="itemModeBadge(item) === 'torrent' || itemModeBadge(item) === 'metalink'" class="secondary icon-btn" @click="openFileSelection(item.id)" title="Select files to download">&#128193;<span class="sr-only">Select files</span></button>
+                  <button x-show="itemCanPause(item)" class="icon-btn" @click="itemAction(item.id, 'pause')" title="Pause transfer">&#9646;&#9646;<span class="sr-only">Pause transfer</span></button>
+                  <button x-show="itemCanDequeue(item)" class="icon-btn" @click="itemAction(item.id, 'pause')" title="Remove from queue">&#9723;<span class="sr-only">Remove from queue</span></button>
+                  <button x-show="itemCanResume(item)" class="icon-btn" @click="itemAction(item.id, 'resume')" title="Resume transfer">&#9654;<span class="sr-only">Resume transfer</span></button>
+                  <button x-show="itemCanRetry(item)" class="icon-btn" @click="itemAction(item.id, 'retry')" title="Retry download">&#8635;<span class="sr-only">Retry download</span></button>
+                  <button x-show="itemModeBadge(item) === 'torrent' || itemModeBadge(item) === 'metalink'" class="icon-btn" @click="openFileSelection(item.id)" title="Select files to download">&#128193;<span class="sr-only">Select files</span></button>
                   <button x-show="itemNormalizedStatus(item) !== 'cancelled'" class="secondary icon-btn" @click="itemAction(item.id, 'remove')" title="Remove and archive">&#10005;<span class="sr-only">Remove and archive</span></button>
                 </div>
               </div>
@@ -204,7 +204,6 @@
             <div class="system-card" style="margin-top:12px;">
               <div class="system-head">
                 <div class="system-copy"><h3>File Selection</h3></div>
-                <button class="secondary" @click="closeFileSelection()">Close</button>
               </div>
               <template x-if="fileSelectionLoading"><div class="item">Loading files...</div></template>
               <template x-if="!fileSelectionLoading">
@@ -220,7 +219,7 @@
                       </div>
                     </template>
                   </div>
-                  <div class="system-actions"><button @click="saveFileSelection()">Save selection</button></div>
+                  <div class="system-actions"><button @click="saveFileSelection()">Save selection</button> <button class="secondary" @click="closeFileSelection()">Cancel</button></div>
                 </div>
               </template>
             </div>
@@ -229,7 +228,7 @@
           <div style="margin-top:12px;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
             <label style="font-size:0.82rem;color:var(--muted);">Max age (days) <input type="number" x-model.number="cleanupMaxAge" min="1" max="365" style="width:60px;"></label>
             <label style="font-size:0.82rem;color:var(--muted);">Max count <input type="number" x-model.number="cleanupMaxCount" min="1" max="1000" style="width:60px;"></label>
-            <button class="secondary" @click="cleanup()" style="font-size:0.85rem;">Archive completed items</button>
+            <button :class="{ secondary: !backendReachable }" @click="cleanup()" :disabled="!backendReachable" style="font-size:0.85rem;">Archive completed items</button>
           </div>
         </div>
       </div>
@@ -388,7 +387,7 @@
                 </div>
                 <div x-show="row.actions.length" class="action-strip" style="justify-content:flex-start; margin-top:8px;">
                   <template x-for="act in row.actions" :key="act.target + act.action">
-                    <button class="secondary icon-btn" @click="lifecycleAction(act.target, act.action)" x-text="act.label"></button>
+                    <button :class="{ secondary: !backendReachable }" @click="lifecycleAction(act.target, act.action)" x-text="act.label" :disabled="!backendReachable"></button>
                   </template>
                 </div>
               </div>
@@ -638,8 +637,8 @@
           </div>
           <textarea x-model="declarationText" placeholder="Loading declaration..."></textarea>
           <div class="row">
-            <button class="secondary" @click="loadDeclaration(true)">Load</button>
-            <button class="secondary" @click="saveDeclaration()">Save</button>
+            <button :class="{ secondary: !backendReachable }" @click="loadDeclaration(true)" :disabled="!backendReachable">Load</button>
+            <button :class="{ secondary: !backendReachable }" @click="saveDeclaration()" :disabled="!backendReachable">Save</button>
           </div>
         </div>
       </div>
@@ -683,8 +682,8 @@
             <div class="hint">Interactive Swagger UI and OpenAPI spec</div>
           </div>
           <div class="row">
-            <button class="secondary" @click="openDocs()">Open Swagger UI</button>
-            <button class="secondary" @click="openSpec()">Download OpenAPI spec</button>
+            <button @click="openDocs()">Open Swagger UI</button>
+            <button @click="openSpec()">Download OpenAPI spec</button>
           </div>
         </div>
       </div>
@@ -773,7 +772,7 @@
             </template>
           </div>
           <div style="margin-top:10px;text-align:center;">
-            <button class="secondary" @click="loadMoreArchive()" style="font-size:0.85rem;">Load more</button>
+            <button :class="{ secondary: !backendReachable }" @click="loadMoreArchive()" :disabled="!backendReachable" style="font-size:0.85rem;">Load more</button>
           </div>
         </div>
       </div>
