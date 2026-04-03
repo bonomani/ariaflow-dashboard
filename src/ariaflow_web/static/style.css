@@ -228,6 +228,23 @@
     input[type="checkbox"] { width: auto; }
     input[type="file"] { width: auto; font-size: 0.85rem; }
     .label-sm { font-size: 0.84rem; color: var(--muted); }
+
+    /* --- utility classes --- */
+    .mt-0 { margin-top: 0; }
+    .mb-sm { margin-bottom: 8px; }
+    .mt-sm { margin-top: 8px; }
+    .mt-md { margin-top: 12px; }
+    .mb-md { margin-bottom: 12px; }
+    .gap-sm { display: flex; gap: 8px; flex-wrap: wrap; }
+    .gap-sm-grid { display: grid; gap: 8px; }
+    .grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .text-muted { color: var(--muted); }
+    .text-sm { font-size: 0.88rem; }
+    .text-xs { font-size: 0.85rem; }
+    .text-center { text-align: center; }
+    .text-mono { font-family: monospace; white-space: pre-wrap; word-break: break-word; }
+    .cursor-pointer { cursor: pointer; }
+    .align-end { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
     input::placeholder, textarea::placeholder { color: #64748b; }
     input:focus, textarea:focus { border-color: rgba(125, 211, 252, 0.65); box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.12); }
 

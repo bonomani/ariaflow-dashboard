@@ -42,7 +42,7 @@
           <div class="chip">Web UI <strong>__ARIAFLOW_WEB_VERSION__</strong></div>
           <div class="chip">Web PID <strong>__ARIAFLOW_WEB_PID__</strong></div>
         </div>
-        <div class="chips" style="margin-top:8px;">
+        <div class="chips" class="mt-sm">
           <div class="chip">Backend version <strong x-text="backendVersionText">-</strong></div>
           <div class="chip">Backend PID <strong x-text="backendPidText">-</strong></div>
           <div class="chip">Scheduler <strong x-text="schedulerStatusText">idle</strong></div>
@@ -51,13 +51,13 @@
           <div class="chip">Last error <strong x-text="lastErrorText">none</strong></div>
           <div class="chip">Session <strong x-text="sessionIdText">-</strong></div>
         </div>
-        <div class="backend-add-row" style="margin-top:8px;">
+        <div class="backend-add-row" class="mt-sm">
           <div class="backend-add-group">
             <input x-model="backendInput" placeholder="http://127.0.0.1:8000" @keydown.enter="addBackend()">
             <button x-show="backendInput.trim()" class="backend-add-button" @click="addBackend()">Add</button>
           </div>
         </div>
-        <div class="chips" style="margin-top:8px;">
+        <div class="chips" class="mt-sm">
           <button :class="{ secondary: selectedBackend === DEFAULT_BACKEND_URL }" @click="selectBackend(DEFAULT_BACKEND_URL)" x-text="DEFAULT_BACKEND_URL"></button>
           <template x-for="backend in backends" :key="backend">
             <span class="chip">
@@ -77,13 +77,13 @@
               <textarea x-model="urlInput" rows="1" placeholder="Paste one or more URLs, one per line"></textarea>
               <button x-show="urlInput.trim()" class="queue-add-button" @click="add()">Add</button>
             </div>
-            <details style="margin-top:8px;">
-              <summary style="cursor:pointer;color:var(--muted);font-size:0.88rem;">Advanced options</summary>
-              <div style="display:grid;gap:8px;margin-top:8px;">
+            <details class="mt-sm">
+              <summary class="text-muted text-sm cursor-pointer">Advanced options</summary>
+              <div class="gap-sm-grid mt-sm">
                 <input x-model="addOutput" placeholder="Output filename (optional)">
                 <input x-model="addPriority" type="number" placeholder="Priority" class="input-sm">
                 <textarea x-model="addMirrors" rows="2" placeholder="Mirror URLs, one per line (optional)" class="textarea-sm"></textarea>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <div class="gap-sm">
                   <label class="label-sm">.torrent file <input type="file" accept=".torrent" @change="handleFileUpload($event, 'torrent')"></label>
                   <label class="label-sm">.metalink file <input type="file" accept=".metalink,.meta4" @change="handleFileUpload($event, 'metalink')"></label>
                 </div>
@@ -112,7 +112,7 @@
             <h2>Queue</h2>
             <div class="hint">Download items managed by the scheduler; pause or resume without stopping</div>
           </div>
-          <div class="system-card" style="margin-bottom:12px;">
+          <div class="system-card" class="mb-md">
             <div class="queue-overview">
               <div class="queue-primary">
                 <div class="label">Scheduler status</div>
@@ -123,7 +123,7 @@
                 <div class="metric"><div class="label">Queued</div><div class="value" x-text="sumQueued">0</div><div class="sub">pending items</div></div>
                 <div class="metric"><div class="label">Complete</div><div class="value" x-text="sumDone">0</div><div class="sub">finished</div></div>
                 <div class="metric"><div class="label">Errors</div><div class="value" x-text="sumError">0</div><div class="sub">failed items</div></div>
-                <div class="metric"><div class="label">Speed</div><div class="value" x-text="transferSpeedText">idle</div><div class="sub">current transfer rate</div><div x-html="globalSparklineSvg" style="margin-top:6px;"></div></div>
+                <div class="metric"><div class="label">Speed</div><div class="value" x-text="transferSpeedText">idle</div><div class="sub">current transfer rate</div><div x-html="globalSparklineSvg" class="mt-sm"></div></div>
               </div>
             </div>
             <div class="system-head">
@@ -140,7 +140,7 @@
               <button :class="{ secondary: !backendReachable || !state?.running }" @click="toggleDownloads()" x-text="downloadToggleBtnText" :disabled="!backendReachable">Pause downloads</button>
             </div>
           </div>
-          <div style="margin-bottom:10px;">
+          <div class="mb-md">
             <input type="text" placeholder="Search by URL or filename..." x-model="queueSearch" class="input-search">
           </div>
           <div class="filter-bar">
@@ -188,7 +188,7 @@
                     <div x-html="itemSparklineSvg(item)"></div>
                   </div>
                 </template>
-                <div x-show="item.id" class="action-strip" style="margin-top:8px;">
+                <div x-show="item.id" class="action-strip" class="mt-sm">
                   <button x-show="itemCanPause(item)" class="icon-btn" @click="itemAction(item.id, 'pause')" title="Pause transfer">&#9646;&#9646;<span class="sr-only">Pause transfer</span></button>
                   <button x-show="itemCanDequeue(item)" class="icon-btn" @click="itemAction(item.id, 'pause')" title="Remove from queue">&#9723;<span class="sr-only">Remove from queue</span></button>
                   <button x-show="itemCanResume(item)" class="icon-btn" @click="itemAction(item.id, 'resume')" title="Resume transfer">&#9654;<span class="sr-only">Resume transfer</span></button>
@@ -201,7 +201,7 @@
           </div>
           <!-- File selection panel (torrent/metalink) -->
           <template x-if="fileSelectionItemId">
-            <div class="system-card" style="margin-top:12px;">
+            <div class="system-card" class="mt-md">
               <div class="system-head">
                 <div class="system-copy"><h3>File Selection</h3></div>
               </div>
@@ -211,7 +211,7 @@
                   <div class="list">
                     <template x-for="(file, idx) in fileSelectionFiles" :key="file.index ?? idx">
                       <div class="item compact">
-                        <label style="display:flex;gap:8px;align-items:center;">
+                        <label class="gap-sm">
                           <input type="checkbox" x-model="file.selected">
                           <span x-text="file.path || file.name || ('File ' + file.index)"></span>
                           <span x-show="file.length" class="mono" x-text="formatBytes(file.length)"></span>
@@ -225,10 +225,10 @@
             </div>
           </template>
           <!-- Cleanup -->
-          <div style="margin-top:12px;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
+          <div class="mt-md align-end">
             <label class="label-sm">Max age (days) <input type="number" x-model.number="cleanupMaxAge" min="1" max="365" class="input-sm"></label>
             <label class="label-sm">Max count <input type="number" x-model.number="cleanupMaxCount" min="1" max="1000" class="input-sm"></label>
-            <button :class="{ secondary: !backendReachable }" @click="cleanup()" :disabled="!backendReachable" style="font-size:0.85rem;">Archive completed items</button>
+            <button :class="{ secondary: !backendReachable }" @click="cleanup()" :disabled="!backendReachable" class="text-xs">Archive completed items</button>
           </div>
         </div>
       </div>
@@ -263,16 +263,16 @@
             <h2>Bandwidth</h2>
             <div class="hint">Probe, reservation policy, and download concurrency</div>
           </div>
-          <div class="chips" style="margin-bottom:12px;">
+          <div class="chips" class="mb-md">
             <div class="chip">Interface <strong x-text="bwInterfaceText">-</strong></div>
             <div class="chip">Download <strong x-text="bwDownBadgeText">-</strong></div>
             <div class="chip">Upload <strong x-text="bwUpBadgeText">-</strong></div>
             <div class="chip">Cap <strong x-text="bwCapText">-</strong></div>
             <div class="chip">Source <strong x-text="bwSourceText">-</strong></div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div class="grid-2col">
             <div>
-              <h3 style="margin:0 0 8px;">Probe</h3>
+              <h3 class="mt-0 mb-sm">Probe</h3>
               <div class="list">
                 <div class="item">
                   <div class="row">
@@ -295,7 +295,7 @@
               </div>
             </div>
             <div>
-              <h3 style="margin:0 0 8px;">Policy</h3>
+              <h3 class="mt-0 mb-sm">Policy</h3>
               <div class="list">
                 <div class="item">
                   <div class="item-top">
@@ -354,7 +354,7 @@
             <h2>Service Status</h2>
             <div class="hint">Component lifecycle: ariaflow, aria2, networkquality, launchd</div>
           </div>
-          <div class="item" style="margin-bottom:12px;">
+          <div class="item" class="mb-md">
             <div class="item-top">
               <div class="item-url">Update policy</div>
               <span class="badge">Homebrew tap</span>
@@ -363,7 +363,7 @@
           </div>
           <div class="list">
             <template x-if="_lifecycleSession">
-              <div class="item" style="margin-bottom:12px;">
+              <div class="item" class="mb-md">
                 <div class="item-top">
                   <div class="item-url">Run</div>
                   <span class="badge" :class="{ warn: _lifecycleSession.session_closed_at, good: !_lifecycleSession.session_closed_at }" x-text="_lifecycleSession.session_closed_at ? 'closed' : 'current'"></span>
@@ -385,7 +385,7 @@
                 <div class="meta">
                   <span x-text="lifecycleItemLines(row.record)"></span>
                 </div>
-                <div x-show="row.actions.length" class="action-strip" style="justify-content:flex-start; margin-top:8px;">
+                <div x-show="row.actions.length" class="action-strip" class="mt-sm">
                   <template x-for="act in row.actions" :key="act.target + act.action">
                     <button :class="{ secondary: !backendReachable }" @click="lifecycleAction(act.target, act.action)" x-text="act.label" :disabled="!backendReachable"></button>
                   </template>
@@ -498,7 +498,7 @@
               </div>
             </div>
           </div>
-          <div x-show="aria2OptionResult" style="color:var(--muted);font-size:0.88rem;margin-top:8px;" x-text="aria2OptionResult"></div>
+          <div x-show="aria2OptionResult" class="text-muted text-sm mt-sm" x-text="aria2OptionResult"></div>
         </div>
       </div>
 
@@ -509,7 +509,7 @@
             <h2>Log</h2>
             <div class="hint">UCC contract execution and preflight checks</div>
           </div>
-          <div class="row" style="margin-bottom:12px;">
+          <div class="row" class="mb-md">
             <button :class="{ secondary: !backendReachable }" @click="uccRun()" :disabled="!backendReachable">Run UCC</button>
             <button :class="{ secondary: !backendReachable }" @click="preflightRun()" :disabled="!backendReachable">Preflight</button>
           </div>
@@ -527,7 +527,7 @@
               <div>Idle</div>
             </template>
           </div>
-          <div class="section-title" style="margin-top:14px;">
+          <div class="section-title" class="mt-md">
             <h2>Preflight</h2>
             <div class="hint">Pass, warnings, and failures</div>
           </div>
@@ -566,7 +566,7 @@
               <div>Idle</div>
             </template>
           </div>
-          <div class="mono" style="white-space:pre-wrap;word-break:break-word;color:var(--text);margin-top:12px;" x-text="resultText">Idle</div>
+          <div class="mono" class="text-mono mt-md" x-text="resultText">Idle</div>
           <details class="debug">
             <summary>Action JSON</summary>
             <div class="debug-box" x-text="resultJson">Idle</div>
@@ -579,7 +579,7 @@
             <h2>Action history</h2>
             <div class="hint">Normalized event log</div>
           </div>
-          <div class="row" style="margin-bottom:12px;">
+          <div class="row" class="mb-md">
             <select x-model="actionFilter" @change="refreshActionLog()">
               <option value="all">All actions</option>
               <option value="add">Add</option>
@@ -651,14 +651,14 @@
           </div>
           <div class="queue-list">
             <template x-for="session in sessionHistory" :key="session.session_id">
-              <div class="queue-item" @click="loadSessionStats(session.session_id)" style="cursor:pointer;">
+              <div class="queue-item" @click="loadSessionStats(session.session_id)" class="cursor-pointer">
                 <div class="queue-item-header">
                   <span class="badge" :class="session.session_closed_at ? 'warn' : 'good'" x-text="session.session_closed_at ? 'closed' : 'active'"></span>
                   <strong x-text="session.session_id ? session.session_id.slice(0, 8) : '-'"></strong>
                 </div>
                 <div class="queue-item-detail" x-text="(session.session_started_at ? 'Started ' + relativeTime(session.session_started_at) : '') + (session.session_closed_at ? ' · Closed ' + relativeTime(session.session_closed_at) : '')"></div>
                 <template x-if="selectedSessionId === session.session_id && selectedSessionStats">
-                  <div class="queue-item-detail" style="margin-top:6px;">
+                  <div class="queue-item-detail" class="mt-sm">
                     <template x-if="selectedSessionStats.error">
                       <span x-text="selectedSessionStats.error"></span>
                     </template>
@@ -669,7 +669,7 @@
                 </template>
               </div>
             </template>
-            <div x-show="!sessionHistory.length" style="color:var(--muted);padding:8px 0;">No session history available</div>
+            <div x-show="!sessionHistory.length" class="text-muted">No session history available</div>
           </div>
         </div>
       </div>
@@ -693,7 +693,7 @@
             <h2>Test Suite</h2>
             <div class="hint">Run the backend test suite from the dashboard</div>
           </div>
-          <div class="row" style="margin-bottom:12px;">
+          <div class="row" class="mb-md">
             <button :class="{ secondary: testRunning }" @click="runTests()" :disabled="testRunning">Run tests</button>
           </div>
           <div class="item" x-show="testSummaryVisible">
@@ -703,7 +703,7 @@
             </div>
             <div class="meta"><span x-text="testCountsText">-</span></div>
           </div>
-          <div class="list" style="margin-top:10px;">
+          <div class="list" class="mt-md">
             <template x-for="t in testResults" :key="t.name || t.test || 'unknown'">
               <template x-if="!t._placeholder">
                 <div class="item compact">
@@ -745,8 +745,8 @@
               </div>
             </template>
           </div>
-          <div style="margin-top:10px;text-align:center;">
-            <button :class="{ secondary: !backendReachable }" @click="loadMoreArchive()" :disabled="!backendReachable" style="font-size:0.85rem;">Load more</button>
+          <div class="mt-md text-center">
+            <button :class="{ secondary: !backendReachable }" @click="loadMoreArchive()" :disabled="!backendReachable" class="text-xs">Load more</button>
           </div>
         </div>
       </div>
