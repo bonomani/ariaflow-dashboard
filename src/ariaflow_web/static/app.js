@@ -60,16 +60,34 @@ document.addEventListener('alpine:init', () => {
       return this.lastStatus?.ok !== false && this.lastStatus?.ariaflow?.reachable !== false;
     },
     get filterCounts() {
+      // Use backend summary when available (avoids client-side recount)
+      const s = this.lastStatus?.summary;
+      if (s && !this.queueSearch) {
+        return {
+          all: s.total || 0,
+          queued: s.queued || 0,
+          waiting: s.waiting || 0,
+          discovering: s.discovering || 0,
+          downloading: (s.active || 0) + (s.downloading || 0),
+          paused: s.paused || 0,
+          stopped: s.stopped || 0,
+          done: (s.complete || 0) + (s.done || 0),
+          error: (s.error || 0) + (s.failed || 0),
+          cancelled: s.cancelled || 0,
+        };
+      }
+      // Fallback: count from items (needed when search is active)
       const items = this.enrichedItems;
-      const counts = { all: items.length, queued: 0, discovering: 0, downloading: 0, paused: 0, stopped: 0, done: 0, error: 0, cancelled: 0 };
+      const counts = { all: items.length, queued: 0, waiting: 0, discovering: 0, downloading: 0, paused: 0, stopped: 0, done: 0, error: 0, cancelled: 0 };
       items.forEach((item) => {
         const status = ((item.status || 'unknown') === 'recovered' ? 'paused' : (item.status || 'unknown')).toLowerCase();
         if (status === 'queued') counts.queued++;
+        else if (status === 'waiting') counts.waiting++;
         else if (status === 'discovering') counts.discovering++;
         else if (['downloading', 'active'].includes(status)) counts.downloading++;
         else if (status === 'paused') counts.paused++;
         else if (status === 'stopped') counts.stopped++;
-        else if (status === 'done') counts.done++;
+        else if (['done', 'complete'].includes(status)) counts.done++;
         else if (['error', 'failed'].includes(status)) counts.error++;
         else if (status === 'cancelled') counts.cancelled++;
       });
@@ -217,10 +235,12 @@ document.addEventListener('alpine:init', () => {
         : 'Using default floor because no probe was available';
     },
 
-    // bandwidth config getters
-    get bwFreePercent() { return Number(this.getDeclarationPreference('bandwidth_free_percent') ?? 20); },
-    get bwFreeAbsolute() { return Number(this.getDeclarationPreference('bandwidth_free_absolute_mbps') ?? 0); },
-    get bwFloor() { return Number(this.getDeclarationPreference('bandwidth_floor_mbps') ?? 2); },
+    // bandwidth config getters (names must match backend contracts.py)
+    get bwDownFreePercent() { return Number(this.getDeclarationPreference('bandwidth_down_free_percent') ?? 20); },
+    get bwDownFreeAbsolute() { return Number(this.getDeclarationPreference('bandwidth_down_free_absolute_mbps') ?? 0); },
+    get bwUpFreePercent() { return Number(this.getDeclarationPreference('bandwidth_up_free_percent') ?? 50); },
+    get bwUpFreeAbsolute() { return Number(this.getDeclarationPreference('bandwidth_up_free_absolute_mbps') ?? 0); },
+    get bwProbeInterval() { return Number(this.getDeclarationPreference('bandwidth_probe_interval_seconds') ?? 180); },
     get bwConcurrency() { return Number(this.getDeclarationPreference('max_simultaneous_downloads') ?? 1); },
     get bwDedupValue() { return this.getDeclarationPreference('duplicate_active_transfer_action') || 'remove'; },
 
@@ -394,7 +414,7 @@ document.addEventListener('alpine:init', () => {
     badgeClass(status) {
       if (['done', 'converged', 'ok', 'complete'].includes(status)) return 'badge good';
       if (['error', 'failed', 'missing', 'stopped'].includes(status)) return 'badge bad';
-      if (['paused', 'queued', 'unchanged', 'skipped', 'cancelled'].includes(status)) return 'badge warn';
+      if (['paused', 'queued', 'waiting', 'unchanged', 'skipped', 'cancelled'].includes(status)) return 'badge warn';
       if (status === 'discovering') return 'badge';
       return 'badge';
     },
@@ -647,6 +667,7 @@ document.addEventListener('alpine:init', () => {
           const status = (item.status || 'unknown').toLowerCase();
           const normalized = status === 'recovered' ? 'paused' : status;
           if (this.queueFilter === 'downloading') return ['downloading', 'active'].includes(normalized);
+          if (this.queueFilter === 'done') return ['done', 'complete'].includes(normalized);
           return normalized === this.queueFilter;
         });
       }
@@ -1033,17 +1054,6 @@ document.addEventListener('alpine:init', () => {
       this.resultJson = JSON.stringify(data, null, 2);
       if (this.page === 'lifecycle') this.loadLifecycle();
       if (this.page === 'log') this.refreshActionLog();
-    },
-    async moveToTop(itemId) {
-      const maxPriority = (this.lastStatus?.items || []).reduce((max, i) => Math.max(max, i.priority || 0), 0);
-      const r = await this._fetch(this.apiPath(`/api/item/${encodeURIComponent(itemId)}/priority`), {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priority: maxPriority + 1 }),
-      });
-      const data = await r.json();
-      this.lastResult = data;
-      this.resultText = data.ok ? 'Moved to top' : (data.message || 'Priority change requested');
-      this.resultJson = JSON.stringify(data, null, 2);
     },
     async itemAction(itemId, action) {
       // Snapshot for rollback

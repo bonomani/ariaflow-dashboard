@@ -150,7 +150,7 @@
             <input type="text" placeholder="Search by URL or filename..." x-model="queueSearch" style="padding:8px 12px; border-radius:999px; font-size:0.88rem;">
           </div>
           <div class="filter-bar">
-            <template x-for="f in ['all','queued','discovering','downloading','paused','stopped','done','error','cancelled']" :key="f">
+            <template x-for="f in ['all','queued','waiting','discovering','downloading','paused','stopped','done','error','cancelled']" :key="f">
               <button x-show="filterBtnVisible(f)" class="filter-btn" :class="{ active: queueFilter === f }" @click="setQueueFilter(f)" x-text="filterBtnLabel(f)"></button>
             </template>
           </div>
@@ -199,7 +199,6 @@
                   <button x-show="itemCanDequeue(item)" class="secondary icon-btn" @click="itemAction(item.id, 'pause')" title="Dequeue">&#9723;<span class="sr-only">Dequeue</span></button>
                   <button x-show="itemCanResume(item)" class="secondary icon-btn" @click="itemAction(item.id, 'resume')" title="Resume">&#9654;<span class="sr-only">Resume</span></button>
                   <button x-show="itemCanRetry(item)" class="secondary icon-btn" @click="itemAction(item.id, 'retry')" title="Retry">&#8635;<span class="sr-only">Retry</span></button>
-                  <button x-show="itemNormalizedStatus(item) === 'queued'" class="secondary icon-btn" @click="moveToTop(item.id)" title="Move to top">&#8593;<span class="sr-only">Move to top</span></button>
                   <button x-show="itemModeBadge(item) === 'torrent' || itemModeBadge(item) === 'metalink'" class="secondary icon-btn" @click="openFileSelection(item.id)" title="Select files">&#128193;<span class="sr-only">Files</span></button>
                   <button x-show="itemNormalizedStatus(item) !== 'cancelled'" class="secondary icon-btn" @click="itemAction(item.id, 'remove')" title="Remove">&#10005;<span class="sr-only">Remove</span></button>
                 </div>
@@ -311,33 +310,57 @@
           <div class="list">
             <div class="item">
               <div class="item-top">
-                <div class="item-url">Min free bandwidth (%)</div>
+                <div class="item-url">Downlink free (%)</div>
                 <label class="refresh-control" style="justify-content:flex-start;">
-                  <input type="number" min="0" max="90" step="1" :value="bwFreePercent" @input.debounce.400ms="setBandwidthPref('bandwidth_free_percent', Number($el.value), 20)" style="width:80px; padding:0 8px; height:32px;">
+                  <input type="number" min="0" max="90" step="1" :value="bwDownFreePercent" @input.debounce.400ms="setBandwidthPref('bandwidth_down_free_percent', Number($el.value), 20)" style="width:80px; padding:0 8px; height:32px;">
                   <span>%</span>
                 </label>
               </div>
-              <div class="meta"><span>Reserve this percentage of measured bandwidth. Downloads are capped to use only the remainder. Default: 20%.</span></div>
+              <div class="meta"><span>Reserve this percentage of measured downlink. Downloads capped to the remainder. Default: 20%.</span></div>
             </div>
             <div class="item">
               <div class="item-top">
-                <div class="item-url">Min free bandwidth (absolute)</div>
+                <div class="item-url">Downlink free (absolute)</div>
                 <label class="refresh-control" style="justify-content:flex-start;">
-                  <input type="number" min="0" step="0.5" :value="bwFreeAbsolute" @input.debounce.400ms="setBandwidthPref('bandwidth_free_absolute_mbps', Number($el.value), 0)" style="width:100px; padding:0 8px; height:32px;">
+                  <input type="number" min="0" step="0.5" :value="bwDownFreeAbsolute" @input.debounce.400ms="setBandwidthPref('bandwidth_down_free_absolute_mbps', Number($el.value), 0)" style="width:100px; padding:0 8px; height:32px;">
                   <span>Mbps</span>
                 </label>
               </div>
-              <div class="meta"><span>Always reserve at least this many Mbps regardless of probe result. Default: 0 Mbps.</span></div>
+              <div class="meta"><span>Always reserve at least this many Mbps downlink. Stricter of % and absolute wins. Default: 0.</span></div>
             </div>
             <div class="item">
               <div class="item-top">
-                <div class="item-url">Bandwidth floor</div>
+                <div class="item-url">Uplink free (%)</div>
                 <label class="refresh-control" style="justify-content:flex-start;">
-                  <input type="number" min="0.5" step="0.5" :value="bwFloor" @input.debounce.400ms="setBandwidthPref('bandwidth_floor_mbps', Number($el.value), 2)" style="width:100px; padding:0 8px; height:32px;">
+                  <input type="number" min="0" max="90" step="1" :value="bwUpFreePercent" @input.debounce.400ms="setBandwidthPref('bandwidth_up_free_percent', Number($el.value), 50)" style="width:80px; padding:0 8px; height:32px;">
+                  <span>%</span>
+                </label>
+              </div>
+              <div class="meta"><span>Reserve this percentage of measured uplink. Default: 50%.</span></div>
+            </div>
+            <div class="item">
+              <div class="item-top">
+                <div class="item-url">Uplink free (absolute)</div>
+                <label class="refresh-control" style="justify-content:flex-start;">
+                  <input type="number" min="0" step="0.5" :value="bwUpFreeAbsolute" @input.debounce.400ms="setBandwidthPref('bandwidth_up_free_absolute_mbps', Number($el.value), 0)" style="width:100px; padding:0 8px; height:32px;">
                   <span>Mbps</span>
                 </label>
               </div>
-              <div class="meta"><span>Minimum download cap when no probe is available. Default: 2 Mbps.</span></div>
+              <div class="meta"><span>Always reserve at least this many Mbps uplink. Default: 0.</span></div>
+            </div>
+            <div class="item">
+              <div class="item-top">
+                <div class="item-url">Probe interval</div>
+                <label class="refresh-control" style="justify-content:flex-start;">
+                  <select :value="bwProbeInterval" @change="setBandwidthPref('bandwidth_probe_interval_seconds', Number($el.value), 180)">
+                    <option value="60">60s</option>
+                    <option value="120">120s</option>
+                    <option value="180">180s</option>
+                    <option value="300">300s</option>
+                  </select>
+                </label>
+              </div>
+              <div class="meta"><span>Seconds between automatic bandwidth probes. Default: 180s.</span></div>
             </div>
             <div class="item">
               <div class="item-top">
