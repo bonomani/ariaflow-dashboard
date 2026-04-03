@@ -84,8 +84,8 @@
                 <input x-model="addPriority" type="number" placeholder="Priority (optional, higher = first)">
                 <textarea x-model="addMirrors" rows="2" placeholder="Mirror URLs, one per line (optional)" class="textarea-sm"></textarea>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                  <label style="font-size:0.85rem;color:var(--muted);">.torrent file <input type="file" accept=".torrent" @change="handleFileUpload($event, 'torrent')"></label>
-                  <label style="font-size:0.85rem;color:var(--muted);">.metalink file <input type="file" accept=".metalink,.meta4" @change="handleFileUpload($event, 'metalink')"></label>
+                  <label class="label-sm">.torrent file <input type="file" accept=".torrent" @change="handleFileUpload($event, 'torrent')"></label>
+                  <label class="label-sm">.metalink file <input type="file" accept=".metalink,.meta4" @change="handleFileUpload($event, 'metalink')"></label>
                 </div>
                 <select x-model="addPostActionRule">
                   <option value="">Post-action rule (default)</option>
@@ -226,8 +226,8 @@
           </template>
           <!-- Cleanup -->
           <div style="margin-top:12px;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
-            <label style="font-size:0.82rem;color:var(--muted);">Max age (days) <input type="number" x-model.number="cleanupMaxAge" min="1" max="365" class="input-sm"></label>
-            <label style="font-size:0.82rem;color:var(--muted);">Max count <input type="number" x-model.number="cleanupMaxCount" min="1" max="1000" class="input-sm"></label>
+            <label class="label-sm">Max age (days) <input type="number" x-model.number="cleanupMaxAge" min="1" max="365" class="input-sm"></label>
+            <label class="label-sm">Max count <input type="number" x-model.number="cleanupMaxCount" min="1" max="1000" class="input-sm"></label>
             <button :class="{ secondary: !backendReachable }" @click="cleanup()" :disabled="!backendReachable" style="font-size:0.85rem;">Archive completed items</button>
           </div>
         </div>
@@ -282,7 +282,7 @@
                 <div class="item">
                   <div class="item-top">
                     <div class="item-url">Auto-probe interval</div>
-                    <label class="refresh-control" style="justify-content:flex-start;">
+                    <label class="refresh-control">
                       <select :value="bwProbeInterval" @change="setBandwidthPref('bandwidth_probe_interval_seconds', Number($el.value), 180)">
                         <option value="60">60s</option>
                         <option value="120">120s</option>
@@ -300,7 +300,7 @@
                 <div class="item">
                   <div class="item-top">
                     <div class="item-url">Downlink reserve</div>
-                    <label class="refresh-control" style="justify-content:flex-start;">
+                    <label class="refresh-control">
                       <input type="number" min="0" max="90" step="1" :value="bwDownFreePercent" @input="setBandwidthPref('bandwidth_down_free_percent', Number($el.value), 20)" class="input-sm">
                       <span>%</span>
                       <input type="number" min="0" step="0.5" :value="bwDownFreeAbsolute" @input="setBandwidthPref('bandwidth_down_free_absolute_mbps', Number($el.value), 0)" class="input-sm">
@@ -312,7 +312,7 @@
                 <div class="item">
                   <div class="item-top">
                     <div class="item-url">Uplink reserve</div>
-                    <label class="refresh-control" style="justify-content:flex-start;">
+                    <label class="refresh-control">
                       <input type="number" min="0" max="90" step="1" :value="bwUpFreePercent" @input="setBandwidthPref('bandwidth_up_free_percent', Number($el.value), 50)" class="input-sm">
                       <span>%</span>
                       <input type="number" min="0" step="0.5" :value="bwUpFreeAbsolute" @input="setBandwidthPref('bandwidth_up_free_absolute_mbps', Number($el.value), 0)" class="input-sm">
@@ -324,7 +324,7 @@
                 <div class="item">
                   <div class="item-top">
                     <div class="item-url">Concurrent downloads</div>
-                    <label class="refresh-control" style="justify-content:flex-start;">
+                    <label class="refresh-control">
                       <input type="number" min="1" step="1" :value="bwConcurrency" @input="setSimultaneousLimit($el.value)" class="input-sm">
                     </label>
                   </div>
@@ -434,7 +434,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Max concurrent downloads</div>
-                <label class="refresh-control" style="justify-content:flex-start;">
+                <label class="refresh-control">
                   <input type="number" min="1" max="16" step="1" x-model="aria2OptMaxConcurrent" @input="setAria2Option('max-concurrent-downloads', aria2OptMaxConcurrent)" placeholder="e.g. 5" class="input-sm">
                 </label>
               </div>
@@ -442,7 +442,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Max connections per server</div>
-                <label class="refresh-control" style="justify-content:flex-start;">
+                <label class="refresh-control">
                   <input type="number" min="1" max="16" step="1" x-model="aria2OptMaxConnPerServer" @input="setAria2Option('max-connection-per-server', aria2OptMaxConnPerServer)" placeholder="e.g. 4" class="input-sm">
                 </label>
               </div>
@@ -450,7 +450,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Split segments</div>
-                <label class="refresh-control" style="justify-content:flex-start;">
+                <label class="refresh-control">
                   <input type="number" min="1" max="64" step="1" x-model="aria2OptSplit" @input="setAria2Option('split', aria2OptSplit)" placeholder="e.g. 5" class="input-sm">
                 </label>
               </div>
@@ -458,7 +458,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Min split size</div>
-                <label class="refresh-control" style="justify-content:flex-start;">
+                <label class="refresh-control">
                   <input type="text" x-model="aria2OptMinSplitSize" @input="setAria2Option('min-split-size', aria2OptMinSplitSize)" placeholder="e.g. 20M" class="input-sm">
                 </label>
               </div>
@@ -466,7 +466,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Global speed limit</div>
-                <label class="refresh-control" style="justify-content:flex-start;">
+                <label class="refresh-control">
                   <input type="text" x-model="aria2OptMaxOverallDlLimit" @input="setAria2Option('max-overall-download-limit', aria2OptMaxOverallDlLimit)" placeholder="e.g. 0" class="input-sm">
                 </label>
               </div>
@@ -474,7 +474,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Per-download speed limit</div>
-                <label class="refresh-control" style="justify-content:flex-start;">
+                <label class="refresh-control">
                   <input type="text" x-model="aria2OptMaxDlLimit" @input="setAria2Option('max-download-limit', aria2OptMaxDlLimit)" placeholder="e.g. 0" class="input-sm">
                 </label>
               </div>
@@ -482,7 +482,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Timeout</div>
-                <label class="refresh-control" style="justify-content:flex-start;">
+                <label class="refresh-control">
                   <input type="number" min="1" max="600" step="1" x-model="aria2OptTimeout" @input="setAria2Option('timeout', aria2OptTimeout)" placeholder="60" class="input-sm">
                   <span>sec</span>
                 </label>
@@ -491,7 +491,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Connect timeout</div>
-                <label class="refresh-control" style="justify-content:flex-start;">
+                <label class="refresh-control">
                   <input type="number" min="1" max="300" step="1" x-model="aria2OptConnectTimeout" @input="setAria2Option('connect-timeout', aria2OptConnectTimeout)" placeholder="60" class="input-sm">
                   <span>sec</span>
                 </label>
@@ -721,32 +721,6 @@
               </template>
             </template>
           </div>
-        </div>
-      </div>
-      <div class="span-6" x-show="page === 'dev'">
-        <div class="panel">
-          <div class="section-title">
-            <h2>API Endpoints</h2>
-            <div class="hint">Discovered from backend /api</div>
-          </div>
-          <template x-if="apiEndpoints?.endpoints">
-            <div>
-              <template x-for="[method, routes] in Object.entries(apiEndpoints.endpoints)" :key="method">
-                <div style="margin-bottom:10px;">
-                  <strong x-text="method"></strong>
-                  <template x-for="route in routes" :key="route.path">
-                    <div class="item compact" style="margin-top:4px;">
-                      <div class="item-top">
-                        <code x-text="route.path" style="font-size:0.85rem;"></code>
-                      </div>
-                      <div class="meta"><span x-text="route.description"></span></div>
-                    </div>
-                  </template>
-                </div>
-              </template>
-            </div>
-          </template>
-          <div x-show="!apiEndpoints" style="color:var(--muted);">Loading...</div>
         </div>
       </div>
 

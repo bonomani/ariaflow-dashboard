@@ -272,7 +272,6 @@ document.addEventListener('alpine:init', () => {
     actionLogEntries: [],
 
     // api discovery
-    apiEndpoints: null,
 
     // aria2 options (safe subset exposed by backend)
     aria2OptMaxConcurrent: '',
@@ -326,7 +325,6 @@ document.addEventListener('alpine:init', () => {
       if (this.page === 'bandwidth') this.loadDeclaration();
       if (this.page === 'options') this.loadDeclaration();
       if (this.page === 'log') { this.loadDeclaration(); this.refreshActionLog(); this.loadSessionHistory(); }
-      if (this.page === 'dev') this.loadApiDiscovery();
       if (this.page === 'archive') this.loadArchive();
 
       // SSE for real-time updates (falls back to polling on failure)
@@ -350,7 +348,6 @@ document.addEventListener('alpine:init', () => {
       if (target === 'options') this.loadDeclaration();
       if (target === 'log') { this.loadDeclaration(); this.refreshActionLog(); this.loadSessionHistory(); }
       if (target === 'archive') this.loadArchive();
-      if (target === 'dev') this.loadApiDiscovery();
     },
 
     // --- formatting ---
@@ -1413,16 +1410,6 @@ document.addEventListener('alpine:init', () => {
       return liveItems.find((item) => item && (item.gid === active?.gid || (state?.active_gid && item.gid === state.active_gid) || (active?.url && item.url && active.url === item.url)))
         || active
         || null;
-    },
-
-    // --- api discovery ---
-    async loadApiDiscovery() {
-      try {
-        const r = await this._fetch(this.apiPath('/api'));
-        this.apiEndpoints = await r.json();
-      } catch (e) {
-        this.apiEndpoints = null;
-      }
     },
 
     // --- aria2 options ---
