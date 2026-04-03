@@ -54,15 +54,15 @@
         <div class="backend-add-row" style="margin-top:8px;">
           <div class="backend-add-group">
             <input x-model="backendInput" placeholder="http://127.0.0.1:8000" @keydown.enter="addBackend()">
-            <button class="backend-add-button" :class="{ secondary: !backendInput.trim() }" @click="addBackend()">Add</button>
+            <button class="backend-add-button" @click="addBackend()">Add</button>
           </div>
         </div>
         <div class="chips" style="margin-top:8px;">
-          <button :class="selectedBackend === DEFAULT_BACKEND_URL ? '' : 'secondary'" @click="selectBackend(DEFAULT_BACKEND_URL)" x-text="DEFAULT_BACKEND_URL"></button>
+          <button :class="{ secondary: selectedBackend === DEFAULT_BACKEND_URL }" @click="selectBackend(DEFAULT_BACKEND_URL)" x-text="DEFAULT_BACKEND_URL"></button>
           <template x-for="backend in backends" :key="backend">
             <span class="chip">
-              <button :class="backend === selectedBackend ? '' : 'secondary'" @click="selectBackend(backend)" x-text="backend"></button>
-              <button class="secondary icon-btn" @click="removeBackend(backend)" title="Remove backend" aria-label="Remove backend">&times;<span class="sr-only">Remove backend</span></button>
+              <button :class="{ secondary: backend === selectedBackend }" @click="selectBackend(backend)" x-text="backend"></button>
+              <button class="icon-btn" @click="removeBackend(backend)" title="Remove backend" aria-label="Remove backend">&times;<span class="sr-only">Remove backend</span></button>
             </span>
           </template>
         </div>
@@ -75,7 +75,7 @@
           <div class="queue-add-row">
             <div class="queue-add-group">
               <textarea x-model="urlInput" rows="1" placeholder="Paste one or more URLs, one per line"></textarea>
-              <button class="queue-add-button" :class="{ secondary: !urlInput.trim() }" @click="add()">Add</button>
+              <button class="queue-add-button" @click="add()">Add</button>
             </div>
             <details style="margin-top:8px;">
               <summary style="cursor:pointer;color:var(--muted);font-size:0.88rem;">Advanced options</summary>
