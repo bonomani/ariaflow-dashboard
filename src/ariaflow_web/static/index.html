@@ -180,7 +180,7 @@
           </div>
           <!-- File selection panel (torrent/metalink) -->
           <template x-if="fileSelectionItemId">
-            <div class="system-card" class="mt-md">
+            <div class="system-card mt-md">
               <div class="system-head">
                 <div class="system-copy"><h3>File Selection</h3></div>
               </div>
@@ -213,7 +213,7 @@
             <h2>Bandwidth</h2>
             <div class="hint">Probe, reservation policy, and download concurrency</div>
           </div>
-          <div class="chips" class="mb-md">
+          <div class="chips mb-md">
             <div class="chip">Interface <strong x-text="bwInterfaceText">-</strong></div>
             <div class="chip">Download <strong x-text="bwDownBadgeText">-</strong></div>
             <div class="chip">Upload <strong x-text="bwUpBadgeText">-</strong></div>
@@ -304,7 +304,7 @@
             <h2>Service Status</h2>
             <div class="hint">Component lifecycle: ariaflow, aria2, networkquality, launchd</div>
           </div>
-          <div class="item" class="mb-md">
+          <div class="item mb-md">
             <div class="item-top">
               <div class="item-url">Update policy</div>
               <span class="badge">Homebrew tap</span>
@@ -313,7 +313,7 @@
           </div>
           <div class="list">
             <template x-if="_lifecycleSession">
-              <div class="item" class="mb-md">
+              <div class="item mb-md">
                 <div class="item-top">
                   <div class="item-url">Run</div>
                   <span class="badge" :class="{ warn: _lifecycleSession.session_closed_at, good: !_lifecycleSession.session_closed_at }" x-text="_lifecycleSession.session_closed_at ? 'closed' : 'current'"></span>
@@ -335,7 +335,7 @@
                 <div class="meta">
                   <span x-text="lifecycleItemLines(row.record)"></span>
                 </div>
-                <div x-show="row.actions.length" class="action-strip" class="mt-sm">
+                <div x-show="row.actions.length" class="action-strip mt-sm">
                   <template x-for="act in row.actions" :key="act.target + act.action">
                     <button :class="{ secondary: !backendReachable }" @click="lifecycleAction(act.target, act.action)" x-text="act.label" :disabled="!backendReachable"></button>
                   </template>
@@ -417,7 +417,7 @@
             <h2>Log</h2>
             <div class="hint">UCC contract execution and preflight checks</div>
           </div>
-          <div class="row" class="mb-md">
+          <div class="row mb-md">
             <button :class="{ secondary: !backendReachable }" @click="uccRun()" :disabled="!backendReachable">Run UCC</button>
             <button :class="{ secondary: !backendReachable }" @click="preflightRun()" :disabled="!backendReachable">Preflight</button>
           </div>
@@ -435,7 +435,7 @@
               <div>Idle</div>
             </template>
           </div>
-          <div class="section-title" class="mt-md">
+          <div class="section-title mt-md">
             <h2>Preflight</h2>
             <div class="hint">Pass, warnings, and failures</div>
           </div>
@@ -474,7 +474,7 @@
               <div>Idle</div>
             </template>
           </div>
-          <div class="mono" class="text-mono mt-md" x-text="resultText">Idle</div>
+          <div class="mono text-mono mt-md" x-text="resultText">Idle</div>
           <details class="debug">
             <summary>Action JSON</summary>
             <div class="debug-box" x-text="resultJson">Idle</div>
@@ -487,7 +487,7 @@
             <h2>Action history</h2>
             <div class="hint">Normalized event log</div>
           </div>
-          <div class="row" class="mb-md">
+          <div class="row mb-md">
             <select x-model="actionFilter" @change="refreshActionLog()">
               <option value="all">All actions</option>
               <option value="add">Add</option>
@@ -559,14 +559,14 @@
           </div>
           <div class="queue-list">
             <template x-for="session in sessionHistory" :key="session.session_id">
-              <div class="queue-item" @click="loadSessionStats(session.session_id)" class="cursor-pointer">
+              <div class="queue-item cursor-pointer" @click="loadSessionStats(session.session_id)">
                 <div class="queue-item-header">
                   <span class="badge" :class="session.session_closed_at ? 'warn' : 'good'" x-text="session.session_closed_at ? 'closed' : 'active'"></span>
                   <strong x-text="session.session_id ? session.session_id.slice(0, 8) : '-'"></strong>
                 </div>
                 <div class="queue-item-detail" x-text="(session.session_started_at ? 'Started ' + relativeTime(session.session_started_at) : '') + (session.session_closed_at ? ' · Closed ' + relativeTime(session.session_closed_at) : '')"></div>
                 <template x-if="selectedSessionId === session.session_id && selectedSessionStats">
-                  <div class="queue-item-detail" class="mt-sm">
+                  <div class="queue-item-detail mt-sm">
                     <template x-if="selectedSessionStats.error">
                       <span x-text="selectedSessionStats.error"></span>
                     </template>
@@ -601,7 +601,7 @@
             <h2>Test Suite</h2>
             <div class="hint">Run the backend test suite from the dashboard</div>
           </div>
-          <div class="row" class="mb-md">
+          <div class="row mb-md">
             <button :class="{ secondary: testRunning }" @click="runTests()" :disabled="testRunning">Run tests</button>
           </div>
           <div class="item" x-show="testSummaryVisible">
@@ -611,7 +611,7 @@
             </div>
             <div class="meta"><span x-text="testCountsText">-</span></div>
           </div>
-          <div class="list" class="mt-md">
+          <div class="list mt-md">
             <template x-for="t in testResults" :key="t.name || t.test || 'unknown'">
               <template x-if="!t._placeholder">
                 <div class="item compact">
