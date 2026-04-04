@@ -338,7 +338,7 @@ button.icon-btn { padding: 8px 10px; min-width: 38px; border-radius: var(--radiu
   color: var(--text);
   font-size: var(--font-sm);
 }
-.chip strong { color: var(--accent); }
+.chip strong { color: #fff; font-weight: 700; }
 
 /* --- filter bar --- */
 .filter-bar { display: flex; gap: var(--gap-sm); flex-wrap: wrap; margin-bottom: 12px; }
