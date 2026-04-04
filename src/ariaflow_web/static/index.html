@@ -101,7 +101,8 @@
         <div class="panel toolbar">
           <div class="action-bar">
             <div class="action-buttons">
-              <button :class="{ secondary: schedulerBtnDisabled }" @click="toggleScheduler()" x-text="schedulerBtnText" :disabled="schedulerBtnDisabled">Start scheduler</button>
+              <button :class="{ secondary: schedulerBtnDisabled }" @click="toggleScheduler()" x-text="schedulerBtnText" :disabled="schedulerBtnDisabled">Start</button>
+              <button x-show="state?.running" class="secondary" @click="schedulerAction('stop')">Stop</button>
               <button :class="{ secondary: !backendReachable }" @click="newSession()" :disabled="!backendReachable">New session</button>
             </div>
             <span class="text-muted text-sm" x-text="resultText" x-show="resultText && resultText !== 'Idle'"></span>
@@ -120,7 +121,6 @@
                 <div class="stat-label">Scheduler</div>
                 <div class="stat-value"><span class="badge" x-text="schedulerStateLabelText">idle</span></div>
                 <div class="stat-sub" x-text="schedulerDetailText">Waiting for state</div>
-                <button class="mt-sm" :class="{ secondary: !backendReachable || !state?.running }" @click="toggleDownloads()" x-text="downloadToggleBtnText" :disabled="!backendReachable">Pause downloads</button>
               </div>
               <div class="summary">
                 <div class="metric" :class="{ dimmed: !sumQueued }"><div class="stat-label">Queued</div><div class="stat-value" x-text="sumQueued">0</div><div class="stat-sub">pending items</div></div>

@@ -133,9 +133,11 @@ document.addEventListener('alpine:init', () => {
         : '-';
     },
     get schedulerBtnText() {
-      if (!this.backendReachable) return 'Start scheduler';
+      if (!this.backendReachable) return 'Start';
       if (this.state?.stop_requested) return 'Stopping...';
-      return this.state?.running ? 'Stop scheduler' : 'Start scheduler';
+      if (this.state?.paused) return 'Resume';
+      if (this.state?.running) return 'Pause';
+      return 'Start';
     },
     get schedulerBtnDisabled() {
       return !this.backendReachable || !!this.state?.stop_requested;
@@ -1024,7 +1026,9 @@ document.addEventListener('alpine:init', () => {
       reader.readAsDataURL(file);
     },
     async toggleScheduler() {
-      return this.schedulerAction(this.state?.running ? 'stop' : 'start');
+      if (!this.state?.running) return this.schedulerAction('start');
+      if (this.state?.paused) return this.resumeDownloads();
+      return this.pauseDownloads();
     },
     async schedulerAction(action) {
       const payload = { action };
