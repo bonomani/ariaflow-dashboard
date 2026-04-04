@@ -752,7 +752,7 @@ document.addEventListener('alpine:init', () => {
       const ls = this.itemLiveStatus(item);
       return ls ? `${ns} · aria2:${ls}` : ns;
     },
-    itemCanPause(item) { return this.itemNormalizedStatus(item) === 'downloading'; },
+    itemCanPause(item) { return ['downloading', 'active'].includes(this.itemNormalizedStatus(item)); },
     itemCanDequeue(item) { return this.itemNormalizedStatus(item) === 'queued'; },
     itemCanResume(item) { return this.itemNormalizedStatus(item) === 'paused'; },
     itemCanRetry(item) { return ['error', 'failed', 'stopped'].includes(this.itemNormalizedStatus(item)); },
