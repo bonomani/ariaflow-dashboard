@@ -300,7 +300,7 @@
                 <div class="item">
                   <div class="item-top">
                     <div class="item-url">Downlink reserve</div>
-                    <label class="refresh-control">
+                    <label >
                       <input type="number" min="0" max="90" step="1" :value="bwDownFreePercent" @input="setBandwidthPref('bandwidth_down_free_percent', Number($el.value), 20)" class="input-sm">
                       <span>%</span>
                       <input type="number" min="0" step="0.5" :value="bwDownFreeAbsolute" @input="setBandwidthPref('bandwidth_down_free_absolute_mbps', Number($el.value), 0)" class="input-sm">
@@ -312,7 +312,7 @@
                 <div class="item">
                   <div class="item-top">
                     <div class="item-url">Uplink reserve</div>
-                    <label class="refresh-control">
+                    <label >
                       <input type="number" min="0" max="90" step="1" :value="bwUpFreePercent" @input="setBandwidthPref('bandwidth_up_free_percent', Number($el.value), 50)" class="input-sm">
                       <span>%</span>
                       <input type="number" min="0" step="0.5" :value="bwUpFreeAbsolute" @input="setBandwidthPref('bandwidth_up_free_absolute_mbps', Number($el.value), 0)" class="input-sm">
@@ -324,7 +324,7 @@
                 <div class="item">
                   <div class="item-top">
                     <div class="item-url">Concurrent downloads</div>
-                    <label class="refresh-control">
+                    <label >
                       <input type="number" min="1" step="1" :value="bwConcurrency" @input="setSimultaneousLimit($el.value)" class="input-sm">
                     </label>
                   </div>
@@ -407,7 +407,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Auto preflight</div>
-                <label class="refresh-control"><input type="checkbox" :checked="autoPreflightEnabled" @change="setAutoPreflightPreference($el.checked)">Toggle</label>
+                <label ><input type="checkbox" :checked="autoPreflightEnabled" @change="setAutoPreflightPreference($el.checked)">Toggle</label>
               </div>
               <div class="meta"><span>Run preflight gate checks automatically before starting the scheduler.</span></div>
             </div>
@@ -434,7 +434,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Max concurrent downloads</div>
-                <label class="refresh-control">
+                <label >
                   <input type="number" min="1" max="16" step="1" x-model="aria2OptMaxConcurrent" @input="setAria2Option('max-concurrent-downloads', aria2OptMaxConcurrent)" placeholder="e.g. 5" class="input-sm">
                 </label>
               </div>
@@ -442,7 +442,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Max connections per server</div>
-                <label class="refresh-control">
+                <label >
                   <input type="number" min="1" max="16" step="1" x-model="aria2OptMaxConnPerServer" @input="setAria2Option('max-connection-per-server', aria2OptMaxConnPerServer)" placeholder="e.g. 4" class="input-sm">
                 </label>
               </div>
@@ -450,7 +450,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Split segments</div>
-                <label class="refresh-control">
+                <label >
                   <input type="number" min="1" max="64" step="1" x-model="aria2OptSplit" @input="setAria2Option('split', aria2OptSplit)" placeholder="e.g. 5" class="input-sm">
                 </label>
               </div>
@@ -458,7 +458,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Min split size</div>
-                <label class="refresh-control">
+                <label >
                   <input type="text" x-model="aria2OptMinSplitSize" @input="setAria2Option('min-split-size', aria2OptMinSplitSize)" placeholder="e.g. 20M" class="input-sm">
                 </label>
               </div>
@@ -466,7 +466,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Global speed limit</div>
-                <label class="refresh-control">
+                <label >
                   <input type="text" x-model="aria2OptMaxOverallDlLimit" @input="setAria2Option('max-overall-download-limit', aria2OptMaxOverallDlLimit)" placeholder="e.g. 0" class="input-sm">
                 </label>
               </div>
@@ -474,7 +474,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Per-download speed limit</div>
-                <label class="refresh-control">
+                <label >
                   <input type="text" x-model="aria2OptMaxDlLimit" @input="setAria2Option('max-download-limit', aria2OptMaxDlLimit)" placeholder="e.g. 0" class="input-sm">
                 </label>
               </div>
@@ -482,7 +482,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Timeout</div>
-                <label class="refresh-control">
+                <label >
                   <input type="number" min="1" max="600" step="1" x-model="aria2OptTimeout" @input="setAria2Option('timeout', aria2OptTimeout)" placeholder="60" class="input-sm">
                   <span>sec</span>
                 </label>
@@ -491,7 +491,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Connect timeout</div>
-                <label class="refresh-control">
+                <label >
                   <input type="number" min="1" max="300" step="1" x-model="aria2OptConnectTimeout" @input="setAria2Option('connect-timeout', aria2OptConnectTimeout)" placeholder="60" class="input-sm">
                   <span>sec</span>
                 </label>
