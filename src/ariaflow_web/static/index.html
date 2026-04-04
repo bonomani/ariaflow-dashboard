@@ -38,34 +38,24 @@
         <p>Headless download scheduler with a local dashboard.</p>
       </div>
       <div class="panel">
-        <!-- Web UI -->
         <div class="chips">
-          <div class="chip">Web UI <strong>__ARIAFLOW_WEB_VERSION__</strong></div>
-          <div class="chip">PID <strong>__ARIAFLOW_WEB_PID__</strong></div>
-        </div>
-        <!-- Backend -->
-        <div class="chips mt-sm">
-          <div class="chip">Backend <strong x-text="selectedBackend"></strong> version <strong x-text="backendVersionText">-</strong></div>
-          <span x-show="backendsDiscovered === true" class="text-sm" style="color: var(--good);" x-text="resultText"></span>
-          <span x-show="backendsDiscovered === false" class="text-sm" style="color: var(--warn);">No Bonjour backends discovered, fallback to localhost</span>
-        </div>
-        <!-- Status -->
-        <div class="chips mt-sm">
-          <div class="chip">PID <strong x-text="backendPidText">-</strong></div>
+          <div class="chip">Web <strong>__ARIAFLOW_WEB_VERSION__</strong></div>
+          <div class="chip">Backend <strong x-text="backendVersionText">-</strong></div>
           <div class="chip">Cap <strong x-text="downloadCapText">-</strong></div>
           <div class="chip">Session <strong x-text="sessionIdText + (sessionStartedText !== '-' ? ' · ' + sessionStartedText : '')">-</strong></div>
-          <div class="chip" :class="'badge warn'" x-show="lastErrorText !== 'none'">Error <strong x-text="lastErrorText">none</strong></div>
+          <div class="chip badge warn" x-show="lastErrorText !== 'none'">Error <strong x-text="lastErrorText">none</strong></div>
         </div>
-        <!-- Add backend / switch -->
-        <div class="gap-sm mt-sm">
-          <input x-model="backendInput" placeholder="Add backend manually" class="input-sm" style="width:200px;text-align:left;" @keydown.enter="addBackend()">
-          <button x-show="backendInput.trim()" @click="addBackend()">Add</button>
+        <div class="gap-sm mt-sm" x-show="backends.length > 0">
           <template x-for="backend in backends" :key="backend">
             <span class="gap-sm">
               <button :class="{ secondary: backend === selectedBackend }" @click="selectBackend(backend)" x-text="backend"></button>
-              <button class="icon-btn" @click="removeBackend(backend)" title="Remove backend" aria-label="Remove backend">&times;</button>
+              <button class="icon-btn" @click="removeBackend(backend)" title="Remove backend">&times;</button>
             </span>
           </template>
+        </div>
+        <div class="gap-sm mt-sm">
+          <input x-model="backendInput" placeholder="Add backend" class="input-sm" style="width:180px;text-align:left;" @keydown.enter="addBackend()">
+          <button x-show="backendInput.trim()" @click="addBackend()">Add</button>
         </div>
       </div>
     </div>
