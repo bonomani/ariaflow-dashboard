@@ -1423,15 +1423,9 @@ document.addEventListener('alpine:init', () => {
         return entry._pollCount > 1 ? `${summary} (${entry._pollCount} polls)` : summary;
       }
       return [
-        entry.timestamp ? `At ${entry.timestamp}` : null,
-        entry.session_id ? `Session: ${entry.session_id}` : null,
-        entry.action ? `Action: ${entry.action}` : null,
-        entry.target ? `Target: ${entry.target}` : null,
-        entry.reason ? `Reason: ${entry.reason}` : null,
-        entry.detail ? `Detail: ${JSON.stringify(this.sanitizeLogValue(entry.detail))}` : null,
-        entry.observed_before ? `Before: ${JSON.stringify(this.sanitizeLogValue(entry.observed_before))}` : null,
-        entry.observed_after ? `After: ${JSON.stringify(this.sanitizeLogValue(entry.observed_after))}` : null,
-        entry.message ? `Message: ${entry.message}` : null,
+        entry.message || entry.reason || null,
+        entry.target ? entry.target : null,
+        entry.timestamp ? this.relativeTime(entry.timestamp) : null,
       ].filter(Boolean).join(' · ');
     },
 
