@@ -1367,12 +1367,25 @@ document.addEventListener('alpine:init', () => {
     },
     get filteredActionLog() {
       const sessionId = this.state?.session_id || this.lastLifecycle?.session_id || this.lastDeclaration?.session_id || null;
-      return this.actionLogEntries
+      const entries = this.actionLogEntries
         .filter((entry) => this.actionFilter === 'all' || (entry.action || 'unknown') === this.actionFilter)
         .filter((entry) => this.targetFilter === 'all' || (entry.target || 'unknown') === this.targetFilter)
-        .filter((entry) => this.sessionFilter === 'all' || (this.sessionFilter === 'current' ? (sessionId ? entry.session_id === sessionId : false) : true))
-        .slice()
-        .reverse();
+        .filter((entry) => this.sessionFilter === 'all' || (this.sessionFilter === 'current' ? (sessionId ? entry.session_id === sessionId : false) : true));
+      // Collapse consecutive poll entries with same gid into one
+      const collapsed = [];
+      for (const entry of entries) {
+        if (entry.action === 'poll' && collapsed.length) {
+          const prev = collapsed[collapsed.length - 1];
+          if (prev.action === 'poll' && prev.detail?.gid === entry.detail?.gid) {
+            prev._pollCount = (prev._pollCount || 1) + 1;
+            prev.detail = entry.detail;
+            prev.timestamp = entry.timestamp;
+            continue;
+          }
+        }
+        collapsed.push({ ...entry });
+      }
+      return collapsed.slice().reverse();
     },
     sanitizeLogValue(value, depth = 0) {
       if (value == null) return value;
@@ -1395,21 +1408,20 @@ document.addEventListener('alpine:init', () => {
     summarizePollEntry(entry) {
       const detail = entry?.detail || {};
       const status = detail.status || entry?.outcome || 'unknown';
-      const gid = detail.gid || '-';
       const done = detail.completedLength ? this.formatBytes(detail.completedLength) : null;
       const total = detail.totalLength ? this.formatBytes(detail.totalLength) : null;
-      const speed = detail.downloadSpeed ? this.formatRate(detail.downloadSpeed) : '0 B/s';
-      const target = this.shortName(detail.url || gid);
-      return [
-        'Historical poll snapshot',
-        `gid ${gid}`,
-        `${status} · ${target}`,
-        done && total ? `${done}/${total}` : null,
-        `speed ${speed}`,
-      ].filter(Boolean).join(' · ');
+      const speed = detail.downloadSpeed ? this.formatRate(detail.downloadSpeed) : null;
+      const target = this.shortName(detail.url || detail.gid || '-');
+      const parts = [target];
+      if (done && total) parts.push(`${done}/${total}`);
+      if (speed) parts.push(speed);
+      return parts.join(' · ');
     },
     logEntryLines(entry) {
-      if (entry.action === 'poll') return this.summarizePollEntry(entry);
+      if (entry.action === 'poll') {
+        const summary = this.summarizePollEntry(entry);
+        return entry._pollCount > 1 ? `${summary} (${entry._pollCount} polls)` : summary;
+      }
       return [
         entry.timestamp ? `At ${entry.timestamp}` : null,
         entry.session_id ? `Session: ${entry.session_id}` : null,
