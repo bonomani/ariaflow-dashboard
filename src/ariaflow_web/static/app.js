@@ -264,8 +264,6 @@ document.addEventListener('alpine:init', () => {
     _lifecycleSession: null,
 
     // cleanup & pagination
-    cleanupMaxAge: 7,
-    cleanupMaxCount: 100,
     archiveLimit: 100,
     logLimit: 120,
 
@@ -1194,7 +1192,7 @@ document.addEventListener('alpine:init', () => {
     async cleanup() {
       const r = await this._fetch(this.apiPath('/api/cleanup'), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ max_done_age_days: this.cleanupMaxAge, max_done_count: this.cleanupMaxCount }),
+        body: JSON.stringify({ max_done_age_days: 7, max_done_count: 100 }),
       });
       const data = await r.json();
       this.lastResult = data;
