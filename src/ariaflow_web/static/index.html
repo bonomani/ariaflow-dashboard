@@ -108,29 +108,15 @@
       </div>
       <div class="span-12" x-show="page === 'dashboard'">
         <div class="panel">
-          <div class="section-title">
-            <h2>Queue</h2>
-            <div class="hint">Download items managed by the scheduler</div>
-          </div>
-          <div class="system-card mb-md">
-            <div class="queue-overview">
-              <div class="queue-primary">
-                <div class="stat-label">Scheduler</div>
-                <div class="stat-value"><span class="badge" x-text="schedulerStateLabelText">idle</span></div>
-                <div class="stat-sub" x-text="schedulerDetailText">Waiting for state</div>
-                <div class="action-buttons mt-sm">
-                  <button :class="{ secondary: schedulerBtnDisabled }" @click="toggleScheduler()" x-text="schedulerBtnText" :disabled="schedulerBtnDisabled">Start</button>
-                  <button :class="{ secondary: !state?.running }" @click="schedulerAction('stop')" :disabled="!state?.running">Stop</button>
-                  <button :class="{ secondary: !backendReachable || !(sumDone || sumError) }" @click="cleanup()" :disabled="!backendReachable || !(sumDone || sumError)">Archive completed</button>
-                </div>
-                <span class="text-muted text-sm mt-sm" x-text="resultText" x-show="resultText && resultText !== 'Idle'"></span>
-              </div>
-              <div class="summary">
-                <div class="metric" :class="{ dimmed: !sumQueued }"><div class="stat-label">Queued</div><div class="stat-value" x-text="sumQueued">0</div><div class="stat-sub">pending items</div></div>
-                <div class="metric" :class="{ dimmed: !sumDone }"><div class="stat-label">Complete</div><div class="stat-value" x-text="sumDone">0</div><div class="stat-sub">finished</div></div>
-                <div class="metric" :class="{ dimmed: !sumError }"><div class="stat-label">Errors</div><div class="stat-value" x-text="sumError">0</div><div class="stat-sub">failed items</div></div>
-              </div>
-            </div>
+          <div class="gap-sm mb-md">
+            <button :class="{ secondary: schedulerBtnDisabled }" @click="toggleScheduler()" x-text="schedulerBtnText" :disabled="schedulerBtnDisabled">Start</button>
+            <button :class="{ secondary: !state?.running }" @click="schedulerAction('stop')" :disabled="!state?.running">Stop</button>
+            <button x-show="sumDone || sumError" :class="{ secondary: !backendReachable }" @click="cleanup()" :disabled="!backendReachable">Archive</button>
+            <span class="badge" x-text="schedulerStateLabelText">idle</span>
+            <span x-show="sumQueued" class="chip">Queued <strong x-text="sumQueued">0</strong></span>
+            <span x-show="sumDone" class="chip">Done <strong x-text="sumDone">0</strong></span>
+            <span x-show="sumError" class="chip badge warn">Errors <strong x-text="sumError">0</strong></span>
+            <span class="text-muted text-sm" x-text="resultText" x-show="resultText && resultText !== 'Idle'"></span>
           </div>
           <div class="mb-md">
             <input type="text" placeholder="Search queue..." x-model="queueSearch">
