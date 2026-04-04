@@ -58,7 +58,7 @@
             <button x-show="backendInput.trim()" class="add-btn" @click="addBackend()">Add</button>
           </div>
         </div>
-        <div class="chips" class="mt-sm">
+        <div class="chips mt-sm">
           <button :class="{ secondary: selectedBackend === DEFAULT_BACKEND_URL }" @click="selectBackend(DEFAULT_BACKEND_URL)" x-text="DEFAULT_BACKEND_URL"></button>
           <template x-for="backend in backends" :key="backend">
             <span class="chip">
@@ -66,6 +66,7 @@
               <button class="icon-btn" @click="removeBackend(backend)" title="Remove backend" aria-label="Remove backend">&times;<span class="sr-only">Remove backend</span></button>
             </span>
           </template>
+          <span class="text-muted text-sm" x-text="resultText" x-show="resultText && resultText.includes('Bonjour') || resultText.includes('Discovered')"></span>
         </div>
       </div>
     </div>
