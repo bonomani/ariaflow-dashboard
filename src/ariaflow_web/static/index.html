@@ -94,8 +94,8 @@
                 <input x-model="addPriority" type="number" placeholder="Priority" class="input-sm">
                 <textarea x-model="addMirrors" rows="2" placeholder="Mirror URLs, one per line (optional)" class="textarea-sm"></textarea>
                 <div class="gap-sm">
-                  <label class="label-sm">.torrent file <input type="file" accept=".torrent" @change="handleFileUpload($event, 'torrent')"></label>
-                  <label class="label-sm">.metalink file <input type="file" accept=".metalink,.meta4" @change="handleFileUpload($event, 'metalink')"></label>
+                  <label class="text-sm text-muted">.torrent file <input type="file" accept=".torrent" @change="handleFileUpload($event, 'torrent')"></label>
+                  <label class="text-sm text-muted">.metalink file <input type="file" accept=".metalink,.meta4" @change="handleFileUpload($event, 'metalink')"></label>
                 </div>
                 <select x-model="addPostActionRule">
                   <option value="">Post-action rule (default)</option>
