@@ -52,6 +52,7 @@ document.addEventListener('alpine:init', () => {
     },
     get currentTransfer() { return this.activeTransfer(this.actives, this.active, this.state); },
     get currentSpeed() { return this.currentTransfer?.downloadSpeed || this.active?.downloadSpeed || this.state?.download_speed || null; },
+    get currentUploadSpeed() { return this.currentTransfer?.uploadSpeed || this.active?.uploadSpeed || null; },
     get itemsWithStatus() {
       return this.annotateQueueItems(this.lastStatus?.items || [], this.actives, this.state);
     },
@@ -109,7 +110,11 @@ document.addEventListener('alpine:init', () => {
     },
     get transferSpeedText() {
       if (!this.backendReachable) return 'idle';
-      return this.currentSpeed ? this.formatRate(this.currentSpeed) : 'idle';
+      const dl = this.currentSpeed ? this.formatRate(this.currentSpeed) : null;
+      const ul = this.currentUploadSpeed ? this.formatRate(this.currentUploadSpeed) : null;
+      if (dl && ul) return `↓ ${dl}  ↑ ${ul}`;
+      if (dl) return `↓ ${dl}`;
+      return 'idle';
     },
     get sessionStateLabelText() {
       if (!this.backendReachable) return 'offline';
