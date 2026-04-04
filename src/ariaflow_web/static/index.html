@@ -104,6 +104,7 @@
               <button :class="{ secondary: schedulerBtnDisabled }" @click="toggleScheduler()" x-text="schedulerBtnText" :disabled="schedulerBtnDisabled">Start scheduler</button>
               <button :class="{ secondary: !backendReachable }" @click="newSession()" :disabled="!backendReachable">New session</button>
             </div>
+            <span class="text-muted text-sm" x-text="resultText" x-show="resultText && resultText !== 'Idle'"></span>
           </div>
         </div>
       </div>
