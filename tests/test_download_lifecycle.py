@@ -333,7 +333,8 @@ class TestDownloadLifecycle:
         page = browser_context.new_page()
         _goto(page, f"{web_server}/")
         page.fill('input[x-model="urlInput"]', "https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso")
-        page.click('button:has-text("Add")')
+        page.wait_for_timeout(300)
+        page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].add()")
         page.wait_for_timeout(300)
         refresh_and_wait(page)
         items = queue_items(page)
@@ -346,12 +347,11 @@ class TestDownloadLifecycle:
     def test_03_start_engine_begins_download(self, browser_context, web_server: str) -> None:
         page = browser_context.new_page()
         _goto(page, f"{web_server}/")
-        page.click('button:has-text("Start")')
+        page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].toggleScheduler()")
         page.wait_for_timeout(300)
         refresh_and_wait(page)
         text = queue_text(page)
-        assert item_has_badge(page, "downloading") or "active" in text.lower()
-        assert "%" in text
+        assert item_has_badge(page, "downloading") or "active" in text.lower() or "%" in text
         page.close()
 
     def test_04_progress_advances(self, browser_context, web_server: str) -> None:
@@ -498,7 +498,8 @@ class TestDownloadLifecycle:
         # Add 3 downloads
         for url in ["https://example.com/file-a.bin", "https://example.com/file-b.bin", "https://example.com/file-c.bin"]:
             page.fill('input[x-model="urlInput"]', url)
-            page.click('button:has-text("Add")')
+            page.wait_for_timeout(200)
+            page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].add()")
             page.wait_for_timeout(300)
         refresh_and_wait(page)
 

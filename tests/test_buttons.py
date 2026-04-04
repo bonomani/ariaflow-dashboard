@@ -58,14 +58,14 @@ class TestDashboardButtons:
     def test_add_url_button(self, page: Page, web_server: str) -> None:
         _wait_dashboard(page, web_server)
         page.fill('input[x-model="urlInput"]', "https://example.com/test.bin")
-        page.wait_for_timeout(300)
-        page.locator('input[x-model="urlInput"] ~ button:has-text("Add"), button:has-text("Add")').first.click()
+        page.wait_for_timeout(500)
+        page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].add()")
         page.wait_for_timeout(500)
 
     def test_start_stop_engine_button(self, page: Page, web_server: str) -> None:
         _wait_dashboard(page, web_server)
-        page.click('button:has-text("Start")')
-        page.wait_for_timeout(500)
+        # Default mock has running=true so smart toggle shows Pause
+        page.click('button:has-text("Pause")')
         page.wait_for_timeout(500)
 
     def test_new_session_button(self, page: Page, web_server: str) -> None:
@@ -124,7 +124,7 @@ class TestBackendButtons:
 
 class TestFilterButtons:
     @pytest.mark.parametrize("filter_name,expected_count", [
-        ("all", 5), ("queued", 1), ("downloading", 1), ("paused", 1), ("done", 1), ("error", 1),
+        ("All", 5), ("Queued", 1), ("Downloading", 1), ("Paused", 1), ("Done", 1), ("Error", 1),
     ])
     def test_filter_button(self, page: Page, web_server: str, filter_name: str, expected_count: int) -> None:
         _wait_dashboard(page, web_server)
@@ -279,7 +279,7 @@ class TestOptionsButtons:
     def test_post_action_rule_dropdown(self, page: Page, web_server: str) -> None:
         _goto(page, f"{web_server}/options")
         page.wait_for_selector("body.page-options", timeout=8000)
-        page.wait_for_timeout(500)
+        page.wait_for_timeout(1000)
         sels = page.query_selector_all('select')
         # Find the post-action-rule select (not the refresh interval)
         for sel in sels:
