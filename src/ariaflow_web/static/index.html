@@ -45,32 +45,27 @@
         </div>
         <!-- Backend -->
         <div class="chips mt-sm">
-          <div class="chip">Backend <strong x-text="backendVersionText">-</strong></div>
+          <div class="chip">Backend <strong x-text="selectedBackend"></strong> version <strong x-text="backendVersionText">-</strong></div>
+          <span x-show="backendsDiscovered === true" class="text-sm" style="color: var(--good);" x-text="resultText"></span>
+          <span x-show="backendsDiscovered === false" class="text-sm" style="color: var(--warn);">No Bonjour backends discovered, fallback to localhost</span>
+        </div>
+        <!-- Status -->
+        <div class="chips mt-sm">
           <div class="chip">PID <strong x-text="backendPidText">-</strong></div>
           <div class="chip">Cap <strong x-text="downloadCapText">-</strong></div>
-        </div>
-        <!-- Session -->
-        <div class="chips mt-sm">
           <div class="chip">Session <strong x-text="sessionIdText + (sessionStartedText !== '-' ? ' · ' + sessionStartedText : '')">-</strong></div>
-          <div class="chip" :class="lastErrorText !== 'none' ? 'badge warn' : ''" x-show="lastErrorText !== 'none'">Error <strong x-text="lastErrorText">none</strong></div>
+          <div class="chip" :class="'badge warn'" x-show="lastErrorText !== 'none'">Error <strong x-text="lastErrorText">none</strong></div>
         </div>
-        <!-- Backend selection -->
-        <div class="mt-sm">
-          <div class="add-group">
-            <input x-model="backendInput" placeholder="http://127.0.0.1:8000" @keydown.enter="addBackend()">
-            <button x-show="backendInput.trim()" @click="addBackend()">Add</button>
-          </div>
-        </div>
-        <div class="chips mt-sm" x-show="backends.length > 0 || backendsDiscovered !== null">
-          <button x-show="backends.length > 0" :class="selectedBackend === DEFAULT_BACKEND_URL ? 'secondary' : ''" @click="selectBackend(DEFAULT_BACKEND_URL)" x-text="DEFAULT_BACKEND_URL"></button>
+        <!-- Add backend / switch -->
+        <div class="gap-sm mt-sm">
+          <input x-model="backendInput" placeholder="Add backend manually" class="input-sm" style="width:200px;text-align:left;" @keydown.enter="addBackend()">
+          <button x-show="backendInput.trim()" @click="addBackend()">Add</button>
           <template x-for="backend in backends" :key="backend">
-            <span class="chip">
+            <span class="gap-sm">
               <button :class="{ secondary: backend === selectedBackend }" @click="selectBackend(backend)" x-text="backend"></button>
-              <button class="icon-btn" @click="removeBackend(backend)" title="Remove backend" aria-label="Remove backend">&times;<span class="sr-only">Remove backend</span></button>
+              <button class="icon-btn" @click="removeBackend(backend)" title="Remove backend" aria-label="Remove backend">&times;</button>
             </span>
           </template>
-          <span x-show="backendsDiscovered === true" class="text-sm" style="color: var(--good);" x-text="resultText"></span>
-          <span x-show="backendsDiscovered === false" class="text-sm" style="color: var(--warn);">No Bonjour backends discovered</span>
         </div>
       </div>
     </div>
