@@ -31,8 +31,10 @@
   --gap-sm: 8px;
   --gap-md: 12px;
   --pad: 14px;
+  --pad-btn: 8px 14px;
   --pad-sm: 8px 12px;
   --pad-xs: 5px 10px;
+  --input-sm-w: 72px;
   --font-xs: 0.75rem;
   --font-sm: 0.85rem;
   --font-base: 0.9rem;
@@ -107,7 +109,7 @@ input, textarea {
   padding: var(--pad-sm);
   font-size: var(--font-base);
 }
-input.input-sm { width: 72px; text-align: center; }
+input.input-sm { width: var(--input-sm-w); text-align: center; }
 textarea { min-height: 220px; resize: vertical; line-height: 1.45; border-radius: var(--radius); }
 textarea.textarea-sm { min-height: auto; }
 input[type="checkbox"] { width: auto; }
@@ -119,7 +121,7 @@ input:focus, textarea:focus { border-color: var(--glow); box-shadow: 0 0 0 3px v
 button, select {
   border: var(--border-none);
   border-radius: var(--radius);
-  padding: 8px 14px;
+  padding: var(--pad-btn);
   background: var(--btn-bg);
   color: var(--btn-text);
   font-weight: 600;
@@ -141,7 +143,7 @@ button.icon-btn { padding: 8px 10px; min-width: 38px; border-radius: var(--radiu
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: stretch;
   gap: var(--gap-sm);
-  padding: 8px;
+  padding: var(--gap-sm);
   border: var(--border);
   border-radius: var(--radius);
   background: var(--panel-2);
