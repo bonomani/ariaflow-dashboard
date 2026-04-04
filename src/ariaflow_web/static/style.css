@@ -89,7 +89,6 @@ body {
 }
 [x-cloak] { display: none !important; }
 .mono, .text-mono { font-family: var(--font-mono); }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
 /* ========================================
    3. FORMS (inputs, buttons, selects)
@@ -136,38 +135,6 @@ button.secondary, select.secondary {
 button.icon-btn { padding: 8px 10px; min-width: 38px; border-radius: var(--radius-pill); line-height: 1; }
 
 /* --- add-row (shared between backend + URL add) --- */
-.add-group {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: stretch;
-  gap: var(--gap-sm);
-  padding: var(--gap-sm);
-  border: var(--border);
-  border-radius: var(--radius);
-  background: var(--panel-2);
-}
-.add-group input, .add-group textarea {
-  min-height: 0;
-  border: 0;
-  background: transparent;
-  padding: 10px 8px;
-  border-radius: var(--radius-sm);
-  box-shadow: none;
-}
-.add-group textarea { height: calc(1.45em + 22px); resize: none; overflow-y: auto; }
-.add-group button {
-  min-width: 84px;
-  height: calc(1.45em + 22px);
-  padding: 0 12px;
-  justify-self: end;
-  align-self: center;
-  white-space: nowrap;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-sm);
-  font-weight: 700;
-  line-height: 1;
-  box-shadow: none;
-}
 
 /* --- refresh control (nav embedded) --- */
 .refresh-control {
@@ -277,22 +244,6 @@ button.icon-btn { padding: 8px 10px; min-width: 38px; border-radius: var(--radiu
 .system-actions button { width: 100%; }
 
 /* --- queue overview --- */
-.queue-overview {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.1fr);
-  gap: var(--gap-md);
-  align-items: stretch;
-  margin-bottom: var(--gap-md);
-}
-.queue-primary {
-  border: var(--border);
-  border-radius: var(--radius);
-  padding: var(--pad);
-  background: var(--panel-2);
-  display: grid;
-  gap: var(--gap-sm);
-  align-content: start;
-}
 /* --- shared stat label/value/sub (used by queue-primary + metric) --- */
 .stat-label { color: var(--muted); font-size: var(--font-sm); text-transform: uppercase; letter-spacing: var(--tracking-wide); }
 .stat-value { font-size: var(--font-lg); font-weight: 700; letter-spacing: var(--tracking-tight); }
@@ -409,8 +360,6 @@ details.debug summary::-webkit-details-marker { display: none; }
 /* ========================================
    7. ACTION BAR
    ======================================== */
-.action-bar { display: flex; flex-wrap: wrap; gap: var(--gap-sm); align-items: center; justify-content: space-between; }
-.action-buttons { display: flex; flex-wrap: wrap; gap: var(--gap-sm); }
 .statusline { display: flex; justify-content: space-between; gap: var(--gap-md); color: var(--muted); font-size: var(--font-base); margin-top: var(--gap-sm); }
 .statusline strong { color: var(--text); }
 .footer { color: var(--muted); font-size: var(--font-sm); margin-top: var(--gap-sm); }
@@ -431,7 +380,6 @@ details.debug summary::-webkit-details-marker { display: none; }
 .text-center { text-align: center; }
 .text-mono { white-space: pre-wrap; word-break: break-word; }
 .cursor-pointer { cursor: pointer; }
-.align-end { display: flex; gap: var(--gap-sm); align-items: center; justify-content: flex-end; flex-wrap: wrap; }
 .dimmed { opacity: 0.35; }
 
 /* ========================================
@@ -441,15 +389,9 @@ details.debug summary::-webkit-details-marker { display: none; }
   .hero, .summary { grid-template-columns: 1fr; }
   .hero { align-items: start; }
   .span-6 { grid-column: span 12; }
-  .action-bar { flex-direction: column; align-items: stretch; }
-  .action-buttons { width: 100%; }
-  .action-buttons button { flex: 1 1 0; }
 }
 @media (max-width: 720px) {
-  .add-group { grid-template-columns: 1fr; }
-  .add-group button { min-width: 0; width: 100%; justify-self: stretch; align-self: stretch; }
   .chips { flex-wrap: wrap; }
   .nav { flex-wrap: wrap; }
   .summary { grid-template-columns: repeat(2, 1fr); }
-  .queue-overview { grid-template-columns: 1fr; }
 }
