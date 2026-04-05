@@ -25,6 +25,7 @@ document.addEventListener('alpine:init', () => {
     DEFAULT_BACKEND_URL: window.__ARIAFLOW_BACKEND_URL__ || 'http://127.0.0.1:8000',
     backendInput: '',
     backendsDiscovered: null,
+    discoveryText: '',
     urlInput: '',
     addOutput: '',
     addPriority: '',
@@ -647,13 +648,11 @@ document.addEventListener('alpine:init', () => {
     async discoverBackends() {
       const r = await this._fetch('/api/discovery');
       const data = await r.json();
-      this.lastResult = data;
       this.mergeDiscoveredBackends(data.items || []);
       this.backendsDiscovered = Array.isArray(data.items) && data.items.length > 0;
-      this.resultText = this.backendsDiscovered
+      this.discoveryText = this.backendsDiscovered
         ? `Discovered ${data.items.length} backend service(s)`
         : 'No Bonjour backends discovered';
-      this.resultJson = JSON.stringify(data, null, 2);
     },
 
     // --- queue ---
