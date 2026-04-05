@@ -518,7 +518,7 @@ document.addEventListener('alpine:init', () => {
     },
     mergeDiscoveredBackends(items) {
       const discovered = Array.isArray(items)
-        ? items.map((item) => String(item?.url || '').trim()).filter((item) => item && item !== this.DEFAULT_BACKEND_URL)
+        ? items.filter((item) => !item?.role || item.role !== 'web').map((item) => String(item?.url || '').trim()).filter((item) => item && item !== this.DEFAULT_BACKEND_URL)
         : [];
       if (!discovered.length) return;
       const state = this.loadBackendState();
@@ -969,7 +969,7 @@ document.addEventListener('alpine:init', () => {
       return this.pauseDownloads();
     },
     async schedulerAction(action) {
-      const endpoint = action === 'start' ? '/api/scheduler/start' : '/api/scheduler/stop';
+      const endpoint = action === 'start' ? '/api/scheduler/resume' : '/api/scheduler/pause';
       const payload = action === 'start' ? { auto_preflight_on_run: this.autoPreflightEnabled } : {};
       try {
         const r = await this._fetch(this.apiPath(endpoint), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });

@@ -127,21 +127,17 @@ class TestPostAdd:
 
 
 class TestPostRun:
-    def test_valid_start(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/scheduler/start", {})
+    def test_valid_resume(self, web_server: str) -> None:
+        data = _post(f"{web_server}/api/scheduler/resume", {})
         assert data.get("ok") is True
 
-    def test_valid_stop(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/scheduler/stop", {})
+    def test_valid_pause(self, web_server: str) -> None:
+        data = _post(f"{web_server}/api/scheduler/pause", {})
         assert isinstance(data, dict)
 
-    def test_run_with_auto_preflight_bool(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/scheduler/start", {"auto_preflight_on_run": True})
+    def test_resume_with_auto_preflight_bool(self, web_server: str) -> None:
+        data = _post(f"{web_server}/api/scheduler/resume", {"auto_preflight_on_run": True})
         assert isinstance(data, dict)
-
-    def test_run_missing_action(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/scheduler/start", {})
-        assert isinstance(data, dict)  # action defaults to ""
 
 
 class TestPostSession:
@@ -214,14 +210,6 @@ class TestPostMisc:
 
     def test_ucc(self, web_server: str) -> None:
         data = _post(f"{web_server}/api/scheduler/ucc")
-        assert isinstance(data, dict)
-
-    def test_pause(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/scheduler/pause")
-        assert isinstance(data, dict)
-
-    def test_resume(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/scheduler/resume")
         assert isinstance(data, dict)
 
     def test_bandwidth_probe(self, web_server: str) -> None:
@@ -335,16 +323,14 @@ class TestApiParamCoverage:
         "GET /static/*": "test_static_serving.py (separate file)",
         # POST endpoints
         "POST /api/downloads/add": "test_valid_add + test_add_empty_items",
-        "POST /api/scheduler/start": "test_valid_start + test_run_with_auto_preflight_bool",
-        "POST /api/scheduler/stop": "test_valid_stop",
+        "POST /api/scheduler/resume": "test_valid_resume + test_resume_with_auto_preflight_bool",
+        "POST /api/scheduler/pause": "test_valid_pause",
         "POST /api/sessions/new": "test_valid_new_session",
         "POST /api/declaration": "TestPostDeclaration",
         "POST /api/downloads/{id}/{action}": "TestPostItem",
         "POST /api/lifecycle/{target}/{action}": "TestPostLifecycle",
         "POST /api/scheduler/preflight": "test_preflight",
         "POST /api/scheduler/ucc": "test_ucc",
-        "POST /api/scheduler/pause": "test_pause",
-        "POST /api/scheduler/resume": "test_resume",
         "POST /api/bandwidth/probe": "test_bandwidth_probe",
         "GET /api/downloads/archive": "test_archive",
         "GET /api/events": "test_events_endpoint_exists",
@@ -408,8 +394,6 @@ class TestApiParamCoverage:
             "/api/events",
             "/api/declaration",
             "/api/downloads/add",
-            "/api/scheduler/start",
-            "/api/scheduler/stop",
             "/api/scheduler/pause",
             "/api/scheduler/resume",
             "/api/scheduler/preflight",

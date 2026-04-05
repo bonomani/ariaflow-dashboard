@@ -143,10 +143,10 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         if path == "/api/downloads/add":
             items = payload.get("items", [])
             self._send({"ok": True, "count": len(items), "added": [{"url": item.get("url", "")} for item in items]})
-        elif path == "/api/scheduler/start":
-            self._send({"ok": True, "action": "start", "result": {"started": True}})
-        elif path == "/api/scheduler/stop":
-            self._send({"ok": True, "action": "stop", "result": {"stopped": True}})
+        elif path == "/api/scheduler/resume":
+            self._send({"ok": True, "action": "resume", "result": {"started": True}})
+        elif path == "/api/scheduler/pause":
+            self._send({"paused": True})
         elif path == "/api/scheduler/preflight":
             self._send(self.preflight_data)
         elif path == "/api/scheduler/ucc":
@@ -158,10 +158,6 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self._send({"ok": True, "lifecycle": self.lifecycle_data})
         elif path == "/api/sessions/new":
             self._send({"ok": True, "session": "sess-002"})
-        elif path == "/api/scheduler/pause":
-            self._send({"paused": True})
-        elif path == "/api/scheduler/resume":
-            self._send({"resumed": True})
         elif path == "/api/bandwidth/probe":
             self._send({"ok": True, "source": "networkquality", "downlink_mbps": 100, "uplink_mbps": 20, "cap_mbps": 80})
         elif path == "/api/downloads/cleanup":

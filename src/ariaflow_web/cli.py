@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 
 from . import __version__
-from .bonjour import advertise_http_service
 from .webapp import serve
 
 
@@ -24,14 +23,7 @@ def main() -> int:
     server = serve(host=args.host, port=args.port, backend_url=args.backend)
     print(f"Serving on http://{args.host}:{args.port}")
     try:
-        with advertise_http_service(
-            role="web",
-            port=args.port,
-            path="/",
-            product="ariaflow-web",
-            version=__version__,
-        ):
-            server.serve_forever()
+        server.serve_forever()
     except KeyboardInterrupt:
         pass
     except OSError as exc:
