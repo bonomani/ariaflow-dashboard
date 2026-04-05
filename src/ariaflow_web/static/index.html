@@ -505,6 +505,30 @@
         </div>
       </div>
 
+      <div class="span-12" x-show="page === 'options' && peerList.length > 0">
+        <div class="panel">
+          <div class="section-title">
+            <h2>Discovered Peers</h2>
+            <button @click="loadPeers()">Refresh</button>
+          </div>
+          <div class="list">
+            <template x-for="peer in peerList" :key="peer.instance || peer.host">
+              <div class="item compact">
+                <div class="item-top">
+                  <div class="item-url" x-text="peer.instance || peer.host"></div>
+                  <span class="badge" :class="peer.status === 'resolved' ? 'good' : 'warn'" x-text="peer.status || 'unknown'"></span>
+                </div>
+                <div class="meta">
+                  <span x-text="peer.base_url || (peer.host + ':' + peer.port)"></span>
+                  <span x-show="peer.torrent_count != null" x-text="peer.torrent_count + ' torrents'"></span>
+                  <span x-show="peer.last_seen" class="text-muted" x-text="'seen ' + relativeTime(new Date(peer.last_seen * 1000).toISOString())"></span>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
       <!-- LOG -->
       <div class="span-6" x-show="page === 'log'">
         <div class="panel">

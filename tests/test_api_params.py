@@ -18,6 +18,7 @@ from conftest import start_server, stop_server  # noqa: E402
 WEBAPP_PY = Path(__file__).resolve().parents[1] / "src" / "ariaflow_web" / "webapp.py"
 APP_JS = Path(__file__).resolve().parents[1] / "src" / "ariaflow_web" / "static" / "app.js"
 INDEX_HTML = Path(__file__).resolve().parents[1] / "src" / "ariaflow_web" / "static" / "index.html"
+BACKEND_WEBAPP = Path(__file__).resolve().parents[2] / "ariaflow" / "src" / "aria_queue" / "webapp.py"
 
 
 def _post(url: str, payload: object = None, expect_status: int | None = None) -> dict:
@@ -259,6 +260,9 @@ class TestPostMisc:
     def test_torrents(self, web_server: str) -> None:
         _assert_get_ok(f"{web_server}/api/torrents")
 
+    def test_peers(self, web_server: str) -> None:
+        _assert_get_ok(f"{web_server}/api/peers")
+
     def test_torrent_stop(self, web_server: str) -> None:
         _assert_post_ok(f"{web_server}/api/torrents/abc123deadbeef/stop")
 
@@ -330,6 +334,7 @@ class TestApiParamCoverage:
         "POST /api/aria2/change_option": "test_aria2_change_option",
         "POST /api/aria2/set_limits": "test_aria2_set_limits",
         "GET /api/torrents": "test_torrents",
+        "GET /api/peers": "test_peers",
         "POST /api/torrents/{infohash}/stop": "test_torrent_stop",
         "POST /api/downloads/cleanup": "test_cleanup",
         # Error handling
@@ -363,56 +368,62 @@ class TestApiParamCoverage:
             + "\n".join(f"  - {p}" for p in uncovered)
         )
 
-    def test_every_api_endpoint_is_called(self) -> None:
-        """Verify every backend API endpoint is called at least once in app.js.
+    @staticmethod
+    def _extract_backend_routes() -> set[str]:
+        """Extract all API routes from the backend webapp.py source."""
+        if not BACKEND_WEBAPP.exists():
+            pytest.skip("Backend repo not available")
+        source = BACKEND_WEBAPP.read_text(encoding="utf-8")
+        routes: set[str] = set()
+        # Dispatch table entries: "/api/path": routes.handler,
+        for match in re.finditer(r'"(/api/[^"]+)":\s*routes\.\w+', source):
+            routes.add(match.group(1))
+        # Parameterized routes in comments or path.startswith checks
+        # These are represented by their prefix
+        for match in re.finditer(r'path\.startswith\("(/api/[^"]+)"\)', source):
+            routes.add(match.group(1))
+        # PATCH routes
+        for match in re.finditer(r'path == "(/api/[^"]+)"', source):
+            if match.group(1).startswith("/api/"):
+                routes.add(match.group(1))
+        return routes
 
-        Ensures no endpoint is wired in tests but never actually used
-        by the frontend code.
+    def test_every_api_endpoint_is_called(self) -> None:
+        """Verify every backend API endpoint is called in app.js or index.html.
+
+        Reads the backend webapp.py route tables directly to detect new
+        endpoints automatically — no hardcoded list to maintain.
         """
         js = APP_JS.read_text(encoding="utf-8")
+        html = INDEX_HTML.read_text(encoding="utf-8")
+        combined = js + "\n" + html
 
-        # All endpoints the frontend should call
-        EXPECTED_ENDPOINTS = [
-            "/api/status",
-            "/api/events",
-            "/api/declaration",
-            "/api/downloads/add",
-            "/api/scheduler/pause",
-            "/api/scheduler/resume",
-            "/api/scheduler/preflight",
-            "/api/scheduler/ucc",
-            "/api/downloads/cleanup",
-            "/api/bandwidth",
-            "/api/bandwidth/probe",
-            "/api/lifecycle",
-            "/api/lifecycle/",
-            "/api/log",
-            "/api/downloads/archive",
-            "/api/sessions",
-            "/api/sessions/stats",
-            "/api/health",
-            "/api/scheduler",
-            "/api/aria2/change_global_option",
-            "/api/aria2/get_global_option",
-            "/api/aria2/option_tiers",
-            "/api/aria2/get_option",
-            "/api/downloads/",
-            "/api/declaration/preferences",
-            "/api/torrents",
-            "/api/aria2/change_option",
-            "/api/aria2/set_limits",
-            "/api/sessions/new",
-            "/api/torrents/",
-            "/api/discovery",
-            "/api/docs",
-            "/api/openapi.yaml",
-            "/api/tests",
-        ]
+        backend_routes = self._extract_backend_routes()
 
-        missing = [ep for ep in EXPECTED_ENDPOINTS if ep not in js]
+        # Frontend-only routes (not in backend, served by ariaflow-web itself)
+        FRONTEND_ONLY = {"/api/discovery"}
+
+        # Endpoints accessed via window.open (not apiPath/_fetch)
+        WINDOW_OPEN = {"/api/docs", "/api/openapi.yaml"}
+
+        missing = []
+        for route in sorted(backend_routes):
+            if route in FRONTEND_ONLY:
+                continue
+            # Check if the route or its prefix appears in frontend code
+            if route in combined:
+                continue
+            # Check prefix match for parameterized routes
+            if any(route.startswith(prefix) for prefix in ["/api/downloads/", "/api/torrents/", "/api/lifecycle/"]) and any(p in combined for p in ["/api/downloads/", "/api/torrents/", "/api/lifecycle/"]):
+                continue
+            if route in WINDOW_OPEN:
+                continue
+            missing.append(route)
+
         assert missing == [], (
-            f"Backend endpoints not called in app.js:\n"
-            + "\n".join(f"  - {p}" for p in missing)
+            f"Backend endpoints not called by frontend:\n"
+            + "\n".join(f"  - {r}" for r in missing)
+            + "\n\nAdd the endpoint call to app.js or index.html."
         )
 
     def test_no_duplicate_endpoint_wiring(self) -> None:

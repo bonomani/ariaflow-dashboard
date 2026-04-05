@@ -42,6 +42,7 @@ document.addEventListener('alpine:init', () => {
     archiveItems: [],
     torrentList: [],
     torrentLoading: false,
+    peerList: [],
 
     // cached backend state (updated on save, avoids localStorage parse per render)
     _cachedBackends: null,
@@ -292,7 +293,7 @@ document.addEventListener('alpine:init', () => {
       if (target === 'dashboard') { this.refresh(); this.loadDeclaration().catch((e) => console.warn(e.message)); }
       if (target === 'lifecycle') this.loadLifecycle();
       if (target === 'bandwidth') this.loadDeclaration();
-      if (target === 'options') { this.loadDeclaration(); this.loadAria2Options(); this.loadTorrents(); }
+      if (target === 'options') { this.loadDeclaration(); this.loadAria2Options(); this.loadTorrents(); this.loadPeers(); }
       if (target === 'log') { this.loadDeclaration(); this.refreshActionLog(); this.loadSessionHistory(); }
       if (target === 'archive') this.loadArchive();
     },
@@ -1371,6 +1372,15 @@ document.addEventListener('alpine:init', () => {
     },
 
     // --- torrents ---
+    async loadPeers() {
+      try {
+        const r = await this._fetch(this.apiPath('/api/peers'));
+        const data = await r.json();
+        this.peerList = data.peers || [];
+      } catch (e) {
+        this.peerList = [];
+      }
+    },
     async loadTorrents() {
       this.torrentLoading = true;
       try {

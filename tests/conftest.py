@@ -125,6 +125,8 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self._send({"session_id": "sess-001", "total": 5, "done": 1})
         elif path == "/api/torrents":
             self._send({"torrents": []})
+        elif path == "/api/peers":
+            self._send({"peers": []})
         elif path.startswith("/api/downloads/") and path.endswith("/files"):
             self._send({"files": []})
         else:
