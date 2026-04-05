@@ -1,12 +1,25 @@
 # Plan
 
-## Phase 1: Wire unused backend fields (FE-12)
+## Phase 1: Dynamic action log filters
 
-22 backend response fields are returned but not consumed by the frontend.
-See `test_api_params.py::KNOWN_UNUSED` for the full list.
+Replace hardcoded `<option>` lists in Action History filter dropdowns with
+dynamically generated options from actual log entries.
 
-Highest value items:
-- `allowed_actions` — dynamically show/hide action buttons per item
-- `items_total/done/error` in sessions — show stats in session history
-- `down_cap_mbps/up_cap_mbps` — show separate up/down bandwidth caps
-- `responsiveness_rpm` — display network quality metric
+### 1a: Add computed getters in app.js
+
+- `availableActions` — distinct `action` values from `actionLogEntries`, sorted
+- `availableTargets` — distinct `target` values from `actionLogEntries`, sorted
+
+### 1b: Replace hardcoded `<select>` options in index.html
+
+Use `x-for` over the computed getters instead of static `<option>` elements.
+
+### 1c: Reset stale filter
+
+If selected filter value disappears from available options (e.g. log limit change),
+fall back to `"all"`.
+
+### Scope
+
+~15 lines app.js, ~15 lines index.html. No backend changes. No logic changes
+to `filteredActionLog` getter.
