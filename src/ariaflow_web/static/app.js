@@ -3,7 +3,6 @@ document.addEventListener('alpine:init', () => {
     // --- state ---
     lastStatus: null,
     lastLifecycle: null,
-    lastResult: null,
     lastDeclaration: null,
     refreshTimer: null,
     refreshInterval: 10000,
@@ -100,16 +99,6 @@ document.addEventListener('alpine:init', () => {
     get schedulerStateLabelText() {
       return this.schedulerOverviewLabel(this.state, this.itemsWithStatus, this.currentTransfer);
     },
-    get schedulerDetailText() {
-      if (!this.backendReachable) return 'Backend unavailable';
-      if (this.state?.paused) return 'Downloads paused';
-      if (this.state?.running) return 'Scheduler running';
-      return 'Scheduler idle';
-    },
-    get activeTransferText() {
-      if (!this.backendReachable) return 'none';
-      return this.summarizeActiveItem(this.currentTransfer, this.state, this.itemsWithStatus);
-    },
     get transferSpeedText() {
       if (!this.backendReachable) return 'idle';
       const dl = this.currentSpeed ? this.formatRate(this.currentSpeed) : null;
@@ -118,27 +107,9 @@ document.addEventListener('alpine:init', () => {
       if (dl) return `↓ ${dl}`;
       return 'idle';
     },
-    get sessionStateLabelText() {
-      if (!this.backendReachable) return 'offline';
-      return this.sessionStateLabel(this.state);
-    },
-    get sessionDetailText() {
-      if (!this.backendReachable) return '-';
-      return this.sessionLabel(this.state);
-    },
     get sessionStartedText() {
       if (!this.backendReachable) return '-';
       return this.timestampLabel(this.state.session_started_at);
-    },
-    get sessionLastSeenText() {
-      if (!this.backendReachable) return '-';
-      return this.timestampLabel(this.state.session_last_seen_at);
-    },
-    get sessionClosedText() {
-      if (!this.backendReachable) return '-';
-      return this.state.session_closed_at
-        ? `${this.state.session_closed_at}${this.state.session_closed_reason ? ` · ${this.state.session_closed_reason}` : ''}`
-        : '-';
     },
     get schedulerBtnText() {
       if (!this.backendReachable) return 'Start';
@@ -150,10 +121,6 @@ document.addEventListener('alpine:init', () => {
     get schedulerBtnDisabled() {
       return !this.backendReachable || !!this.state?.stop_requested;
     },
-    get downloadToggleBtnText() {
-      if (!this.backendReachable) return 'Pause downloads';
-      return this.state?.paused ? 'Resume downloads' : 'Pause downloads';
-    },
     get backendVersionText() {
       if (!this.backendReachable) return '-';
       const v = this.lastStatus?.ariaflow?.version;
@@ -162,14 +129,6 @@ document.addEventListener('alpine:init', () => {
     get backendPidText() {
       if (!this.backendReachable) return '-';
       return this.lastStatus?.ariaflow?.pid || 'unreported';
-    },
-    get schedulerStatusText() {
-      if (!this.backendReachable) return 'offline';
-      if (this.lastScheduler?.status) return this.lastScheduler.status;
-      return this.schedulerStateLabel(this.state);
-    },
-    get preflightModeText() {
-      return this.getDeclarationPreference('auto_preflight_on_run') ? 'auto-check' : 'manual';
     },
     get downloadCapText() {
       if (!this.backendReachable) return '-';
@@ -194,57 +153,21 @@ document.addEventListener('alpine:init', () => {
       if (!this.backendReachable) return 'offline';
       return this.bw.interface_name || 'unknown';
     },
-    get bwInterfaceDetailText() {
-      if (!this.backendReachable) return this._offlineStatusLabel();
-      return this.bw.interface_name ? `Active network interface: ${this.bw.interface_name}` : 'Interface not detected';
-    },
     get bwSourceText() {
       if (!this.backendReachable) return 'offline';
       return this.bw.source || '-';
-    },
-    get bwDownText() {
-      if (!this.backendReachable) return this._offlineStatusLabel();
-      return this.bw.source === 'networkquality'
-        ? `Downlink ${this.formatMbps(this.bw.downlink_mbps)}${this.bw.partial ? ' (partial)' : ''}`
-        : `No probe available${this.bw.reason ? ` · ${this.bw.reason}` : ''}`;
     },
     get bwDownBadgeText() {
       if (!this.backendReachable) return '-';
       return this.bw.downlink_mbps ? this.formatMbps(this.bw.downlink_mbps) : '-';
     },
-    get bwDownDetailText() {
-      if (!this.backendReachable) return this._offlineStatusLabel();
-      return this.bw.downlink_mbps
-        ? `Measured downlink: ${this.formatMbps(this.bw.downlink_mbps)}${this.bw.partial ? ' (partial capture)' : ''}`
-        : 'No downlink measurement available';
-    },
     get bwUpBadgeText() {
       if (!this.backendReachable) return '-';
       return this.bw.uplink_mbps ? this.formatMbps(this.bw.uplink_mbps) : '-';
     },
-    get bwUpDetailText() {
-      if (!this.backendReachable) return this._offlineStatusLabel();
-      return this.bw.uplink_mbps
-        ? `Measured uplink: ${this.formatMbps(this.bw.uplink_mbps)}`
-        : 'No uplink measurement available';
-    },
     get bwCapText() {
       if (!this.backendReachable) return '-';
       return this.bw.cap_mbps ? this.humanCap(this.formatMbps(this.bw.cap_mbps)) : this.humanCap(this.bw.limit || '-');
-    },
-    get bwGlobalText() {
-      if (!this.backendReachable) return 'Configured limit unavailable';
-      return `Configured limit ${this.humanCap(this.bw.limit || '-')}`;
-    },
-    get bwProbeModeText() {
-      if (!this.backendReachable) return '-';
-      return this.bw.source || '-';
-    },
-    get bwProbeDetailText() {
-      if (!this.backendReachable) return this._offlineStatusLabel();
-      return this.bw.source === 'networkquality'
-        ? `Measured ${this.formatMbps(this.bw.downlink_mbps)} down${this.bw.uplink_mbps ? `, ${this.formatMbps(this.bw.uplink_mbps)} up` : ''}, capped at ${this.formatMbps(this.bw.cap_mbps)}${this.bw.partial ? ' from partial output' : ''}`
-        : 'Using default floor because no probe was available';
     },
 
     // bandwidth config getters (names must match backend contracts.py)
@@ -439,21 +362,6 @@ document.addEventListener('alpine:init', () => {
       if (state?.running) return 'running';
       return 'idle';
     },
-    activeDisplayName(active, items) {
-      const match = (items || []).find((item) => active?.gid && item.gid === active.gid);
-      const url = active?.url || match?.url || '';
-      const name = this.shortName(url || active?.gid || 'none');
-      return { name, url };
-    },
-    summarizeActiveItem(active, state, items) {
-      const display = this.activeDisplayName(active, items);
-      const name = display.name;
-      if (state?.paused && active?.recovered) return name;
-      if (active?.recovered) return name;
-      if (active?.status && active?.status !== 'idle') return `${active.status} · ${name}`;
-      if (state?.running) return name;
-      return 'none';
-    },
     sessionLabel(state) {
       if (state?.session_id && !state?.session_closed_at) return `current ${String(state.session_id).slice(0, 8)}`;
       if (state?.session_id && state?.session_closed_at) return `closed ${String(state.session_id).slice(0, 8)}`;
@@ -470,11 +378,6 @@ document.addEventListener('alpine:init', () => {
       if (active && active.status && active.status !== 'idle') return active.status;
       if ((items || []).length) return 'ready';
       return 'idle';
-    },
-    sessionStateLabel(state) {
-      if (state?.session_id && !state?.session_closed_at) return 'open';
-      if (state?.session_id && state?.session_closed_at) return 'closed';
-      return 'none';
     },
     _offlineStatusLabel() {
       const data = this.lastStatus;
@@ -943,7 +846,6 @@ document.addEventListener('alpine:init', () => {
       }
       const r = await this._fetch(this.apiPath('/api/declaration'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parsed) });
       const data = await r.json();
-      this.lastResult = data;
       this.lastDeclaration = data.declaration || data;
       this.resultText = 'Declaration saved';
       this.resultJson = JSON.stringify(data, null, 2);
@@ -1034,7 +936,6 @@ document.addEventListener('alpine:init', () => {
       const payload = { items };
       const r = await this._fetch(this.apiPath('/api/add'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await r.json();
-      this.lastResult = data;
       if (!r.ok || data.ok === false) {
         this.resultText = data.message || 'Add request failed';
         this.resultJson = JSON.stringify(data, null, 2);
@@ -1070,7 +971,6 @@ document.addEventListener('alpine:init', () => {
       if (action === 'start') payload.auto_preflight_on_run = this.autoPreflightEnabled;
       const r = await this._fetch(this.apiPath('/api/run'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await r.json();
-      this.lastResult = data;
       if (!r.ok || data.ok === false) {
         this.resultText = data.message || 'Scheduler request failed';
         this.resultJson = JSON.stringify(data, null, 2);
@@ -1093,7 +993,6 @@ document.addEventListener('alpine:init', () => {
     async pauseDownloads() {
       const r = await this._fetch(this.apiPath('/api/pause'), { method: 'POST' });
       const data = await r.json();
-      this.lastResult = data;
       this.resultText = data.paused ? 'Downloads paused' : 'Pause requested';
       this.resultJson = JSON.stringify(data, null, 2);
       if (data.paused && this.lastStatus?.state) this.lastStatus = { ...this.lastStatus, state: { ...this.lastStatus.state, paused: true } };
@@ -1101,7 +1000,6 @@ document.addEventListener('alpine:init', () => {
     async resumeDownloads() {
       const r = await this._fetch(this.apiPath('/api/resume'), { method: 'POST' });
       const data = await r.json();
-      this.lastResult = data;
       this.resultText = data.resumed ? 'Downloads resumed' : 'Resume requested';
       this.resultJson = JSON.stringify(data, null, 2);
       if (data.resumed && this.lastStatus?.state) this.lastStatus = { ...this.lastStatus, state: { ...this.lastStatus.state, paused: false } };
@@ -1109,7 +1007,6 @@ document.addEventListener('alpine:init', () => {
     async newSession() {
       const r = await this._fetch(this.apiPath('/api/session'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'new' }) });
       const data = await r.json();
-      this.lastResult = data;
       this.resultText = data.ok ? 'New session started' : 'Session change requested';
       this.resultJson = JSON.stringify(data, null, 2);
       if (this.page === 'lifecycle') this.loadLifecycle();
@@ -1135,7 +1032,6 @@ document.addEventListener('alpine:init', () => {
         if (prevItems && this.lastStatus) this.lastStatus = { ...this.lastStatus, items: prevItems };
         return;
       }
-      this.lastResult = data;
       if (!r.ok || data.ok === false) {
         this.resultText = data.message || `${action} failed`;
         this.resultJson = JSON.stringify(data, null, 2);
@@ -1194,7 +1090,6 @@ document.addEventListener('alpine:init', () => {
         body: JSON.stringify({ max_done_age_days: 7, max_done_count: 100 }),
       });
       const data = await r.json();
-      this.lastResult = data;
       this.resultText = data.ok ? `Cleanup complete — ${data.archived || 0} archived` : (data.message || 'Cleanup requested');
       this.resultJson = JSON.stringify(data, null, 2);
     },
@@ -1207,7 +1102,6 @@ document.addEventListener('alpine:init', () => {
       try {
         const r = await this._fetch(this.apiPath('/api/bandwidth/probe'), { method: 'POST' });
         const data = await r.json();
-        this.lastResult = data;
         this.resultText = data.ok ? 'Probe complete' : (data.message || 'Probe finished');
         this.resultJson = JSON.stringify(data, null, 2);
         await this.refreshBandwidth();
@@ -1306,7 +1200,6 @@ document.addEventListener('alpine:init', () => {
       try {
         const r = await this._fetch(this.apiPath('/api/preflight'), { method: 'POST' });
         const data = await r.json();
-        this.lastResult = data;
         this.resultText = data.status === 'pass' ? 'Preflight passed' : 'Preflight needs attention';
         this.resultJson = JSON.stringify(data, null, 2);
         this.preflightData = data;
@@ -1318,7 +1211,6 @@ document.addEventListener('alpine:init', () => {
       try {
         const r = await this._fetch(this.apiPath('/api/ucc'), { method: 'POST' });
         const data = await r.json();
-        this.lastResult = data;
         const outcome = data.result?.outcome || 'unknown';
         this.resultText = `UCC result: ${outcome}`;
         this.resultJson = JSON.stringify(data, null, 2);
