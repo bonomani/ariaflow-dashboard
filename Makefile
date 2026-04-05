@@ -21,6 +21,6 @@ install: ## Install in development mode
 	pip install -e .
 
 clean: ## Remove build artifacts and caches
-	rm -rf build/ dist/ *.egg-info .pytest_cache __pycache__
+	rm -rf build/ dist/ *.egg-info UNKNOWN.egg-info .pytest_cache .mypy_cache .ruff_cache __pycache__
 	find src tests -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
 	rm -rf .claude/worktrees/

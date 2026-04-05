@@ -12,6 +12,9 @@ Complete inventory of all triggers in the UI.
 | `_initSSE()` | init + backend switch | `GET /api/events` |
 | `popstate` | Browser back/forward | varies via `_loadPageData()` |
 | Polling (`refresh()`) | Fallback every N seconds | `GET /api/status` (with ETag, backoff) |
+| Health check | SSE error fallback | `GET /api/health` |
+| `loadScheduler()` | On dashboard load | `GET /api/scheduler` |
+| `refreshBandwidth()` | On bandwidth page | `GET /api/bandwidth` |
 | `_flushPrefQueue()` | 400ms after pref change | `PATCH /api/declaration/preferences` |
 | `discoverBackends()` | 2s after init | `GET /api/discovery` |
 | `checkNotifications()` | Every status update | Browser Notification API |
@@ -24,7 +27,7 @@ Complete inventory of all triggers in the UI.
 | dashboard | `refresh()`, `loadDeclaration()` |
 | bandwidth | `loadDeclaration()` |
 | lifecycle | `loadLifecycle()` |
-| options | `loadDeclaration()` |
+| options | `loadDeclaration()`, `loadAria2Options()`, `loadTorrents()` |
 | log | `loadDeclaration()`, `refreshActionLog()`, `loadSessionHistory()` |
 | dev | `loadApiDiscovery()` |
 | archive | `loadArchive()` |
@@ -121,6 +124,25 @@ Complete inventory of all triggers in the UI.
 | Max active seeds | `setDistributePref(...)` | `distribute_max_active_seeds` |
 | Tracker URL | `setDistributePref(...)` | `internal_tracker_url` |
 
+### aria2 Options (Options tab)
+
+| Element | Handler | Endpoint |
+|---------|---------|----------|
+| Load global options | `loadAria2Options()` | `GET /api/aria2/get_global_option` |
+| Load option tiers | `loadAria2Options()` | `GET /api/aria2/option_tiers` |
+| Set global option | `setAria2Option()` | `POST /api/aria2/change_global_option` |
+| Set per-item option | `setItemAria2Option()` | `POST /api/aria2/change_option` |
+| Set limits | `setAria2Limits()` | `POST /api/aria2/set_limits` |
+| Load per-item options | `loadItemOptions(gid)` | `GET /api/aria2/get_option?gid=X` |
+
+### Active Seeds (Options tab, when distribution enabled)
+
+| Element | Handler | Endpoint |
+|---------|---------|----------|
+| Load torrents | `loadTorrents()` | `GET /api/torrents` |
+| Stop seeding | `stopTorrent(infohash)` | `POST /api/torrents/{infohash}/stop` |
+| Download .torrent | link | `GET /api/torrents/{infohash}.torrent` |
+
 ---
 
 ## Log
@@ -148,7 +170,6 @@ Complete inventory of all triggers in the UI.
 | OpenAPI spec | `openSpec()` | opens `{backend}/api/openapi.yaml` |
 | Run tests | `runTests()` | `GET /api/tests` |
 | API catalog | auto-loaded | `GET /api` |
-| Set aria2 option | `setAria2Option()` | `POST /api/aria2/change_global_option` |
 
 ---
 
