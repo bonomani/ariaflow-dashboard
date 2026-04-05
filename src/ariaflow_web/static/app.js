@@ -1221,9 +1221,18 @@ document.addEventListener('alpine:init', () => {
           return;
         }
         this.actionLogEntries = data.items || [];
+        // Reset stale filters if selected value no longer exists
+        if (this.actionFilter !== 'all' && !this.availableActions.includes(this.actionFilter)) this.actionFilter = 'all';
+        if (this.targetFilter !== 'all' && !this.availableTargets.includes(this.targetFilter)) this.targetFilter = 'all';
       } catch (e) {
         this.actionLogEntries = [];
       }
+    },
+    get availableActions() {
+      return [...new Set(this.actionLogEntries.map((e) => e.action || 'unknown'))].sort();
+    },
+    get availableTargets() {
+      return [...new Set(this.actionLogEntries.map((e) => e.target || 'unknown'))].sort();
     },
     get filteredActionLog() {
       const sessionId = this.state?.session_id || this.lastLifecycle?.session_id || this.lastDeclaration?.session_id || null;

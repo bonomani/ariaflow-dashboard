@@ -576,25 +576,15 @@
           <div class="row mb-md">
             <select x-model="actionFilter" @change="refreshActionLog()">
               <option value="all">All actions</option>
-              <option value="add">Add</option>
-              <option value="preflight">Preflight</option>
-              <option value="run">Run</option>
-              <option value="stop">Stop</option>
-              <option value="ucc">UCC</option>
-              <option value="probe">Probe</option>
-              <option value="pause">Pause</option>
-              <option value="resume">Resume</option>
-              <option value="poll">Poll</option>
-              <option value="complete">Complete</option>
-              <option value="error">Error</option>
+              <template x-for="a in availableActions" :key="a">
+                <option :value="a" x-text="a"></option>
+              </template>
             </select>
             <select x-model="targetFilter" @change="refreshActionLog()">
               <option value="all">All targets</option>
-              <option value="bandwidth">Bandwidth</option>
-              <option value="queue">Queue</option>
-              <option value="queue_item">Queue job</option>
-              <option value="active_transfer">Active transfer</option>
-              <option value="system">System</option>
+              <template x-for="t in availableTargets" :key="t">
+                <option :value="t" x-text="t"></option>
+              </template>
             </select>
             <select x-model="sessionFilter" @change="refreshActionLog()">
               <option value="all">All sessions</option>
