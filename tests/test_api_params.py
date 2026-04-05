@@ -17,6 +17,7 @@ from conftest import start_server, stop_server  # noqa: E402
 
 WEBAPP_PY = Path(__file__).resolve().parents[1] / "src" / "ariaflow_web" / "webapp.py"
 APP_JS = Path(__file__).resolve().parents[1] / "src" / "ariaflow_web" / "static" / "app.js"
+INDEX_HTML = Path(__file__).resolve().parents[1] / "src" / "ariaflow_web" / "static" / "index.html"
 
 
 def _post(url: str, payload: object = None, expect_status: int | None = None) -> dict:
@@ -459,4 +460,143 @@ class TestApiParamCoverage:
         assert duplicates == [], (
             f"Endpoints called from multiple methods (potential duplication):\n"
             + "\n".join(f"  - {d}" for d in duplicates)
+        )
+
+    def test_every_api_method_has_ui_trigger(self) -> None:
+        """Verify every async method that calls an API has a UI trigger in HTML.
+
+        Each method that posts/fetches should be reachable from a @click,
+        @change, @input, x-show, or called from init/_loadPageData.
+        """
+        js = APP_JS.read_text(encoding="utf-8")
+        html = INDEX_HTML.read_text(encoding="utf-8")
+
+        # Find async methods that call _fetch or apiPath
+        api_methods = set()
+        lines = js.splitlines()
+        for i, line in enumerate(lines):
+            if "apiPath(" in line or "_fetch(" in line:
+                for j in range(i, max(0, i - 20), -1):
+                    m = re.match(r"\s+(?:async\s+)?(\w+)\s*\(", lines[j])
+                    if m:
+                        api_methods.add(m.group(1))
+                        break
+
+        # Methods that are internal (called by other methods, not UI)
+        INTERNAL_METHODS = {
+            "_fetch", "_sendAria2Option", "_flushPrefQueue", "refresh",
+            "_statusUrl", "_closeSSE", "_initSSE",
+            "schedulerAction", "loadScheduler", "loadAria2Options",
+            "loadDeclaration", "loadSessionHistory", "loadArchive",
+            "refreshActionLog", "refreshBandwidth", "discoverBackends",
+            "annotateQueueItems", "recordGlobalSpeed", "recordSpeed",
+            "checkNotifications", "saveDeclaration",
+            "pauseDownloads", "resumeDownloads", "itemAction",
+            "apiPath", "newSession", "saveDeclaration",
+        }
+
+        # Check each API method is referenced in HTML or called from init/_loadPageData
+        init_block = js[js.find("init()"):js.find("navigateTo(")]
+        load_block = js[js.find("_loadPageData("):js.find("_loadPageData(") + 500]
+
+        missing = []
+        for method in sorted(api_methods - INTERNAL_METHODS):
+            in_html = method in html
+            in_init = method in init_block
+            in_load = method in load_block
+            called_by_other = any(f"this.{method}(" in js.replace(f"async {method}(", "") for _ in [1])
+            if not (in_html or in_init or in_load):
+                missing.append(method)
+
+        assert missing == [], (
+            f"API methods with no UI trigger or init call:\n"
+            + "\n".join(f"  - {m}" for m in missing)
+        )
+
+    def test_every_preference_has_ui_control(self) -> None:
+        """Verify every backend preference name appears in HTML as a UI control.
+
+        Each preference from contracts.py should have an input, select,
+        or checkbox in the frontend that reads/writes it.
+        """
+        js = APP_JS.read_text(encoding="utf-8")
+        html = INDEX_HTML.read_text(encoding="utf-8")
+
+        # All preference names the frontend reads via getDeclarationPreference
+        EXPECTED_PREFERENCES = [
+            "auto_preflight_on_run",
+            "post_action_rule",
+            "duplicate_active_transfer_action",
+            "max_simultaneous_downloads",
+            "bandwidth_down_free_percent",
+            "bandwidth_down_free_absolute_mbps",
+            "bandwidth_up_free_percent",
+            "bandwidth_up_free_absolute_mbps",
+            "bandwidth_probe_interval_seconds",
+            "aria2_unsafe_options",
+        ]
+
+        # Verify each preference is referenced in JS (getter or setter)
+        missing_js = [p for p in EXPECTED_PREFERENCES if p not in js]
+        assert missing_js == [], (
+            f"Preferences not referenced in app.js:\n"
+            + "\n".join(f"  - {p}" for p in missing_js)
+        )
+
+        # Verify each preference has a corresponding UI control in HTML
+        # (either directly via setBandwidthPref('name',...) or via a getter)
+        pref_getters = {}
+        for p in EXPECTED_PREFERENCES:
+            # Find the getter that reads this preference
+            for m in re.finditer(r"get\s+(\w+)\(\)\s*\{[^}]*" + re.escape(p), js):
+                pref_getters[p] = m.group(1)
+
+        missing_ui = []
+        for p in EXPECTED_PREFERENCES:
+            # Check if preference name appears in HTML (via setBandwidthPref etc.)
+            in_html_direct = p in html
+            # Or if its getter appears in HTML
+            getter = pref_getters.get(p)
+            in_html_getter = getter and getter in html
+            if not (in_html_direct or in_html_getter):
+                missing_ui.append(f"{p} (getter: {getter})")
+
+        assert missing_ui == [], (
+            f"Preferences without UI control in HTML:\n"
+            + "\n".join(f"  - {p}" for p in missing_ui)
+        )
+
+    def test_item_actions_match_backend(self) -> None:
+        """Verify every item action in the UI maps to a real backend endpoint.
+
+        Each action (pause, resume, retry, remove) called via itemAction()
+        or itemToggleAction() must correspond to POST /api/item/{id}/{action}.
+        """
+        js = APP_JS.read_text(encoding="utf-8")
+
+        html = INDEX_HTML.read_text(encoding="utf-8")
+
+        # Actions called via itemAction(id, 'action') in JS and HTML
+        ui_actions = set(re.findall(r"itemAction\([^,]+,\s*['\"](\w+)['\"]", js))
+        ui_actions |= set(re.findall(r"itemAction\([^,]+,\s*['\"](\w+)['\"]", html))
+
+        # Actions in itemToggleAction
+        toggle_actions = set(re.findall(r"this\.itemAction\([^,]+,\s*['\"](\w+)['\"]", js))
+        ui_actions |= toggle_actions
+
+        # Backend-supported actions (from _post_item_action handler)
+        BACKEND_ACTIONS = {"pause", "resume", "remove", "retry"}
+
+        # Every UI action must exist in backend
+        unknown = ui_actions - BACKEND_ACTIONS
+        assert unknown == set(), (
+            f"Item actions in UI not supported by backend:\n"
+            + "\n".join(f"  - {a}" for a in sorted(unknown))
+        )
+
+        # Every backend action should be reachable from UI
+        unreachable = BACKEND_ACTIONS - ui_actions
+        assert unreachable == set(), (
+            f"Backend item actions not reachable from UI:\n"
+            + "\n".join(f"  - {a}" for a in sorted(unreachable))
         )
