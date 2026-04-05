@@ -9,12 +9,3 @@ Reorder hero right panel by information hierarchy. No removals, just reorder:
 **L3 (bottom):** PID / version (web + backend) in collapsible `<details>`
 
 Backend selector + manual add stays at the bottom of the panel.
-
-## Phase 2: Nav grouping
-
-Add visual separators between tab groups. Keep all 7 tabs:
-
-- Runtime: Dashboard / Bandwidth / Service Status
-- Config: Options
-- Debug: Log / Developer
-- Data: Archive
