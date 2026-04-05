@@ -220,6 +220,7 @@ document.addEventListener('alpine:init', () => {
     contractTraceItems: null,
     preflightData: null,
     actionLogEntries: [],
+    webLogEntries: [],
 
     // api discovery
 
@@ -294,7 +295,7 @@ document.addEventListener('alpine:init', () => {
       if (target === 'lifecycle') this.loadLifecycle();
       if (target === 'bandwidth') this.loadDeclaration();
       if (target === 'options') { this.loadDeclaration(); this.loadAria2Options(); this.loadTorrents(); this.loadPeers(); }
-      if (target === 'log') { this.loadDeclaration(); this.refreshActionLog(); this.loadSessionHistory(); }
+      if (target === 'log') { this.loadDeclaration(); this.refreshActionLog(); this.loadSessionHistory(); this.loadWebLog(); }
       if (target === 'archive') this.loadArchive();
     },
 
@@ -1146,6 +1147,15 @@ document.addEventListener('alpine:init', () => {
         if (this.targetFilter !== 'all' && !this.availableTargets.includes(this.targetFilter)) this.targetFilter = 'all';
       } catch (e) {
         this.actionLogEntries = [];
+      }
+    },
+    async loadWebLog() {
+      try {
+        const r = await this._fetch('/api/web/log?limit=100');
+        const data = await r.json();
+        this.webLogEntries = data.items || [];
+      } catch (e) {
+        this.webLogEntries = [];
       }
     },
     get availableActions() {

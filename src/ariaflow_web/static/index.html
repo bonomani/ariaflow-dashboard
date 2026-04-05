@@ -695,6 +695,34 @@
         </div>
       </div>
 
+      <div class="span-12" x-show="page === 'log'">
+        <div class="panel">
+          <div class="section-title">
+            <h2>Web Server Log</h2>
+            <button @click="loadWebLog()">Refresh</button>
+          </div>
+          <div class="list">
+            <template x-if="webLogEntries.length === 0">
+              <div class="text-muted text-sm">No web server log entries.</div>
+            </template>
+            <template x-for="entry in webLogEntries" :key="entry.timestamp + (entry.action || '')">
+              <div class="item">
+                <div class="item-top">
+                  <div class="item-url" x-text="entry.action || 'event'"></div>
+                  <span :class="badgeClass(entry.outcome || 'unknown')" x-text="entry.outcome || 'unknown'"></span>
+                  <span class="text-muted text-sm" x-text="entry.target || ''"></span>
+                </div>
+                <div class="meta">
+                  <span x-show="entry.reason" x-text="entry.reason"></span>
+                  <span x-show="entry.detail" x-text="JSON.stringify(entry.detail)"></span>
+                  <span x-show="entry.timestamp" class="text-muted" x-text="relativeTime(entry.timestamp)"></span>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
       <!-- DEV -->
       <div class="span-6" x-show="page === 'dev'">
         <div class="panel">

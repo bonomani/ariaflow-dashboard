@@ -7,8 +7,10 @@ import threading
 from pathlib import Path
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse, parse_qs
 
 from . import __version__
+from .action_log import load_action_log, record_action
 from .bonjour import discover_http_services
 
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -49,7 +51,8 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self) -> None:  # noqa: N802
-        path = self.path.split("?")[0]
+        parsed = urlparse(self.path)
+        path = parsed.path
         if path in {"/", "/index.html", "/bandwidth", "/lifecycle", "/options", "/log", "/dev", "/archive"}:
             body = INDEX_HTML.encode("utf-8")
             self.send_response(HTTPStatus.OK)
@@ -57,6 +60,7 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+            record_action(action="serve", target="page", outcome="ok", reason=path)
             return
         if path.startswith("/static/"):
             rel = path[len("/static/"):]
@@ -78,7 +82,19 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
             self.wfile.write(data)
             return
         if path == "/api/discovery":
-            self._send_json(discover_http_services())
+            result = discover_http_services()
+            self._send_json(result)
+            items = result.get("items")
+            record_action(
+                action="discover", target="bonjour", outcome="ok" if result.get("available") else "skipped",
+                reason=str(result.get("reason", "")),
+                detail={"count": len(items) if isinstance(items, list) else 0},
+            )
+            return
+        if path == "/api/web/log":
+            qs = parse_qs(parsed.query)
+            limit = min(int(qs.get("limit", ["200"])[0]), 500)
+            self._send_json({"items": load_action_log(limit), "source": "ariaflow-web"})
             return
         self._send_json({"error": "not_found"}, status=404)
 
@@ -91,4 +107,8 @@ def serve(host: str = "127.0.0.1", port: int = 8000, backend_url: str | None = N
     if backend_url:
         with _index_lock:
             INDEX_HTML = _read_index_html(backend_url)
+    record_action(
+        action="start", target="server", outcome="ok",
+        detail={"host": host, "port": port, "backend_url": backend_url or DEFAULT_BACKEND_URL, "version": __version__},
+    )
     return ThreadingHTTPServer((host, port), AriaFlowHandler)

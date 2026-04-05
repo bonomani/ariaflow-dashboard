@@ -96,6 +96,7 @@ COVERAGE_MAP: dict[str, str] = {
     "setAria2Option": "test_api_params.test_aria2_options",
     "loadTorrents": "test_api_params (torrent listing)",
     "loadPeers": "test_api_params (peer discovery)",
+    "loadWebLog": "test_web_log (web server log)",
     "stopTorrent": "test_api_params (torrent stop)",
     "newSession": "test_api_params (new session)",
 }

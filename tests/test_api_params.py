@@ -307,6 +307,7 @@ class TestApiParamCoverage:
         "GET /api/options": "test_options_alias",
         "GET /api/lifecycle": "test_lifecycle",
         "GET /api/discovery": "test_web.py (web server only)",
+        "GET /api/web/log": "test_web_log (web server only)",
         "GET /static/*": "test_static_serving.py (separate file)",
         # POST endpoints
         "POST /api/downloads/add": "test_valid_add + test_add_empty_items",
