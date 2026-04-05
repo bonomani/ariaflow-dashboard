@@ -186,12 +186,14 @@ document.addEventListener('alpine:init', () => {
     },
 
     // bandwidth config getters (names must match backend contracts.py)
-    get bwDownFreePercent() { return Number(this.getDeclarationPreference('bandwidth_down_free_percent') ?? 20); },
-    get bwDownFreeAbsolute() { return Number(this.getDeclarationPreference('bandwidth_down_free_absolute_mbps') ?? 0); },
-    get bwUpFreePercent() { return Number(this.getDeclarationPreference('bandwidth_up_free_percent') ?? 50); },
-    get bwUpFreeAbsolute() { return Number(this.getDeclarationPreference('bandwidth_up_free_absolute_mbps') ?? 0); },
-    get bwProbeInterval() { return Number(this.getDeclarationPreference('bandwidth_probe_interval_seconds') ?? 180); },
-    get bwConcurrency() { return Number(this.getDeclarationPreference('max_simultaneous_downloads') ?? 1); },
+    // --- preference getters (numeric) ---
+    _numPref(name, def) { return Number(this.getDeclarationPreference(name) ?? def); },
+    get bwDownFreePercent() { return this._numPref('bandwidth_down_free_percent', 20); },
+    get bwDownFreeAbsolute() { return this._numPref('bandwidth_down_free_absolute_mbps', 0); },
+    get bwUpFreePercent() { return this._numPref('bandwidth_up_free_percent', 50); },
+    get bwUpFreeAbsolute() { return this._numPref('bandwidth_up_free_absolute_mbps', 0); },
+    get bwProbeInterval() { return this._numPref('bandwidth_probe_interval_seconds', 180); },
+    get bwConcurrency() { return this._numPref('max_simultaneous_downloads', 1); },
     get bwDedupValue() { return this.getDeclarationPreference('duplicate_active_transfer_action') || 'remove'; },
 
     // options getters
@@ -296,84 +298,10 @@ document.addEventListener('alpine:init', () => {
     },
 
     // --- formatting ---
-    formatEta(totalLength, completedLength, speed) {
-      const total = Number(totalLength || 0);
-      const done = Number(completedLength || 0);
-      const rate = Number(speed || 0);
-      if (rate <= 0 || total <= done) return null;
-      const secs = Math.round((total - done) / rate);
-      if (secs < 60) return `${secs}s`;
-      if (secs < 3600) return `${Math.floor(secs / 60)}m ${secs % 60}s`;
-      const h = Math.floor(secs / 3600);
-      const m = Math.floor((secs % 3600) / 60);
-      return `${h}h ${m}m`;
-    },
-    formatBytes(value) {
-      if (value == null) return '-';
-      let size = Number(value);
-      const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
-      for (const unit of units) {
-        if (Math.abs(size) < 1024 || unit === units[units.length - 1]) {
-          return unit === 'B' ? `${Math.round(size)} ${unit}` : `${size.toFixed(1)} ${unit}`;
-        }
-        size /= 1024;
-      }
-      return `${size.toFixed(1)} TiB`;
-    },
-    formatRate(value) {
-      if (value == null) return '-';
-      return `${this.formatBytes(value)}/s`;
-    },
-    formatMbps(value) {
-      if (value == null) return '-';
-      return `${value} Mbps`;
-    },
-    humanCap(value) {
-      if (value == null) return '-';
-      const text = String(value).trim();
-      if (!text || text === '0' || text === '0M' || text === '0 Mbps' || text === '0 Mbps/s') return 'unlimited';
-      return text;
-    },
-    shortName(value) {
-      if (!value) return '(no name)';
-      try {
-        const url = new URL(value);
-        const parts = url.pathname.split('/').filter(Boolean);
-        return parts.length ? parts[parts.length - 1] : url.hostname;
-      } catch (err) {
-        const parts = value.split('/').filter(Boolean);
-        return parts.length ? parts[parts.length - 1] : value;
-      }
-    },
-    relativeTime(value) {
-      if (!value) return '-';
-      const now = Date.now();
-      const then = new Date(value).getTime();
-      if (isNaN(then)) return value;
-      const diff = Math.floor((now - then) / 1000);
-      if (diff < 0) return value;
-      if (diff < 60) return 'just now';
-      if (diff < 3600) return Math.floor(diff / 60) + ' min ago';
-      if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
-      return Math.floor(diff / 86400) + 'd ago';
-    },
-    timestampLabel(value) { return value ? this.relativeTime(value) : '-'; },
+    // --- formatters (delegated to formatters.js) ---
+    formatEta, formatBytes, formatRate, formatMbps, humanCap, shortName,
+    relativeTime, timestampLabel, badgeClass, sessionLabel,
 
-    // --- badge ---
-    badgeClass(status) {
-      if (['done', 'converged', 'ok', 'complete'].includes(status)) return 'badge good';
-      if (['error', 'failed', 'missing', 'stopped'].includes(status)) return 'badge bad';
-      if (['paused', 'queued', 'waiting', 'unchanged', 'skipped', 'cancelled'].includes(status)) return 'badge warn';
-      if (status === 'discovering') return 'badge';
-      return 'badge';
-    },
-
-    // --- state labels ---
-    sessionLabel(state) {
-      if (state?.session_id && !state?.session_closed_at) return `current ${String(state.session_id).slice(0, 8)}`;
-      if (state?.session_id && state?.session_closed_at) return `closed ${String(state.session_id).slice(0, 8)}`;
-      return '-';
-    },
     schedulerStateLabel(state, reachable = true) {
       if (!reachable) return 'offline';
       if (state?.stop_requested) return 'stopping';
@@ -392,49 +320,21 @@ document.addEventListener('alpine:init', () => {
       return `Backend unavailable · ${error}`;
     },
 
-    // --- sparklines ---
+    // --- sparklines (rendering delegated to sparkline.js) ---
     recordSpeed(itemId, speed) {
       if (!itemId) return;
       const current = this.speedHistory[itemId] || [];
       const updated = [...current, Number(speed || 0)];
       this.speedHistory = { ...this.speedHistory, [itemId]: updated.length > this.SPEED_HISTORY_MAX ? updated.slice(-this.SPEED_HISTORY_MAX) : updated };
     },
-    renderSparkline(itemId) {
-      const data = this.speedHistory[itemId];
-      if (!data || data.length < 2) return '';
-      const max = Math.max(...data, 1);
-      const w = 120, h = 28;
-      const step = w / (data.length - 1);
-      const points = data.map((v, i) => `${(i * step).toFixed(1)},${(h - (v / max) * (h - 2) - 1).toFixed(1)}`).join(' ');
-      return `<svg width="${w}" height="${h}" style="display:block;margin-top:6px;" viewBox="0 0 ${w} ${h}">
-        <polyline points="${points}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/>
-      </svg>`;
-    },
+    renderSparkline(itemId) { return renderItemSparkline(this.speedHistory[itemId]); },
     recordGlobalSpeed(dlSpeed, ulSpeed) {
       const dlUpdated = [...this.globalSpeedHistory, Number(dlSpeed || 0)];
       this.globalSpeedHistory = dlUpdated.length > this.GLOBAL_SPEED_MAX ? dlUpdated.slice(-this.GLOBAL_SPEED_MAX) : dlUpdated;
       const ulUpdated = [...this.globalUploadHistory, Number(ulSpeed || 0)];
       this.globalUploadHistory = ulUpdated.length > this.GLOBAL_SPEED_MAX ? ulUpdated.slice(-this.GLOBAL_SPEED_MAX) : ulUpdated;
     },
-    _sparklinePoints(data, max, w, h) {
-      const step = w / (data.length - 1);
-      return data.map((v, i) => `${(i * step).toFixed(1)},${(h - (v / max) * (h - 2) - 1).toFixed(1)}`).join(' ');
-    },
-    get globalSparklineSvg() {
-      const dl = this.globalSpeedHistory;
-      const ul = this.globalUploadHistory;
-      if (dl.length < 2) return '';
-      const max = Math.max(...dl, ...ul, 1);
-      const w = 200, h = 40;
-      const dlPoints = this._sparklinePoints(dl, max, w, h);
-      const ulPoints = ul.length >= 2 ? this._sparklinePoints(ul, max, w, h) : '';
-      const peakDl = this.formatRate(Math.max(...dl));
-      const peakUl = Math.max(...ul) > 0 ? ` ↑ ${this.formatRate(Math.max(...ul))}` : '';
-      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;">
-        <polyline points="${dlPoints}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/>
-        ${ulPoints ? `<polyline points="${ulPoints}" fill="none" stroke="var(--accent-2)" stroke-width="1" stroke-linejoin="round" stroke-dasharray="3,2"/>` : ''}
-      </svg><span style="font-size:0.78rem;color:var(--muted);">peak ↓ ${peakDl}${peakUl}</span>`;
-    },
+    get globalSparklineSvg() { return renderGlobalSparkline(this.globalSpeedHistory, this.globalUploadHistory); },
 
     // --- notifications ---
     checkNotifications(items) {
@@ -1398,16 +1298,17 @@ document.addEventListener('alpine:init', () => {
       } catch (e) { console.warn('loadAria2Tiers:', e.message); }
     },
     get aria2UnsafeEnabled() { return !!this.getDeclarationPreference('aria2_unsafe_options'); },
+    // numeric preference getters (using _numPref helper)
     // retry preferences
-    get maxRetries() { return Number(this.getDeclarationPreference('max_retries') ?? 3); },
-    get retryBackoff() { return Number(this.getDeclarationPreference('retry_backoff_seconds') ?? 30); },
-    get aria2MaxTries() { return Number(this.getDeclarationPreference('aria2_max_tries') ?? 5); },
-    get aria2RetryWait() { return Number(this.getDeclarationPreference('aria2_retry_wait') ?? 3); },
+    get maxRetries() { return this._numPref('max_retries', 3); },
+    get retryBackoff() { return this._numPref('retry_backoff_seconds', 30); },
+    get aria2MaxTries() { return this._numPref('aria2_max_tries', 5); },
+    get aria2RetryWait() { return this._numPref('aria2_retry_wait', 3); },
     // distribution preferences
     get distributeEnabled() { return !!this.getDeclarationPreference('distribute_completed_downloads'); },
-    get distributeSeedRatio() { return Number(this.getDeclarationPreference('distribute_seed_ratio') ?? 1.0); },
-    get distributeMaxSeedHours() { return Number(this.getDeclarationPreference('distribute_max_seed_hours') ?? 24); },
-    get distributeMaxActiveSeeds() { return Number(this.getDeclarationPreference('distribute_max_active_seeds') ?? 3); },
+    get distributeSeedRatio() { return this._numPref('distribute_seed_ratio', 1.0); },
+    get distributeMaxSeedHours() { return this._numPref('distribute_max_seed_hours', 24); },
+    get distributeMaxActiveSeeds() { return this._numPref('distribute_max_active_seeds', 3); },
     get internalTrackerUrl() { return this.getDeclarationPreference('internal_tracker_url') || ''; },
     setAria2UnsafeOptions(enabled) {
       this._queuePrefChange('aria2_unsafe_options', !!enabled, [false, true], 'allow setting any aria2 option via API');

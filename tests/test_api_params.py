@@ -50,6 +50,18 @@ def _get(url: str, expect_status: int | None = None) -> dict:
         return result
 
 
+def _assert_get_ok(url: str) -> dict:
+    data = _get(url)
+    assert isinstance(data, dict)
+    return data
+
+
+def _assert_post_ok(url: str, payload: object = None) -> dict:
+    data = _post(url, payload)
+    assert data.get("ok") is True
+    return data
+
+
 @pytest.fixture(scope="module")
 def web_server():
     _, backend_url, web_srv, backend_srv, patches, _ = start_server()
@@ -67,33 +79,27 @@ class TestGetEndpoints:
         assert "items" in data
 
     def test_log_default_limit(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/log")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/log")
 
     def test_log_custom_limit(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/log?limit=10")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/log?limit=10")
 
     def test_log_limit_clamped_high(self, web_server: str) -> None:
         # limit > 500 should be clamped
-        data = _get(f"{web_server}/api/log?limit=9999")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/log?limit=9999")
 
     def test_log_limit_clamped_low(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/log?limit=0")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/log?limit=0")
 
     def test_log_limit_invalid(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/log?limit=abc")
-        assert isinstance(data, dict)  # should fallback to 120
+        _assert_get_ok(f"{web_server}/api/log?limit=abc")  # should fallback to 120
 
     def test_api_discovery(self, web_server: str) -> None:
         data = _get(f"{web_server}/api")
         assert "name" in data
 
     def test_bandwidth(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/bandwidth")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/bandwidth")
 
     def test_declaration(self, web_server: str) -> None:
         data = _get(f"{web_server}/api/declaration")
@@ -104,8 +110,7 @@ class TestGetEndpoints:
         assert "uic" in data
 
     def test_lifecycle(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/lifecycle")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/lifecycle")
 
     def test_unknown_get_returns_404(self, web_server: str) -> None:
         data = _get(f"{web_server}/api/nonexistent", expect_status=404)
@@ -118,8 +123,7 @@ class TestGetEndpoints:
 
 class TestPostAdd:
     def test_valid_add(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/downloads/add", {"items": [{"url": "http://example.com/f"}]})
-        assert data.get("ok") is True
+        _assert_post_ok(f"{web_server}/api/downloads/add", {"items": [{"url": "http://example.com/f"}]})
 
     def test_add_empty_items(self, web_server: str) -> None:
         data = _post(f"{web_server}/api/downloads/add", {"items": []})
@@ -128,8 +132,7 @@ class TestPostAdd:
 
 class TestPostRun:
     def test_valid_resume(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/scheduler/resume", {})
-        assert data.get("ok") is True
+        _assert_post_ok(f"{web_server}/api/scheduler/resume", {})
 
     def test_valid_pause(self, web_server: str) -> None:
         data = _post(f"{web_server}/api/scheduler/pause", {})
@@ -142,8 +145,7 @@ class TestPostRun:
 
 class TestPostSession:
     def test_valid_new_session(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/sessions/new", {"action": "new"})
-        assert data.get("ok") is True
+        _assert_post_ok(f"{web_server}/api/sessions/new", {"action": "new"})
 
 
 
@@ -164,20 +166,16 @@ class TestPostDeclaration:
 
 class TestPostItem:
     def test_valid_pause(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/downloads/abc123/pause")
-        assert data.get("ok") is True
+        _assert_post_ok(f"{web_server}/api/downloads/abc123/pause")
 
     def test_valid_resume(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/downloads/abc123/resume")
-        assert data.get("ok") is True
+        _assert_post_ok(f"{web_server}/api/downloads/abc123/resume")
 
     def test_valid_remove(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/downloads/abc123/remove")
-        assert data.get("ok") is True
+        _assert_post_ok(f"{web_server}/api/downloads/abc123/remove")
 
     def test_valid_retry(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/downloads/abc123/retry")
-        assert data.get("ok") is True
+        _assert_post_ok(f"{web_server}/api/downloads/abc123/retry")
 
     def test_invalid_action(self, web_server: str) -> None:
         data = _post(f"{web_server}/api/downloads/abc123/destroy", expect_status=404)
@@ -194,8 +192,7 @@ class TestPostItem:
 
 class TestPostLifecycle:
     def test_valid_lifecycle_action(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/lifecycle/ariaflow/install")
-        assert data.get("ok") is True
+        _assert_post_ok(f"{web_server}/api/lifecycle/ariaflow/install")
 
     def test_lifecycle_missing_fields(self, web_server: str) -> None:
         # Should still work — empty strings
@@ -213,12 +210,10 @@ class TestPostMisc:
         assert isinstance(data, dict)
 
     def test_bandwidth_probe(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/bandwidth/probe")
-        assert data.get("ok") is True
+        _assert_post_ok(f"{web_server}/api/bandwidth/probe")
 
     def test_archive(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/downloads/archive")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/downloads/archive")
 
     def test_events_endpoint_exists(self, web_server: str) -> None:
         """SSE endpoint returns 502 when backend is mocked (no real stream)."""
@@ -228,56 +223,44 @@ class TestPostMisc:
             pass  # Expected — mock backend can't stream SSE
 
     def test_scheduler(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/scheduler")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/scheduler")
 
     def test_api_discovery(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api")
 
     def test_sessions(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/sessions")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/sessions")
 
     def test_session_stats(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/sessions/stats")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/sessions/stats")
 
     def test_health(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/health")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/health")
 
     def test_aria2_get_option(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/aria2/get_option?gid=dummy")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/aria2/get_option?gid=dummy")
 
     def test_aria2_get_global_option(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/aria2/get_global_option")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/aria2/get_global_option")
 
     def test_aria2_option_tiers(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/aria2/option_tiers")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/aria2/option_tiers")
 
     def test_aria2_options(self, web_server: str) -> None:
         data = _post(f"{web_server}/api/aria2/change_global_option", {"max-concurrent-downloads": "5"})
         assert isinstance(data, dict)
 
     def test_aria2_change_option(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/aria2/change_option", {"gid": "abc", "max-download-limit": "1M"})
-        assert data.get("ok") is True
+        _assert_post_ok(f"{web_server}/api/aria2/change_option", {"gid": "abc", "max-download-limit": "1M"})
 
     def test_aria2_set_limits(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/aria2/set_limits", {"max_download_speed": "5M"})
-        assert data.get("ok") is True
+        _assert_post_ok(f"{web_server}/api/aria2/set_limits", {"max_download_speed": "5M"})
 
     def test_torrents(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/torrents")
-        assert isinstance(data, dict)
+        _assert_get_ok(f"{web_server}/api/torrents")
 
     def test_torrent_stop(self, web_server: str) -> None:
-        data = _post(f"{web_server}/api/torrents/abc123deadbeef/stop")
-        assert data.get("ok") is True
+        _assert_post_ok(f"{web_server}/api/torrents/abc123deadbeef/stop")
 
     def test_cleanup(self, web_server: str) -> None:
         data = _post(f"{web_server}/api/downloads/cleanup")
