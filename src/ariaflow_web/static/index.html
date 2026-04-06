@@ -54,10 +54,11 @@
           <div class="chip badge warn" x-show="backendsDiscovered === false">No backend discovered (local fallback)</div>
           <div class="chip badge good" x-show="backendsDiscovered === true" x-text="discoveryText"></div>
         </div>
-        <!-- L2: Session + cap + discovery -->
+        <!-- L2: Session + cap + disk -->
         <div class="chips mt-sm">
           <div class="chip">Session <strong x-text="sessionIdText + (sessionStartedText !== '-' ? ' · ' + sessionStartedText : '')">-</strong></div>
           <div class="chip">Cap <strong x-text="downloadCapText">-</strong></div>
+          <div class="chip" :class="{ 'badge warn': !diskOk }">Disk <strong x-text="diskUsageText">-</strong></div>
         </div>
         <!-- L3: PID / version (collapsible) -->
         <details class="mt-sm">

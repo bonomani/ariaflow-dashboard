@@ -133,6 +133,19 @@ document.addEventListener('alpine:init', () => {
       if (!this.backendReachable) return '-';
       return this.lastStatus?.ariaflow?.pid || 'unreported';
     },
+    lastHealth: null,
+    async loadHealth() {
+      try {
+        const r = await this._fetch(this.apiPath('/api/health'), {}, 3000);
+        if (r.ok) this.lastHealth = await r.json();
+      } catch (e) { /* ignore */ }
+    },
+    get diskUsageText() {
+      const h = this.lastHealth;
+      if (!h || h.disk_usage_percent == null) return '-';
+      return `${h.disk_usage_percent}%`;
+    },
+    get diskOk() { return this.lastHealth?.disk_ok !== false; },
     get downloadCapText() {
       if (!this.backendReachable) return '-';
       const bw = this.lastStatus?.bandwidth;
@@ -295,7 +308,7 @@ document.addEventListener('alpine:init', () => {
       lifecycle: ['loadLifecycle'],
     },
     _TAB_SLOW: {
-      dashboard: ['loadDeclaration'],
+      dashboard: ['loadDeclaration', 'loadHealth'],
       log: ['loadSessionHistory'],
       options: ['loadDeclaration', 'loadAria2Options', 'loadTorrents', 'loadPeers'],
       bandwidth: ['loadDeclaration'],
@@ -327,7 +340,7 @@ document.addEventListener('alpine:init', () => {
       if (slow) this._slowTimer = setInterval(() => this._runTabMethods(slow), slowMs);
     },
     _loadPageData(target) {
-      if (target === 'dashboard') { this.refresh(); this.loadDeclaration().catch((e) => console.warn(e.message)); }
+      if (target === 'dashboard') { this.refresh(); this.loadDeclaration().catch((e) => console.warn(e.message)); this.loadHealth(); }
       if (target === 'lifecycle') this.loadLifecycle();
       if (target === 'bandwidth') this.loadDeclaration();
       if (target === 'options') { this.loadDeclaration(); this.loadAria2Options(); this.loadTorrents(); this.loadPeers(); }

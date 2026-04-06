@@ -452,7 +452,7 @@ class TestApiParamCoverage:
                 endpoint_callers.setdefault(path, set()).add(method)
 
         # /api/declaration is expected to be called from multiple methods
-        MULTI_CALLER_ALLOWED = {"/api/declaration"}
+        MULTI_CALLER_ALLOWED = {"/api/declaration", "/api/health"}
 
         duplicates = []
         for path, callers in sorted(endpoint_callers.items()):
@@ -675,6 +675,13 @@ class TestBackendFieldCoverage:
         "/api/torrents": {
             "infohash", "name", "seed_gid", "started_at", "item_id",
         },
+        "/api/health": {
+            "status", "version", "disk_usage_percent", "disk_ok",
+        },
+        "/api/downloads/archive": {
+            # Same shape as status items — covered by /api/status above
+            "items",
+        },
     }
 
     # Fields that are generic wire format or internal — skip checking.
@@ -728,4 +735,53 @@ class TestBackendFieldCoverage:
         assert len(self.KNOWN_UNUSED) == 0, (
             f"KNOWN_UNUSED has {len(self.KNOWN_UNUSED)} entries (expected 0). "
             "Update this count when wiring new fields or adding new gaps."
+        )
+
+    def test_expected_fields_covers_all_backend_endpoints(self) -> None:
+        """Every GET endpoint in openapi.yaml must have an EXPECTED_FIELDS entry.
+
+        This prevents the bug where we forget to list an endpoint's fields and
+        silently miss backend additions. If a GET endpoint is listed in openapi
+        but not in EXPECTED_FIELDS, add an entry (use an empty set if the
+        endpoint has no user-visible fields).
+        """
+        openapi_path = Path(__file__).resolve().parents[2] / "ariaflow" / "src" / "aria_queue" / "openapi.yaml"
+        if not openapi_path.exists():
+            pytest.skip("Backend openapi.yaml not available")
+        try:
+            import yaml
+        except ImportError:
+            pytest.skip("PyYAML not installed")
+        spec = yaml.safe_load(openapi_path.read_text(encoding="utf-8"))
+
+        # Endpoints that don't return user-visible data (admin/meta/parameterized)
+        SKIP_ENDPOINTS = {
+            "/api",  # API discovery — self-descriptive
+            "/api/docs",  # HTML page
+            "/api/openapi.yaml",  # YAML file
+            "/api/tests",  # test output, handled separately
+            "/api/events",  # SSE stream, not a JSON response
+            "/api/aria2/get_global_option",  # dynamic keys
+            "/api/aria2/get_option",  # dynamic keys
+            "/api/aria2/option_tiers",  # dynamic structure
+            "/api/peers",  # already wired, no user-visible fields beyond what shown
+        }
+
+        backend_gets = set()
+        for path, methods in (spec.get("paths") or {}).items():
+            if not isinstance(methods, dict):
+                continue
+            if "get" in methods and "{" not in path:  # Skip parameterized routes
+                backend_gets.add(path)
+
+        missing = sorted(
+            ep for ep in backend_gets
+            if ep not in self.EXPECTED_FIELDS
+            and ep not in SKIP_ENDPOINTS
+        )
+        assert missing == [], (
+            f"Backend GET endpoints without EXPECTED_FIELDS entry:\n"
+            + "\n".join(f"  - {ep}" for ep in missing)
+            + "\n\nAdd each endpoint to EXPECTED_FIELDS (use empty set if no "
+            "user-visible fields) or to SKIP_ENDPOINTS if admin/meta only."
         )
