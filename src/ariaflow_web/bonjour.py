@@ -8,14 +8,16 @@ from __future__ import annotations
 import platform
 import re
 import shutil
+import socket
 import subprocess
 
 
 _SERVICE_TYPE = "_ariaflow._tcp"
 _DOMAIN = "local"
 
-# dns-sd -B output: "Add ... _ariaflow._tcp. local. <instance name>"
-_BROWSE_RE = re.compile(r"\bAdd\b.*\s_ariaflow\._tcp\.\s+\S+\s+(.*\S)\s*$")
+# dns-sd -B output columns: Timestamp A/R Flags if Domain ServiceType InstanceName
+# Example: " 1:14:41.123  Add  3  4  local.  _ariaflow._tcp.  bc's Mac16,11 AriaFlow"
+_BROWSE_RE = re.compile(r"\bAdd\b.*\s_ariaflow\._tcp\.\s+(.*\S)\s*$")
 # dns-sd -L output: "can be reached at <host>:<port>"
 _RESOLVE_HOST_RE = re.compile(r"can be reached at ([^\s]+)\.\s*:(\d+)")
 # TXT record fields
@@ -40,19 +42,71 @@ def _backend() -> str | None:
 
 
 def _run_timeout(cmd: list[str], timeout: float) -> str:
-    """Run a command that never terminates on its own (dns-sd style)."""
+    """Run a long-running command (e.g. dns-sd) and collect its output for `timeout` seconds.
+
+    Uses Popen + line-by-line read in a background thread so we reliably
+    capture partial output even when the process never exits.
+    """
+    import threading
+    import time as _time
     try:
-        completed = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
-        return (completed.stdout or "") + "\n" + (completed.stderr or "")
-    except subprocess.TimeoutExpired as exc:
-        stdout = exc.stdout.decode("utf-8", errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
-        stderr = exc.stderr.decode("utf-8", errors="replace") if isinstance(exc.stderr, bytes) else (exc.stderr or "")
-        return stdout + "\n" + stderr
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,  # line-buffered
+        )
+    except (FileNotFoundError, PermissionError):
+        return ""
+
+    lines: list[str] = []
+
+    def _reader(stream) -> None:
+        try:
+            for line in iter(stream.readline, ""):
+                lines.append(line)
+        except Exception:
+            pass
+
+    t_out = threading.Thread(target=_reader, args=(proc.stdout,), daemon=True)
+    t_err = threading.Thread(target=_reader, args=(proc.stderr,), daemon=True)
+    t_out.start()
+    t_err.start()
+
+    _time.sleep(timeout)
+
+    try:
+        proc.terminate()
+        proc.wait(timeout=1)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        try:
+            proc.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            pass
+
+    t_out.join(timeout=0.5)
+    t_err.join(timeout=0.5)
+    return "".join(lines)
 
 
 def _parse_txt(output: str) -> dict[str, str]:
     """Extract TXT record key=value pairs from dns-sd or avahi output."""
     return dict(_TXT_RE.findall(output))
+
+
+def _resolve_to_ip(host: str) -> str | None:
+    """Resolve a .local hostname to an IPv4 address. Returns None if resolution fails."""
+    try:
+        # Prefer IPv4 for URL building; browsers have issues with link-local IPv6
+        results = socket.getaddrinfo(host, None, socket.AF_INET, socket.SOCK_STREAM)
+        if results:
+            addr = results[0][4][0]
+            return str(addr) if addr else None
+    except (socket.gaierror, OSError):
+        pass
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -86,11 +140,16 @@ def _dnssd_resolve(name: str, timeout: float) -> dict[str, object] | None:
             path = txt.get("path", "/")
             tls = txt.get("tls", "0")
             scheme = "https" if tls == "1" else "http"
+            # Resolve .local hostname to IP — works in networking contexts
+            # where mDNS hostname resolution is unavailable (WSL, containers).
+            ip = _resolve_to_ip(host) if host.endswith(".local") else host
+            url_host = ip or host
             return {
                 "name": name,
                 "host": host,
+                "ip": ip,
                 "port": port,
-                "url": f"{scheme}://{host}:{port}",
+                "url": f"{scheme}://{url_host}:{port}",
                 "path": path,
                 "role": txt.get("role"),
                 "product": txt.get("product"),
@@ -139,21 +198,24 @@ def _avahi_discover(timeout: float) -> list[dict[str, object]]:
             continue
         name = match.group(1)
         host = match.group(2).rstrip(".")
+        ip = match.group(3)  # avahi-browse already resolved to IP
         port = int(match.group(4))
         txt_raw = match.group(5)
         txt = _parse_txt(txt_raw)
-        key = f"{host}:{port}"
+        key = f"{ip}:{port}"
         if key in seen:
             continue
         seen.add(key)
         path = txt.get("path", "/")
         tls = txt.get("tls", "0")
         scheme = "https" if tls == "1" else "http"
+        url_host = ip or host
         items.append({
             "name": name,
             "host": host,
+            "ip": ip,
             "port": port,
-            "url": f"{scheme}://{host}:{port}",
+            "url": f"{scheme}://{url_host}:{port}",
             "path": path,
             "role": txt.get("role"),
             "product": txt.get("product"),
