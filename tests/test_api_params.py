@@ -635,32 +635,19 @@ class TestBackendFieldCoverage:
     # Key: "field_name" (without endpoint prefix — applies to any endpoint).
     # Value: reason.
     KNOWN_UNUSED: dict[str, str] = {
-        # /api — API discovery endpoint
-        "endpoints": "FE-13: API catalog not displayed in UI",
-        # /api/bandwidth — probe diagnostics not shown
-        "cap_bytes_per_sec": "FE-13: raw bytes/sec, we show Mbps",
-        "last_probe": "FE-13: probe payload not displayed",
-        "last_probe_at": "FE-13: probe timestamp not displayed",
-        # /api/declaration
-        "updated_at": "FE-13: declaration mtime not displayed",
-        # /api/health — server metrics not displayed in UI
-        "bytes_received_total": "FE-13: server metric",
-        "bytes_sent_total": "FE-13: server metric",
-        "errors_total": "FE-13: server metric",
-        "requests_total": "FE-13: server metric",
-        "sse_clients": "FE-13: server metric",
-        "uptime_seconds": "FE-13: server metric",
-        # /api/lifecycle
-        "homebrew": "FE-13: homebrew provider details not displayed",
+        # /api — API catalog already covered by Swagger link in Developer tab
+        "endpoints": "Intentional: API catalog shown via Swagger UI link",
+        # /api/bandwidth — derivable from cap_mbps
+        "cap_bytes_per_sec": "Intentional: redundant with cap_mbps",
+        # /api/lifecycle — provider-specific detail
+        "homebrew": "Intentional: provider-specific detail not user-facing",
         # /api/sessions/stats — alternate byte names
-        "bytes_downloaded": "FE-13: we show bytes_completed instead",
-        "bytes_uploaded": "FE-13: we show bytes_completed instead",
-        # /api/tests — subprocess output wrapping
-        "returncode": "FE-13: we show pass/fail summary instead",
-        "stderr": "FE-13: test stderr not displayed",
-        "stdout": "FE-13: test stdout not displayed",
-        # /api/status components
-        "active_url": "FE-13: we show per-item URL instead of scheduler-level active_url",
+        "bytes_downloaded": "Intentional: bytes_completed is the display field",
+        "bytes_uploaded": "Intentional: bytes_completed is the display field",
+        # /api/tests — already covered by pass/fail icon
+        "returncode": "Intentional: pass/fail icon already conveys it",
+        # /api/status component: EngineState
+        "active_url": "Intentional: per-item URL shown instead of scheduler-level active_url",
     }
 
     @staticmethod
@@ -780,8 +767,8 @@ class TestBackendFieldCoverage:
 
     def test_known_unused_count_is_stable(self) -> None:
         """Guard: track how many fields are intentionally unused."""
-        assert len(self.KNOWN_UNUSED) == 18, (
-            f"KNOWN_UNUSED has {len(self.KNOWN_UNUSED)} entries (expected 18). "
+        assert len(self.KNOWN_UNUSED) == 7, (
+            f"KNOWN_UNUSED has {len(self.KNOWN_UNUSED)} entries (expected 7). "
             "Update this count when wiring new fields or adding new gaps."
         )
 

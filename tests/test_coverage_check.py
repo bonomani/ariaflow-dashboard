@@ -97,6 +97,7 @@ COVERAGE_MAP: dict[str, str] = {
     "loadTorrents": "test_api_params (torrent listing)",
     "loadPeers": "test_api_params (peer discovery)",
     "loadWebLog": "test_web_log (web server log)",
+    "loadHealth": "test_health (server metrics + disk)",
     "stopTorrent": "test_api_params (torrent stop)",
     "newSession": "test_api_params (new session)",
 }

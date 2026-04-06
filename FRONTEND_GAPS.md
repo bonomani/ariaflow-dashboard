@@ -1,28 +1,6 @@
 # Frontend Gaps
 
-## Open
-
-### FE-13: 18 backend fields not displayed
-
-Auto-discovered by `tests/test_api_params.py::TestBackendFieldCoverage` after
-the field coverage test was switched to auto-discover from `openapi.yaml`.
-These fields are currently in `KNOWN_UNUSED` with reasons:
-
-| Field | Source | Reason |
-|-------|--------|--------|
-| `endpoints` | `/api` | API catalog not displayed |
-| `cap_bytes_per_sec`, `last_probe`, `last_probe_at` | `/api/bandwidth` | Probe diagnostics not shown |
-| `updated_at` | `/api/declaration` | Declaration mtime not displayed |
-| `bytes_received_total`, `bytes_sent_total`, `errors_total`, `requests_total`, `sse_clients`, `uptime_seconds` | `/api/health` | Server metrics not displayed |
-| `homebrew` | `/api/lifecycle` | Homebrew provider details not displayed |
-| `bytes_downloaded`, `bytes_uploaded` | `/api/sessions/stats` | We show `bytes_completed` instead |
-| `returncode`, `stderr`, `stdout` | `/api/tests` | Summary only, not raw subprocess output |
-| `active_url` | `EngineState` component | Per-item URL shown instead |
-
-**Priority:** low — these are diagnostic/meta fields, no critical data loss.
-Each is documented in `KNOWN_UNUSED` in `test_api_params.py`.
-
-**Blocked by:** nothing (frontend-only work).
+*No open gaps.*
 
 ---
 
@@ -45,3 +23,4 @@ Each is documented in `KNOWN_UNUSED` in `test_api_params.py`.
 | FE-10: New Session button | Phase 10 |
 | FE-11: Download .torrent file | Phase 10 |
 | FE-12: 22 unused backend fields wired | Phase 12 |
+| FE-13: 11 of 18 unused fields wired (Server Metrics panel, probe diagnostics, declaration mtime, test stdout/stderr); 7 kept in KNOWN_UNUSED with documented rationale | Phase 13 |

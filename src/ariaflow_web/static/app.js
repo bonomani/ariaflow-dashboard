@@ -146,6 +146,13 @@ document.addEventListener('alpine:init', () => {
       return `${h.disk_usage_percent}%`;
     },
     get diskOk() { return this.lastHealth?.disk_ok !== false; },
+    get healthUptimeText() {
+      const s = this.lastHealth?.uptime_seconds;
+      if (s == null) return '-';
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      return h > 0 ? `${h}h ${m}m` : `${m}m`;
+    },
     get downloadCapText() {
       if (!this.backendReachable) return '-';
       const bw = this.lastStatus?.bandwidth;
@@ -247,6 +254,8 @@ document.addEventListener('alpine:init', () => {
     // test suite
     testRunning: false,
     testSummaryVisible: false,
+    lastTestStdout: '',
+    lastTestStderr: '',
     testBadgeText: '-',
     testBadgeClass: 'badge',
     testCountsText: '-',
@@ -309,6 +318,7 @@ document.addEventListener('alpine:init', () => {
     },
     _TAB_SLOW: {
       dashboard: ['loadDeclaration', 'loadHealth'],
+      dev: ['loadHealth'],
       log: ['loadSessionHistory'],
       options: ['loadDeclaration', 'loadAria2Options', 'loadTorrents', 'loadPeers'],
       bandwidth: ['loadDeclaration'],
@@ -345,6 +355,7 @@ document.addEventListener('alpine:init', () => {
       if (target === 'bandwidth') this.loadDeclaration();
       if (target === 'options') { this.loadDeclaration(); this.loadAria2Options(); this.loadTorrents(); this.loadPeers(); }
       if (target === 'log') { this.loadDeclaration(); this.refreshActionLog(); this.loadSessionHistory(); this.loadWebLog(); }
+      if (target === 'dev') this.loadHealth();
       if (target === 'archive') this.loadArchive();
     },
 
@@ -1496,6 +1507,8 @@ document.addEventListener('alpine:init', () => {
           ? 'No tests found — backend may be running from a packaged install without test files'
           : `${passed} passed, ${failed} failed, ${errors} errors — ${total} total`;
         this.testResults = data.tests || data.results || [];
+        this.lastTestStdout = data.stdout || '';
+        this.lastTestStderr = data.stderr || '';
         if (!this.testResults.length) {
           this.testResults = [{ name: total === 0 ? 'No test files available.' : ok ? 'All tests passed.' : 'No test details available.', _placeholder: true }];
         }
