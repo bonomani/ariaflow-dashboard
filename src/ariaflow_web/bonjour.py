@@ -110,6 +110,60 @@ def _resolve_to_ip(host: str) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# Local machine identity (hostname, interfaces, primary IP)
+# ---------------------------------------------------------------------------
+
+def local_hostname() -> str:
+    """Return the short local hostname (e.g. 'bc-mac-mini')."""
+    try:
+        return platform.node().split(".")[0] or "localhost"
+    except Exception:
+        return "localhost"
+
+
+def main_local_ip() -> str:
+    """Return the primary LAN IP via the UDP socket trick.
+
+    Connecting a UDP socket to a public address forces the OS to select the
+    default outbound interface without sending any packets.
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        return str(s.getsockname()[0])
+    except OSError:
+        return "127.0.0.1"
+    finally:
+        s.close()
+
+
+def all_local_ips() -> list[str]:
+    """Return all non-loopback IPv4 addresses on this machine."""
+    ips: set[str] = set()
+    main = main_local_ip()
+    if main and not main.startswith("127."):
+        ips.add(main)
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            ip = str(info[4][0])
+            if ip and not ip.startswith("127."):
+                ips.add(ip)
+    except (socket.gaierror, OSError):
+        pass
+    return sorted(ips)
+
+
+def local_identity() -> dict[str, object]:
+    """Bundle hostname + main IP + all non-loopback IPv4s for the local host."""
+    main = main_local_ip()
+    return {
+        "hostname": local_hostname(),
+        "main_ip": main,
+        "ips": all_local_ips(),
+    }
+
+
+# ---------------------------------------------------------------------------
 # dns-sd (macOS / Windows)
 # ---------------------------------------------------------------------------
 

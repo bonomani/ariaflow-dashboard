@@ -22,6 +22,8 @@ document.addEventListener('alpine:init', () => {
     lastRev: null,
     page: 'dashboard',
     DEFAULT_BACKEND_URL: window.__ARIAFLOW_BACKEND_URL__ || 'http://127.0.0.1:8000',
+    localIps: window.__ARIAFLOW_WEB_LOCAL_IPS__ || ['127.0.0.1'],
+    localMainIp: window.__ARIAFLOW_WEB_LOCAL_MAIN_IP__ || '127.0.0.1',
     backendInput: '',
     backendsDiscovered: null,
     discoveryText: '',
@@ -515,24 +517,15 @@ document.addEventListener('alpine:init', () => {
     },
     backendDisplayName(url) {
       if (!url) return '-';
-      // Extract host:port from URL as the always-shown parenthetical address
-      let addr = url;
-      try { addr = new URL(url).host; } catch { /* keep raw url */ }
-      // Determine the label: local for default, Bonjour name if known, else host
-      let label;
+      // Default backend: show the local machine hostname (injected by webapp.py)
       if (url === this.DEFAULT_BACKEND_URL) {
-        label = 'local';
-      } else {
-        const meta = this.backendMeta[url];
-        if (meta?.name) {
-          // Strip mDNS conflict-resolution suffix "name (2)"
-          label = meta.name.replace(/\s*\(\d+\)\s*$/, '');
-        } else {
-          label = addr;
-        }
+        return window.__ARIAFLOW_WEB_HOSTNAME__ || 'localhost';
       }
-      // Always show address in parens, unless label already equals addr
-      return label === addr ? addr : `${label} (${addr})`;
+      // Discovered backend with Bonjour name: use it, stripped of (N) suffix
+      const meta = this.backendMeta[url];
+      if (meta?.name) return meta.name.replace(/\s*\(\d+\)\s*$/, '');
+      // Fallback: host:port from URL
+      try { return new URL(url).host; } catch { return url; }
     },
     apiPath(path) {
       const backend = this.loadBackendState().selected || this.DEFAULT_BACKEND_URL;

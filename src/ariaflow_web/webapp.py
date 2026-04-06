@@ -11,7 +11,7 @@ from urllib.parse import urlparse, parse_qs
 
 from . import __version__
 from .action_log import load_action_log, record_action
-from .bonjour import discover_http_services
+from .bonjour import discover_http_services, local_identity
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
@@ -29,10 +29,18 @@ def _read_index_html(backend_url: str | None = None) -> str:
     text = (_STATIC_DIR / "index.html").read_text(encoding="utf-8")
     text = text.replace("__ARIAFLOW_WEB_VERSION__", f"v{__version__}")
     text = text.replace("__ARIAFLOW_WEB_PID__", str(os.getpid()))
+    identity = local_identity()
+    globals_js = (
+        f"<script>"
+        f"window.__ARIAFLOW_WEB_HOSTNAME__={json.dumps(identity['hostname'])};"
+        f"window.__ARIAFLOW_WEB_LOCAL_MAIN_IP__={json.dumps(identity['main_ip'])};"
+        f"window.__ARIAFLOW_WEB_LOCAL_IPS__={json.dumps(identity['ips'] or ['127.0.0.1'])};"
+    )
     url = backend_url or DEFAULT_BACKEND_URL
     if url != "http://127.0.0.1:8000":
-        safe_url = json.dumps(url)
-        text = text.replace("</head>", f"<script>window.__ARIAFLOW_BACKEND_URL__={safe_url};</script></head>")
+        globals_js += f"window.__ARIAFLOW_BACKEND_URL__={json.dumps(url)};"
+    globals_js += "</script>"
+    text = text.replace("</head>", f"{globals_js}</head>")
     return text
 
 
