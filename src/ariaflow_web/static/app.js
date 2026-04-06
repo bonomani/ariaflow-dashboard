@@ -501,20 +501,30 @@ document.addEventListener('alpine:init', () => {
           name: String(item?.name || '').trim(),
           host: String(item?.host || '').trim(),
           ip: String(item?.ip || '').trim(),
+          txt_hostname: String(item?.txt_hostname || '').trim(),
         };
       }
       this.backendMeta = meta;
 
       // Determine which items refer to this same machine (self).
+      // Primary check: compare the backend's hostname TXT record (from BG-6)
+      // against our injected local hostname — exact, case-insensitive match.
+      // Fallbacks (for old backends without the TXT field): .local hostname
+      // parsing, IP match, loopback detection.
       const localHostLower = String(window.__ARIAFLOW_WEB_HOSTNAME__ || '').toLowerCase();
       const selfLocal = localHostLower ? `${localHostLower}.local` : '';
       const localIps = this.localIps || [];
       const isSelf = (item) => {
-        const host = String(item?.host || '').toLowerCase();
-        const ip = String(item?.ip || '');
+        // Primary: TXT hostname (BG-6)
+        const txtHost = String(item?.txt_hostname || '').toLowerCase();
+        if (txtHost && localHostLower && txtHost === localHostLower) return true;
+        // Fallback: SRV .local hostname (strip trailing dot, lowercase)
+        const host = String(item?.host || '').toLowerCase().replace(/\.$/, '');
         if (selfLocal && host === selfLocal) return true;
+        // Fallback: IP match
+        const ip = String(item?.ip || '');
         if (ip && localIps.includes(ip)) return true;
-        if (ip && (ip === '127.0.0.1' || ip.startsWith('127.'))) return true;
+        if (ip && ip.startsWith('127.')) return true;
         try {
           const urlIp = new URL(String(item?.url || '')).hostname;
           if (urlIp === '127.0.0.1') return true;

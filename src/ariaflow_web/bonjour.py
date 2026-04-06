@@ -208,6 +208,7 @@ def _dnssd_resolve(name: str, timeout: float) -> dict[str, object] | None:
                 "role": txt.get("role"),
                 "product": txt.get("product"),
                 "version": txt.get("version"),
+                "txt_hostname": txt.get("hostname"),
             }
     return None
 
@@ -274,6 +275,7 @@ def _avahi_discover(timeout: float) -> list[dict[str, object]]:
             "role": txt.get("role"),
             "product": txt.get("product"),
             "version": txt.get("version"),
+            "txt_hostname": txt.get("hostname"),
         })
     return items
 
