@@ -1,0 +1,138 @@
+# UCC declaration artifact for ariaflow-web
+#
+# This file is the canonical machine-readable declaration of what the
+# frontend expects from the backend boundary. It's referenced by
+# docs/bgs-decision.yaml as evidence for the UCC member of BGS-Verified.
+#
+# Loaded by tests/test_api_params.py and tests/test_coverage_check.py at
+# import time. Edit here, not in the test files.
+
+# EXPECTED_PREFERENCES — every backend preference that must have a UI control.
+# Verified by test_every_preference_has_ui_control in test_api_params.py.
+expected_preferences:
+  - auto_preflight_on_run
+  - post_action_rule
+  - duplicate_active_transfer_action
+  - max_simultaneous_downloads
+  - bandwidth_down_free_percent
+  - bandwidth_down_free_absolute_mbps
+  - bandwidth_up_free_percent
+  - bandwidth_up_free_absolute_mbps
+  - bandwidth_probe_interval_seconds
+  - aria2_unsafe_options
+  - max_retries
+  - retry_backoff_seconds
+  - aria2_max_tries
+  - aria2_retry_wait
+  - internal_tracker_url
+  - distribute_completed_downloads
+  - distribute_seed_ratio
+  - distribute_max_seed_hours
+  - distribute_max_active_seeds
+
+# KNOWN_UNUSED — backend response fields the frontend intentionally ignores.
+# Verified by test_all_backend_fields_consumed + test_known_unused_count_is_stable.
+# Each entry must have a reason. Adding entries requires bumping known_unused_expected_count.
+known_unused:
+  endpoints: "Intentional: API catalog shown via Swagger UI link"
+  cap_bytes_per_sec: "Intentional: redundant with cap_mbps"
+  homebrew: "Intentional: provider-specific detail not user-facing"
+  bytes_downloaded: "Intentional: bytes_completed is the display field"
+  bytes_uploaded: "Intentional: bytes_completed is the display field"
+  returncode: "Intentional: pass/fail icon already conveys it"
+  active_url: "Intentional: per-item URL shown instead of scheduler-level active_url"
+
+# Stability guard — must equal len(known_unused). Bumped only when fields are
+# added or removed from known_unused above.
+known_unused_expected_count: 7
+
+# ENDPOINT_COVERAGE — every backend proxy endpoint with the test(s) that cover it.
+# Verified by tests in test_api_params.py (TestApiParamCoverage).
+endpoint_coverage:
+  "GET /api": "test_api_discovery"
+  "GET /api/status": "test_status_returns_json"
+  "GET /api/bandwidth": "test_bandwidth"
+  "GET /api/log": "test_log_default_limit + test_log_custom_limit + test_log_limit_clamped + test_log_limit_invalid"
+  "GET /api/declaration": "test_declaration"
+  "GET /api/lifecycle": "test_lifecycle"
+  "GET /api/discovery": "test_web.py (web server only)"
+  "GET /api/web/log": "test_web_log (web server only)"
+  "GET /static/*": "test_static_serving.py (separate file)"
+  "POST /api/downloads/add": "test_valid_add + test_add_empty_items"
+  "POST /api/scheduler/resume": "test_valid_resume + test_resume_with_auto_preflight_bool"
+  "POST /api/scheduler/pause": "test_valid_pause"
+  "POST /api/sessions/new": "test_valid_new_session"
+  "POST /api/declaration": "TestPostDeclaration"
+  "POST /api/downloads/{id}/{action}": "TestPostItem"
+  "POST /api/lifecycle/{target}/{action}": "TestPostLifecycle"
+  "POST /api/scheduler/preflight": "test_preflight"
+  "POST /api/scheduler/ucc": "test_ucc"
+  "POST /api/bandwidth/probe": "test_bandwidth_probe"
+  "GET /api/downloads/archive": "test_archive"
+  "GET /api/events": "test_events_endpoint_exists"
+  "GET /api/scheduler": "test_scheduler"
+  "GET /api/sessions": "test_sessions"
+  "GET /api/sessions/stats": "test_session_stats"
+  "GET /api/health": "test_health"
+  "GET /api/aria2/get_option": "test_aria2_get_option"
+  "GET /api/aria2/get_global_option": "test_aria2_get_global_option"
+  "GET /api/aria2/option_tiers": "test_aria2_option_tiers"
+  "POST /api/aria2/change_global_option": "test_aria2_options"
+  "POST /api/aria2/change_option": "test_aria2_change_option"
+  "POST /api/aria2/set_limits": "test_aria2_set_limits"
+  "GET /api/torrents": "test_torrents"
+  "GET /api/peers": "test_peers"
+  "POST /api/torrents/{infohash}/stop": "test_torrent_stop"
+  "POST /api/downloads/cleanup": "test_cleanup"
+  "POST invalid JSON": "test_invalid_json_body"
+  "GET unknown": "test_unknown_get_returns_404"
+  "POST unknown": "test_unknown_post_returns_404"
+
+# COVERAGE_MAP — every UI action handler with the test(s) that cover it.
+# Verified by tests in test_coverage_check.py (TestActionableCoverage).
+coverage_map:
+  add: "test_add_url_button / test_02_add_large_download"
+  addBackend: "test_add_backend_button"
+  itemAction: "test_pause_button / test_resume_button / test_retry_button / test_remove_button"
+  lifecycleAction: "test_lifecycle_action_buttons_render"
+  loadDeclaration: "test_load_declaration_button"
+  openDocs: "test_open_docs_button_exists"
+  openSpec: "test_open_spec_button_exists"
+  preflightRun: "test_preflight_button"
+  refreshActionLog: "test_action_filter_dropdown / test_target_filter_dropdown / test_session_filter_dropdown"
+  removeBackend: "test_remove_backend_button"
+  runProbe: "test_run_probe_button"
+  runTests: "test_run_tests_button"
+  saveDeclaration: "test_save_declaration_button"
+  selectBackend: "test_select_default_backend_button"
+  setAutoPreflightPreference: "test_auto_preflight_toggle"
+  setAria2UnsafeOptions: "test_aria2_options (unsafe toggle)"
+  setRetryPref: "test_every_preference_has_ui_control (retry prefs)"
+  setDistributePref: "test_every_preference_has_ui_control (distribution prefs)"
+  setBandwidthPref: "test_bandwidth_free_percent_input / test_bandwidth_free_absolute_input / test_bandwidth_floor_input"
+  setDuplicateAction: "test_duplicate_action_dropdown"
+  setPostActionRule: "test_post_action_rule_dropdown"
+  setQueueFilter: "test_filter_button[all-5] through test_filter_button[error-1]"
+  setRefreshInterval: "test_refresh_interval_change / test_refresh_off"
+  setSimultaneousLimit: "test_simultaneous_downloads_input"
+  toggleScheduler: "test_start_stop_engine_button / test_03_start_engine"
+  schedulerAction: "test_start_stop_engine_button (stop button)"
+  toggleTheme: "test_theme_toggle_cycles"
+  uccRun: "test_run_contract_button"
+  cleanup: "test_cleanup"
+  itemToggleAction: "test_pause_button / test_resume_button / test_retry_button (smart toggle)"
+  loadItemOptions: "test_aria2_get_option (per-item options)"
+  openFileSelection: "test_file_selection"
+  closeFileSelection: "test_file_selection"
+  saveFileSelection: "test_file_selection"
+  navigateTo: "test_nav_links"
+  handleFileUpload: "test_api_params.test_valid_add (torrent_data/metalink_data path)"
+  loadMoreArchive: "test_api_params.test_archive (archive pagination)"
+  loadSessionStats: "test_api_params.test_session_stats"
+  setAria2Option: "test_api_params.test_aria2_options"
+  loadTorrents: "test_api_params (torrent listing)"
+  loadPeers: "test_api_params (peer discovery)"
+  loadWebLog: "test_web_log (web server log)"
+  refresh: "test_server_metrics_refresh (manual refresh)"
+  stopTorrent: "test_api_params (torrent stop)"
+  newSession: "test_api_params (new session)"

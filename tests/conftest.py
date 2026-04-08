@@ -45,6 +45,16 @@ DEFAULT_STATUS = {
     "summary": {"queued": 1, "done": 1, "error": 1, "total": 5},
     "bandwidth": {"source": "networkquality", "downlink_mbps": 100, "uplink_mbps": 20, "cap_mbps": 50, "interface_name": "en0"},
     "ariaflow": {"reachable": True, "version": "0.1.34", "pid": 1234},
+    "health": {
+        "disk_usage_percent": 42.0,
+        "disk_ok": True,
+        "uptime_seconds": 3600,
+        "requests_total": 100,
+        "errors_total": 0,
+        "sse_clients": 1,
+        "bytes_received_total": 12345,
+        "bytes_sent_total": 67890,
+    },
 }
 
 DEFAULT_DECLARATION = {"uic": {"preferences": [
@@ -69,6 +79,39 @@ DEFAULT_LOG = {"items": [
 ]}
 
 DEFAULT_PREFLIGHT = {"status": "pass", "gates": [{"name": "aria2", "satisfied": True, "class": "gate", "blocking": "hard"}], "warnings": [], "hard_failures": []}
+
+DEFAULT_SCHEDULER = {"status": "running", "running": True, "paused": False, "session_id": "sess-001"}
+
+DEFAULT_BANDWIDTH = {"source": "networkquality", "downlink_mbps": 100, "uplink_mbps": 20, "cap_mbps": 80, "interface_name": "eth0"}
+
+DEFAULT_SESSIONS = {"sessions": []}
+
+DEFAULT_SESSIONS_STATS = {"session_id": "sess-001", "total": 5, "done": 1}
+
+DEFAULT_TORRENTS = {"torrents": []}
+
+DEFAULT_PEERS = {"peers": []}
+
+DEFAULT_ARIA2_GET_OPTION = {"ok": True, "gid": "aaa111", "options": {"max-connection-per-server": "8"}, "error": None, "message": None}
+
+DEFAULT_ARIA2_GET_GLOBAL_OPTION = {"ok": True, "options": {"max-overall-download-limit": "0", "max-concurrent-downloads": "5"}}
+
+DEFAULT_ARIA2_OPTION_TIERS = {"managed": ["max-overall-download-limit"], "safe": ["max-connection-per-server", "split"], "unsafe_enabled": False}
+
+DEFAULT_DOWNLOADS_ARCHIVE = {"items": []}
+
+DEFAULT_HEALTH = {
+    "disk_usage_percent": 42.0,
+    "disk_ok": True,
+    "uptime_seconds": 3600,
+    "requests_total": 100,
+    "errors_total": 0,
+    "sse_clients": 1,
+    "bytes_received_total": 12345,
+    "bytes_sent_total": 67890,
+}
+
+DEFAULT_BANDWIDTH_PROBE = {"ok": True, "source": "networkquality", "downlink_mbps": 100, "uplink_mbps": 20, "cap_mbps": 80}
 
 
 # ---------------------------------------------------------------------------
@@ -113,27 +156,35 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             data = sd() if callable(sd) else sd
             self._send(data)
         elif path == "/api/bandwidth":
-            self._send({"source": "networkquality", "downlink_mbps": 100, "uplink_mbps": 20, "cap_mbps": 80, "interface_name": "eth0"})
+            self._send(DEFAULT_BANDWIDTH)
         elif path == "/api/log":
             self._send(self.log_data)
-        elif path == "/api/declaration" or path == "/api/options":
+        elif path == "/api/declaration":
             dd = type(self).declaration_data
             data = dd() if callable(dd) else dd
             self._send(data)
         elif path == "/api/lifecycle":
             self._send(self.lifecycle_data)
         elif path == "/api/downloads/archive":
-            self._send({"items": []})
+            self._send(DEFAULT_DOWNLOADS_ARCHIVE)
+        elif path == "/api/health":
+            self._send(DEFAULT_HEALTH)
         elif path == "/api/scheduler":
-            self._send({"status": "running", "running": True, "paused": False, "session_id": "sess-001"})
+            self._send(DEFAULT_SCHEDULER)
         elif path == "/api/sessions":
-            self._send({"sessions": []})
+            self._send(DEFAULT_SESSIONS)
         elif path == "/api/sessions/stats":
-            self._send({"session_id": "sess-001", "total": 5, "done": 1})
+            self._send(DEFAULT_SESSIONS_STATS)
         elif path == "/api/torrents":
-            self._send({"torrents": []})
+            self._send(DEFAULT_TORRENTS)
         elif path == "/api/peers":
-            self._send({"peers": []})
+            self._send(DEFAULT_PEERS)
+        elif path == "/api/aria2/get_option":
+            self._send(DEFAULT_ARIA2_GET_OPTION)
+        elif path == "/api/aria2/get_global_option":
+            self._send(DEFAULT_ARIA2_GET_GLOBAL_OPTION)
+        elif path == "/api/aria2/option_tiers":
+            self._send(DEFAULT_ARIA2_OPTION_TIERS)
         elif path.startswith("/api/downloads/") and path.endswith("/files"):
             self._send({"files": []})
         else:
@@ -168,7 +219,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         elif path == "/api/sessions/new":
             self._send({"ok": True, "session": "sess-002"})
         elif path == "/api/bandwidth/probe":
-            self._send({"ok": True, "source": "networkquality", "downlink_mbps": 100, "uplink_mbps": 20, "cap_mbps": 80})
+            self._send(DEFAULT_BANDWIDTH_PROBE)
         elif path == "/api/downloads/cleanup":
             self._send({"ok": True, "archived": 0, "remaining": 0})
         elif path == "/api/aria2/change_global_option":

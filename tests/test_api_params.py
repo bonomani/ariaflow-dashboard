@@ -19,6 +19,16 @@ WEBAPP_PY = Path(__file__).resolve().parents[1] / "src" / "ariaflow_web" / "weba
 APP_JS = Path(__file__).resolve().parents[1] / "src" / "ariaflow_web" / "static" / "app.js"
 INDEX_HTML = Path(__file__).resolve().parents[1] / "src" / "ariaflow_web" / "static" / "index.html"
 BACKEND_WEBAPP = Path(__file__).resolve().parents[2] / "ariaflow" / "src" / "aria_queue" / "webapp.py"
+UCC_DECLARATIONS = Path(__file__).resolve().parents[1] / "docs" / "ucc-declarations.yaml"
+
+
+def _load_ucc_declarations() -> dict:
+    """Load the canonical UCC declaration artifact (BGS-Verified evidence)."""
+    import yaml
+    return yaml.safe_load(UCC_DECLARATIONS.read_text(encoding="utf-8"))
+
+
+_UCC = _load_ucc_declarations()
 
 
 def _post(url: str, payload: object = None, expect_status: int | None = None) -> dict:
@@ -106,8 +116,8 @@ class TestGetEndpoints:
         data = _get(f"{web_server}/api/declaration")
         assert "uic" in data
 
-    def test_options_alias(self, web_server: str) -> None:
-        data = _get(f"{web_server}/api/options")
+    def test_declaration_fields(self, web_server: str) -> None:
+        data = _get(f"{web_server}/api/declaration")
         assert "uic" in data
 
     def test_lifecycle(self, web_server: str) -> None:
@@ -297,52 +307,8 @@ class TestPostMisc:
 class TestApiParamCoverage:
     """Ensure every proxy endpoint in webapp.py has parameter validation tests."""
 
-    ENDPOINT_COVERAGE = {
-        # GET endpoints
-        "GET /api": "test_api_discovery",
-        "GET /api/status": "test_status_returns_json",
-        "GET /api/bandwidth": "test_bandwidth",
-        "GET /api/log": "test_log_default_limit + test_log_custom_limit + test_log_limit_clamped + test_log_limit_invalid",
-        "GET /api/declaration": "test_declaration",
-        "GET /api/options": "test_options_alias",
-        "GET /api/lifecycle": "test_lifecycle",
-        "GET /api/discovery": "test_web.py (web server only)",
-        "GET /api/web/log": "test_web_log (web server only)",
-        "GET /static/*": "test_static_serving.py (separate file)",
-        # POST endpoints
-        "POST /api/downloads/add": "test_valid_add + test_add_empty_items",
-        "POST /api/scheduler/resume": "test_valid_resume + test_resume_with_auto_preflight_bool",
-        "POST /api/scheduler/pause": "test_valid_pause",
-        "POST /api/sessions/new": "test_valid_new_session",
-        "POST /api/declaration": "TestPostDeclaration",
-        "POST /api/downloads/{id}/{action}": "TestPostItem",
-        "POST /api/lifecycle/{target}/{action}": "TestPostLifecycle",
-        "POST /api/scheduler/preflight": "test_preflight",
-        "POST /api/scheduler/ucc": "test_ucc",
-        "POST /api/bandwidth/probe": "test_bandwidth_probe",
-        "GET /api/downloads/archive": "test_archive",
-        "GET /api/events": "test_events_endpoint_exists",
-        "GET /api/scheduler": "test_scheduler",
-        "GET /api": "test_api_discovery",
-        "GET /api/sessions": "test_sessions",
-        "GET /api/sessions/stats": "test_session_stats",
-        "GET /api/health": "test_health",
-        "GET /api/scheduler": "test_scheduler",
-        "GET /api/aria2/get_option": "test_aria2_get_option",
-        "GET /api/aria2/get_global_option": "test_aria2_get_global_option",
-        "GET /api/aria2/option_tiers": "test_aria2_option_tiers",
-        "POST /api/aria2/change_global_option": "test_aria2_options",
-        "POST /api/aria2/change_option": "test_aria2_change_option",
-        "POST /api/aria2/set_limits": "test_aria2_set_limits",
-        "GET /api/torrents": "test_torrents",
-        "GET /api/peers": "test_peers",
-        "POST /api/torrents/{infohash}/stop": "test_torrent_stop",
-        "POST /api/downloads/cleanup": "test_cleanup",
-        # Error handling
-        "POST invalid JSON": "test_invalid_json_body",
-        "GET unknown": "test_unknown_get_returns_404",
-        "POST unknown": "test_unknown_post_returns_404",
-    }
+    # Sourced from docs/ucc-declarations.yaml (UCC declaration artifact).
+    ENDPOINT_COVERAGE = _UCC["endpoint_coverage"]
 
     def test_js_fetch_calls_have_tests(self) -> None:
         """Verify every fetch() path in app.js is covered by an endpoint test."""
@@ -524,28 +490,9 @@ class TestApiParamCoverage:
         js = APP_JS.read_text(encoding="utf-8")
         html = INDEX_HTML.read_text(encoding="utf-8")
 
-        # All preference names the frontend reads via getDeclarationPreference
-        EXPECTED_PREFERENCES = [
-            "auto_preflight_on_run",
-            "post_action_rule",
-            "duplicate_active_transfer_action",
-            "max_simultaneous_downloads",
-            "bandwidth_down_free_percent",
-            "bandwidth_down_free_absolute_mbps",
-            "bandwidth_up_free_percent",
-            "bandwidth_up_free_absolute_mbps",
-            "bandwidth_probe_interval_seconds",
-            "aria2_unsafe_options",
-            "max_retries",
-            "retry_backoff_seconds",
-            "aria2_max_tries",
-            "aria2_retry_wait",
-            "internal_tracker_url",
-            "distribute_completed_downloads",
-            "distribute_seed_ratio",
-            "distribute_max_seed_hours",
-            "distribute_max_active_seeds",
-        ]
+        # All preference names the frontend reads via getDeclarationPreference.
+        # Sourced from docs/ucc-declarations.yaml (UCC declaration artifact).
+        EXPECTED_PREFERENCES = _UCC["expected_preferences"]
 
         # Verify each preference is referenced in JS (getter or setter)
         missing_js = [p for p in EXPECTED_PREFERENCES if p not in js]
@@ -632,23 +579,8 @@ class TestBackendFieldCoverage:
     }
 
     # Backend fields the frontend intentionally does not use (yet).
-    # Key: "field_name" (without endpoint prefix — applies to any endpoint).
-    # Value: reason.
-    KNOWN_UNUSED: dict[str, str] = {
-        # /api — API catalog already covered by Swagger link in Developer tab
-        "endpoints": "Intentional: API catalog shown via Swagger UI link",
-        # /api/bandwidth — derivable from cap_mbps
-        "cap_bytes_per_sec": "Intentional: redundant with cap_mbps",
-        # /api/lifecycle — provider-specific detail
-        "homebrew": "Intentional: provider-specific detail not user-facing",
-        # /api/sessions/stats — alternate byte names
-        "bytes_downloaded": "Intentional: bytes_completed is the display field",
-        "bytes_uploaded": "Intentional: bytes_completed is the display field",
-        # /api/tests — already covered by pass/fail icon
-        "returncode": "Intentional: pass/fail icon already conveys it",
-        # /api/status component: EngineState
-        "active_url": "Intentional: per-item URL shown instead of scheduler-level active_url",
-    }
+    # Sourced from docs/ucc-declarations.yaml (UCC declaration artifact).
+    KNOWN_UNUSED: dict[str, str] = _UCC["known_unused"]
 
     @staticmethod
     def _snake_to_camel(name: str) -> str:
@@ -767,9 +699,10 @@ class TestBackendFieldCoverage:
 
     def test_known_unused_count_is_stable(self) -> None:
         """Guard: track how many fields are intentionally unused."""
-        assert len(self.KNOWN_UNUSED) == 7, (
-            f"KNOWN_UNUSED has {len(self.KNOWN_UNUSED)} entries (expected 7). "
-            "Update this count when wiring new fields or adding new gaps."
+        expected = _UCC["known_unused_expected_count"]
+        assert len(self.KNOWN_UNUSED) == expected, (
+            f"KNOWN_UNUSED has {len(self.KNOWN_UNUSED)} entries (expected {expected}). "
+            "Update known_unused_expected_count in docs/ucc-declarations.yaml."
         )
 
 
