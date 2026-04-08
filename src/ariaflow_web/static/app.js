@@ -929,6 +929,18 @@ document.addEventListener('alpine:init', () => {
         this.recordGlobalSpeed(this.currentSpeed || 0, this.currentUploadSpeed || 0);
       } catch (e) {
         this._consecutiveFailures++;
+        const message = e && e.message ? e.message : 'connection refused';
+        if (!this.lastStatus || this._consecutiveFailures >= 3) {
+          this.lastStatus = {
+            ...(this.lastStatus || {}),
+            ok: false,
+            ariaflow: {
+              ...(this.lastStatus?.ariaflow || {}),
+              reachable: false,
+              error: message,
+            },
+          };
+        }
       } finally {
         this.refreshInFlight = false;
         // Backoff: increase polling interval on consecutive failures, reset on recovery
