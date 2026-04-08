@@ -755,7 +755,14 @@ document.addEventListener('alpine:init', () => {
     itemRateLabel(item) {
       const speed = this.itemSpeed(item);
       if (speed) return this.formatRate(speed);
+      if (item.error_code === 'rpc_unreachable' || /timed out/i.test(item.error_message || '') || /timed out/i.test(this.lastErrorText || '')) {
+        return 'timed out';
+      }
+      if (['active', 'downloading', 'waiting'].includes(this.itemNormalizedStatus(item))) return 'stale';
       return this.itemNormalizedStatus(item) === 'paused' ? 'paused' : 'idle';
+    },
+    itemShowPausedAt(item) {
+      return this.itemNormalizedStatus(item) === 'paused' && !!item.paused_at;
     },
     itemModeBadge(item) {
       const mode = item.mode || item.download_mode || null;
