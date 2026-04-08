@@ -139,13 +139,8 @@ document.addEventListener('alpine:init', () => {
       if (!this.backendReachable) return '-';
       return this.lastStatus?.ariaflow?.pid || 'unreported';
     },
-    lastHealth: null,
-    async loadHealth() {
-      try {
-        const r = await this._fetch(this.apiPath('/api/health'), {}, 3000);
-        if (r.ok) this.lastHealth = await r.json();
-      } catch (e) { /* ignore */ }
-    },
+    // Health data now comes from /api/status.health (BG-8). No separate timer needed.
+    get lastHealth() { return this.lastStatus?.health || null; },
     get diskUsageText() {
       const h = this.lastHealth;
       if (!h || h.disk_usage_percent == null) return '-';
@@ -298,10 +293,6 @@ document.addEventListener('alpine:init', () => {
       }
       this.setRefreshInterval(10000);
 
-      // Hero data (disk, server metrics) — always refreshed independent of tab
-      this.loadHealth();
-      this._heroTimer = setInterval(() => this.loadHealth(), 120000);
-
       if (this.page === 'lifecycle') this.loadLifecycle();
       if (this.page === 'bandwidth') this.loadDeclaration();
       if (this.page === 'options') { this.loadDeclaration(); this.loadAria2Options(); }
@@ -323,7 +314,8 @@ document.addEventListener('alpine:init', () => {
 
     // Per-tab refresh policies
     _TAB_MEDIUM: {
-      log: ['refreshActionLog', 'loadWebLog'],
+      // refreshActionLog removed — backend now pushes action_logged SSE events (BG-7)
+      log: ['loadWebLog'],
       bandwidth: ['refreshBandwidth'],
       lifecycle: ['loadLifecycle'],
     },
@@ -333,8 +325,6 @@ document.addEventListener('alpine:init', () => {
       options: ['loadDeclaration', 'loadAria2Options', 'loadTorrents', 'loadPeers'],
       bandwidth: ['loadDeclaration'],
     },
-    // Hero panel data — always refreshed regardless of tab
-    _heroTimer: null,
     _tabHidden: false,
 
     navigateTo(target) {
@@ -359,7 +349,6 @@ document.addEventListener('alpine:init', () => {
       if (hidden) {
         // Tab hidden: pause all timers + close SSE to stop network chatter
         if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
-        if (this._heroTimer) { clearInterval(this._heroTimer); this._heroTimer = null; }
         if (this._sseFallbackTimer) { clearTimeout(this._sseFallbackTimer); this._sseFallbackTimer = null; }
         if (this._deferTimer) { clearTimeout(this._deferTimer); this._deferTimer = null; }
         this._pauseTabTimers();
@@ -368,9 +357,7 @@ document.addEventListener('alpine:init', () => {
         // Tab visible: refresh immediately + restart all timers
         if (this.refreshInterval > 0) {
           this.refresh();
-          this.loadHealth();
           this.refreshTimer = setInterval(() => this.refresh(), this.refreshInterval);
-          this._heroTimer = setInterval(() => this.loadHealth(), 120000);
           this._updateTabTimers(this.page);
         }
         this._initSSE();
@@ -737,7 +724,7 @@ document.addEventListener('alpine:init', () => {
     },
     itemHasActiveStatus(item) {
       const status = item.status || 'unknown';
-      return ['downloading', 'paused', 'recovered'].includes(status) || item.recovered;
+      return ['active', 'downloading', 'paused', 'recovered'].includes(status) || item.recovered;
     },
     itemShortUrl(item) {
       return this.shortName(item.output || item.url || item.live?.url || '(no url)');
@@ -842,6 +829,15 @@ document.addEventListener('alpine:init', () => {
             this.refresh();
           }
         } catch (err) { /* SSE parse error — ignored to avoid noise */ }
+      });
+      // BG-7: backend pushes individual action log entries in real-time
+      es.addEventListener('action_logged', (e) => {
+        try {
+          const entry = JSON.parse(e.data);
+          if (entry && typeof entry === 'object') {
+            this.actionLogEntries = [entry, ...this.actionLogEntries].slice(0, this.logLimit || 120);
+          }
+        } catch (err) { /* ignore */ }
       });
       es.onerror = () => {
         this._sseConnected = false;
