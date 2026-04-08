@@ -2,32 +2,67 @@
 
 ## Open
 
-### FE-15: Drop Log tab polling once backend pushes log events
+### FE-17: No CI enforcement for BGS compliance
 
-Currently `_mediumTimer` polls `/api/log` every 30s on the Log tab. Once
-BG-7 is resolved and the backend pushes `action_logged` SSE events, the
-frontend can:
-- Drop `refreshActionLog` from `_TAB_MEDIUM.log`
-- Append incoming events to `actionLogEntries` in the SSE handler
-- Keep manual Refresh button as a user-triggered fallback
+The new BGS validation flow works locally and via pre-commit, but not in
+GitHub Actions, because the validator depends on the private sibling repo
+`../BGSPrivate`.
 
-**Blocked by:** BG-7
-**Priority:** low
+Current state:
+- `tests/test_bgs_compliance.py` validates the claim locally.
+- `.pre-commit-config.yaml` can run the check before commit.
+- CI cannot currently resolve the validator path or private repo dependency.
 
-### FE-16: Drop `_heroTimer` once health fields are in `/api/status`
+Impact:
+- Contract/governance drift can still merge if contributors skip local checks.
+- The repo claims BGS-Verified, but enforcement is only partial.
 
-Currently a dedicated `_heroTimer` polls `/api/health` every 120s to keep
-the disk chip fresh. Once BG-8 is resolved (health fields merged into
-`/api/status`), the frontend can:
-- Remove `_heroTimer` and `loadHealth()` entirely
-- Read `lastStatus.health.disk_usage_percent` etc. directly
-- Update `diskUsageText` / `diskOk` getters to read from `lastStatus.health`
+Needed:
+- Either wire CI to reach the validator and private repo safely, or document
+  local-only enforcement as a permanent limitation and stop treating CI parity
+  as an expected next step.
 
-**Blocked by:** BG-8
-**Priority:** low
+### FE-18: No schema/test oracle for `/api/events`
 
----
+The schema migration now covers JSON endpoints, but the SSE stream at
+`/api/events` is still outside that contract layer.
+
+Current state:
+- JSON response shapes are covered by `docs/schemas/` plus validation tests.
+- `/api/events` is only checked for existence/behavior, not for event payload
+  structure.
+
+Impact:
+- SSE payload drift can break the live dashboard without being caught by the
+  new schema-backed tests.
+
+Needed:
+- Add an event-stream test strategy only if SSE payload stability becomes a
+  recurring source of regressions. Otherwise keep this explicitly deferred.
+
+### FE-19: Manual BGS SHA maintenance
+
+The pinned BGS refs in `docs/bgs-decision.yaml` are checked by
+`tests/test_bgs_sha_drift.py`, but that test only warns.
+
+Current state:
+- Drift is visible locally.
+- The pin is not auto-updated.
+- Warning-only mode avoids blocking unrelated work.
+
+Impact:
+- The decision record can silently lag the actual BGSPrivate checkout for a
+  while.
+
+Needed:
+- Keep the warning if low-friction maintenance is preferred, or promote the
+  drift check to a stricter gate if the repo wants tighter provenance control.
 
 ## Resolved
 
-*(cleaned 2026-04-06 — see git log for FE-3 through FE-14 history)*
+- FE-15: Log tab no longer depends on polling once backend `action_logged`
+  SSE events are available.
+- FE-16: Hero/health data no longer depends on a dedicated `/api/health`
+  polling timer; health now comes from `/api/status.health`.
+- Legacy inline contract declarations are being migrated into
+  `docs/ucc-declarations.yaml` and `docs/schemas/`.

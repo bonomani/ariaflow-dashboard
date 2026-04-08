@@ -15,3 +15,13 @@ repos:
       - id: check-json
       - id: check-added-large-files
         args: [--maxkb=500]
+
+  - repo: local
+    hooks:
+      - id: bgs-compliance
+        name: BGS compliance check
+        description: Run the BGS adopter validator on BGS.md / docs/bgs-decision.yaml
+        entry: python3 -m pytest tests/test_bgs_compliance.py -q
+        language: system
+        pass_filenames: false
+        files: ^(BGS\.md|docs/bgs-decision\.yaml|docs/ucc-declarations\.yaml|docs/schemas/.*)$

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonomani/ariaflow-web/docs/schemas/api-peers.schema.json",
+  "title": "GET /api/peers response (frontend contract)",
+  "type": "object",
+  "required": ["peers"],
+  "properties": {
+    "peers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "host":     {"type": "string"},
+          "port":     {"type": "integer"},
+          "infohash": {"type": "string"}
+        }
+      }
+    }
+  }
+}

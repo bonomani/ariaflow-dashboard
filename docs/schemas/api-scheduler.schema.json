@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonomani/ariaflow-web/docs/schemas/api-scheduler.schema.json",
+  "title": "GET /api/scheduler response (frontend contract)",
+  "type": "object",
+  "required": ["running", "paused"],
+  "properties": {
+    "status":     {"type": "string"},
+    "running":    {"type": "boolean"},
+    "paused":     {"type": "boolean"},
+    "session_id": {"type": ["string", "null"]}
+  }
+}

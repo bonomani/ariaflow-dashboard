@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonomani/ariaflow-web/docs/schemas/api-log.schema.json",
+  "title": "GET /api/log response (frontend contract)",
+  "description": "Frontend-owned shape contract for /api/log. Each entry is an action log row with target + outcome + timestamp.",
+  "type": "object",
+  "required": ["items"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["action", "outcome", "timestamp"],
+        "properties": {
+          "action":     {"type": "string"},
+          "outcome":    {"type": "string"},
+          "timestamp":  {"type": "string"},
+          "session_id": {"type": ["string", "null"]},
+          "target":     {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}

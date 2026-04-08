@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonomani/ariaflow-web/docs/schemas/api-sessions.schema.json",
+  "title": "GET /api/sessions response (frontend contract)",
+  "type": "object",
+  "required": ["sessions"],
+  "properties": {
+    "sessions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "session_id":         {"type": "string"},
+          "session_started_at": {"type": ["string", "null"]},
+          "session_closed_at":  {"type": ["string", "null"]},
+          "items_total":        {"type": "integer"},
+          "items_done":         {"type": "integer"},
+          "items_error":        {"type": "integer"}
+        }
+      }
+    }
+  }
+}

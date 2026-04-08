@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonomani/ariaflow-web/docs/schemas/api-sessions-stats.schema.json",
+  "title": "GET /api/sessions/stats response (frontend contract)",
+  "type": "object",
+  "properties": {
+    "session_id":      {"type": ["string", "null"]},
+    "total":           {"type": "integer", "minimum": 0},
+    "done":            {"type": "integer", "minimum": 0},
+    "error":           {"type": "integer", "minimum": 0},
+    "queued":          {"type": "integer", "minimum": 0},
+    "bytes_completed": {"type": "integer", "minimum": 0}
+  }
+}

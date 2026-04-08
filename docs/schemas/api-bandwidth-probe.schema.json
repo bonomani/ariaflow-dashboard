@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonomani/ariaflow-web/docs/schemas/api-bandwidth-probe.schema.json",
+  "title": "POST /api/bandwidth/probe response (frontend contract)",
+  "type": "object",
+  "properties": {
+    "ok":            {"type": "boolean"},
+    "source":        {"type": "string"},
+    "downlink_mbps": {"type": "number"},
+    "uplink_mbps":   {"type": "number"},
+    "cap_mbps":      {"type": "number"}
+  }
+}

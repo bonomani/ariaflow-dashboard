@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonomani/ariaflow-web/docs/schemas/api-health.schema.json",
+  "title": "GET /api/health response (frontend contract)",
+  "description": "Standalone health endpoint. Same fields are also nested under /api/status.health (post BG-8 merge), but the standalone endpoint remains for direct probes.",
+  "type": "object",
+  "required": ["disk_ok", "uptime_seconds"],
+  "properties": {
+    "disk_usage_percent":   {"type": "number"},
+    "disk_ok":              {"type": "boolean"},
+    "uptime_seconds":       {"type": "number"},
+    "requests_total":       {"type": "integer"},
+    "errors_total":         {"type": "integer"},
+    "sse_clients":          {"type": "integer"},
+    "bytes_received_total": {"type": "integer"},
+    "bytes_sent_total":     {"type": "integer"}
+  }
+}

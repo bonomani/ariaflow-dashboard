@@ -11,6 +11,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 STATIC_DIR = Path(__file__).resolve().parents[1] / "src" / "ariaflow_web" / "static"
 TEST_DIR = Path(__file__).resolve().parent
+UCC_DECLARATIONS = Path(__file__).resolve().parents[1] / "docs" / "ucc-declarations.yaml"
+
+
+def _load_ucc_declarations() -> dict:
+    """Load the canonical UCC declaration artifact (BGS-Verified evidence)."""
+    import yaml
+    return yaml.safe_load(UCC_DECLARATIONS.read_text(encoding="utf-8"))
+
+
+_UCC = _load_ucc_declarations()
 
 # JS function names invoked by Alpine @click/@change/@input handlers
 ACTION_RE = re.compile(r'@(?:click|change|input)(?:\.[a-z0-9.]+)?="([^"(]+)\(')
@@ -53,54 +63,8 @@ def _extract_tested_functions() -> set[str]:
 
 
 # Map of JS action function -> test that covers it.
-# Every inline handler must appear here or be detected automatically.
-COVERAGE_MAP: dict[str, str] = {
-    "add": "test_add_url_button / test_02_add_large_download",
-    "addBackend": "test_add_backend_button",
-    "itemAction": "test_pause_button / test_resume_button / test_retry_button / test_remove_button",
-    "lifecycleAction": "test_lifecycle_action_buttons_render",
-    "loadDeclaration": "test_load_declaration_button",
-    "openDocs": "test_open_docs_button_exists",
-    "openSpec": "test_open_spec_button_exists",
-    "preflightRun": "test_preflight_button",
-    "refreshActionLog": "test_action_filter_dropdown / test_target_filter_dropdown / test_session_filter_dropdown",
-    "removeBackend": "test_remove_backend_button",
-    "runProbe": "test_run_probe_button",
-    "runTests": "test_run_tests_button",
-    "saveDeclaration": "test_save_declaration_button",
-    "selectBackend": "test_select_default_backend_button",
-    "setAutoPreflightPreference": "test_auto_preflight_toggle",
-    "setAria2UnsafeOptions": "test_aria2_options (unsafe toggle)",
-    "setRetryPref": "test_every_preference_has_ui_control (retry prefs)",
-    "setDistributePref": "test_every_preference_has_ui_control (distribution prefs)",
-    "setBandwidthPref": "test_bandwidth_free_percent_input / test_bandwidth_free_absolute_input / test_bandwidth_floor_input",
-    "setDuplicateAction": "test_duplicate_action_dropdown",
-    "setPostActionRule": "test_post_action_rule_dropdown",
-    "setQueueFilter": "test_filter_button[all-5] through test_filter_button[error-1]",
-    "setRefreshInterval": "test_refresh_interval_change / test_refresh_off",
-    "setSimultaneousLimit": "test_simultaneous_downloads_input",
-    "toggleScheduler": "test_start_stop_engine_button / test_03_start_engine",
-    "schedulerAction": "test_start_stop_engine_button (stop button)",
-    "toggleTheme": "test_theme_toggle_cycles",
-    "uccRun": "test_run_contract_button",
-    "cleanup": "test_cleanup",
-    "itemToggleAction": "test_pause_button / test_resume_button / test_retry_button (smart toggle)",
-    "loadItemOptions": "test_aria2_get_option (per-item options)",
-    "openFileSelection": "test_file_selection",
-    "closeFileSelection": "test_file_selection",
-    "saveFileSelection": "test_file_selection",
-    "navigateTo": "test_nav_links",
-    "handleFileUpload": "test_api_params.test_valid_add (torrent_data/metalink_data path)",
-    "loadMoreArchive": "test_api_params.test_archive (archive pagination)",
-    "loadSessionStats": "test_api_params.test_session_stats",
-    "setAria2Option": "test_api_params.test_aria2_options",
-    "loadTorrents": "test_api_params (torrent listing)",
-    "loadPeers": "test_api_params (peer discovery)",
-    "loadWebLog": "test_web_log (web server log)",
-    "loadHealth": "test_health (server metrics + disk)",
-    "stopTorrent": "test_api_params (torrent stop)",
-    "newSession": "test_api_params (new session)",
-}
+# Sourced from docs/ucc-declarations.yaml (UCC declaration artifact).
+COVERAGE_MAP: dict[str, str] = _UCC["coverage_map"]
 
 
 class TestActionableCoverage:

@@ -1,51 +1,51 @@
 # Plan
 
-## Phase 1: Visibility-aware timer pausing
+Current work in `ariaflow-web` is a contract-governance migration, not a
+feature sprint. The goal is to make the frontend's backend assumptions
+explicit, machine-checked, and reviewable.
 
-Currently, all frontend timers (fast poll, medium 30s, slow 120s, SSE) keep
-firing even when the browser tab is hidden (user minimized, switched tabs, etc).
-This wastes network and battery.
+## Current migration
 
-### 1a: Listen for `visibilitychange`
+- Move BGS decision detail out of `BGS.md` into `docs/bgs-decision.yaml`.
+- Treat `docs/ucc-declarations.yaml` as the canonical declaration for:
+  endpoint coverage, action coverage, expected preferences, and known-unused
+  backend fields.
+- Add frontend-owned JSON schemas under `docs/schemas/` for the subset of
+  backend response shapes the UI actually consumes.
+- Add tests that verify:
+  mock fixtures match the frontend schemas,
+  frontend schemas are a subset of backend OpenAPI,
+  the UCC declaration artifact is well-formed,
+  the BGS claim passes the local validator.
 
-In `init()`, attach a listener:
-```js
-document.addEventListener('visibilitychange', () => this._onVisibilityChange());
-```
+## Next steps
 
-### 1b: New `_onVisibilityChange()` method
+- Run and stabilize the new test set:
+  `tests/test_api_response_shapes.py`
+  `tests/test_openapi_alignment.py`
+  `tests/test_ucc_declarations_schema.py`
+  `tests/test_bgs_compliance.py`
+  `tests/test_bgs_sha_drift.py`
+  plus the existing contract tests in `tests/test_api_params.py` and
+  `tests/test_coverage_check.py`.
+- Verify that the new docs and tests are internally consistent:
+  `BGS.md`, `docs/bgs-decision.yaml`, `docs/ucc-declarations.yaml`,
+  `docs/schemas/`, `.pre-commit-config.yaml`.
+- Decide whether the migration lands as one commit series now or is dropped
+  entirely. The partial state is the only bad state.
 
-- **Hidden** (`document.visibilityState === 'hidden'`): pause all timers
-  - `refreshTimer`, `_mediumTimer`, `_slowTimer`, `_sseFallbackTimer`
-  - Close SSE connection (it would keep receiving events otherwise)
-- **Visible** (`document.visibilityState === 'visible'`):
-  - Trigger immediate `refresh()` (user expects fresh data when they look back)
-  - Restart `refreshTimer` with current `refreshInterval`
-  - Call `_updateTabTimers(this.page)` to restart medium/slow timers
-  - Call `_initSSE()` to re-establish SSE
+## Open items
 
-### 1c: Track visibility state
+- **No CI enforcement for BGS compliance.** The validator depends on the
+  private `../BGSPrivate` sibling checkout, so this currently runs only
+  locally and via pre-commit.
+- **No schema oracle for `/api/events` yet.** SSE uses `text/event-stream`,
+  so it needs a different test strategy than the JSON endpoints.
+- **Pinned BGS SHAs must be maintained manually.** `tests/test_bgs_sha_drift.py`
+  warns when `docs/bgs-decision.yaml` lags behind `../BGSPrivate/bgs`.
 
-Add `_tabHidden: false` flag to Alpine state. Used to:
-- Prevent timers from being started while hidden (via early return in `setRefreshInterval`)
-- Show a subtle "paused" indicator in the UI (optional, low priority)
+## Deferred
 
-### 1d: Edge cases
-
-- **Browser tab switches but window still focused** → `visibilitychange` still fires. Fine.
-- **SSE in-flight when tab hides** → close cleanly; server-side the `queue.Queue` client entry times out naturally.
-- **SSE reconnect failure during hidden** → don't restart the 5s reconnect loop; wait for visibility.
-- **User toggles Off / On** while hidden → honor it but don't start timers until visible.
-
-### 1e: Verify
-
-- Tests should still pass (no mock for visibility, so behavior is unchanged during tests).
-- Manual test: open browser devtools, switch tab, verify no network requests in Network panel. Switch back, verify immediate refresh.
-
-## Phase 2 (optional, if you want more)
-
-Items that require backend changes, deferred:
-
-- **SSE push log entries** — reduces `_mediumTimer` load, needs new backend event type `action_logged`
-- **Merge /api/health into /api/status response** — one less endpoint to call, needs backend schema change
-- **Backend scheduler adaptive backoff when aria2 unreachable** — reduces RPC spam when aria2 is down
+- **Mock fixtures (DEFAULT_STATUS etc.) → YAML.** Not worth the churn.
+- **Generated `BGS.md`.** Too small to justify generation.
+- **BGS Grade-2 style profiles/policies.** No clear value for this repo.

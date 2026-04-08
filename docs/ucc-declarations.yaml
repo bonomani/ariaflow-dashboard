@@ -41,10 +41,20 @@ known_unused:
   bytes_uploaded: "Intentional: bytes_completed is the display field"
   returncode: "Intentional: pass/fail icon already conveys it"
   active_url: "Intentional: per-item URL shown instead of scheduler-level active_url"
+  command: "Intentional: diagnostic/provenance detail not shown in the UI"
+  commands: "Intentional: lifecycle command lists are backend/operator detail"
+  observed_before: "Intentional: log diff scaffolding is not rendered in the frontend"
+  observed_after: "Intentional: log diff scaffolding is not rendered in the frontend"
+  tls: "Intentional: peer TLS flag is not surfaced in the current dashboard"
+  items_archived: "Intentional: session archived count is not shown in the current summary"
+  items_downloading: "Intentional: session downloading count is collapsed into active/current views"
+  items_paused: "Intentional: session paused count is not shown in the current summary"
+  schema_version: "Intentional: schema version is tracked elsewhere and not displayed as item data"
+  torrent_url: "Intentional: torrent download URL is not surfaced in the seeds list"
 
 # Stability guard — must equal len(known_unused). Bumped only when fields are
 # added or removed from known_unused above.
-known_unused_expected_count: 7
+known_unused_expected_count: 17
 
 # ENDPOINT_COVERAGE — every backend proxy endpoint with the test(s) that cover it.
 # Verified by tests in test_api_params.py (TestApiParamCoverage).

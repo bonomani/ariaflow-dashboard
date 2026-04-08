@@ -1,0 +1,88 @@
+decision_id: claim-bgs-verified-ariaflow-web-001
+bgs_slice: BGS-Verified
+declared_scope: "ariaflow-web frontend's API boundary against the ariaflow backend: every endpoint called, every response field consumed, every preference exposed as a UI control, and every item action wired to the backend"
+decision_reason: "DECISION-TREE §2.5 (download manager frontend) recommends BISS + UCC + TIC. The frontend triggers governed downloads on the backend, so BISS classification is required; request/result discipline is enforced via EXPECTED_ENDPOINTS / EXPECTED_FIELDS / EXPECTED_PREFERENCES (UCC); and oracle-based tests in tests/test_coverage_check.py + tests/test_api_params.py provide the TIC verification layer. BGS-Verified is the smallest sufficient slice — no preflight gates or state model are needed."
+bgs_version_ref: bgs@58c1467
+members_used:
+  - BISS
+  - UCC
+  - TIC
+overlays_used: []
+member_version_refs:
+  ucc: ucc@58c1467
+  tic: tic@58c1467
+external_controls:
+  iam_and_authorization: not_applicable
+  sandboxing_or_runtime_isolation: not_applicable
+  secret_and_token_lifecycle: not_applicable
+  rate_limiting_and_budget_control: not_applicable
+  privacy_and_data_boundary_control: not_applicable
+evidence_refs:
+  - ./ACTIONS.md
+  - ./FRONTEND_GAPS.md
+  - ../ariaflow/docs/BACKEND_GAPS_REQUESTED_BY_FRONTEND.md
+  - ./ARCHITECTURE.md
+  - ./docs/ucc-declarations.yaml
+  - ./docs/schemas/api-status.schema.json
+  - ./tests/test_api_params.py
+  - ./tests/test_coverage_check.py
+  - ./docs/schemas/README.md
+  - ./docs/schemas/api-aria2-get-global-option.schema.json
+  - ./docs/schemas/api-aria2-get-option.schema.json
+  - ./docs/schemas/api-aria2-option-tiers.schema.json
+  - ./docs/schemas/api-bandwidth.schema.json
+  - ./docs/schemas/api-bandwidth-probe.schema.json
+  - ./docs/schemas/api-declaration.schema.json
+  - ./docs/schemas/api-downloads-archive.schema.json
+  - ./docs/schemas/api-health.schema.json
+  - ./docs/schemas/api-lifecycle.schema.json
+  - ./docs/schemas/api-log.schema.json
+  - ./docs/schemas/api-peers.schema.json
+  - ./docs/schemas/api-scheduler.schema.json
+  - ./docs/schemas/api-sessions.schema.json
+  - ./docs/schemas/api-sessions-stats.schema.json
+  - ./docs/schemas/api-torrents.schema.json
+  - ./docs/schemas/ucc-declarations.schema.json
+  - ./tests/test_api_response_shapes.py
+  - ./tests/test_bgs_compliance.py
+  - ./tests/test_bgs_sha_drift.py
+  - ./tests/test_openapi_alignment.py
+  - ./tests/test_ucc_declarations_schema.py
+date: 2026-04-07
+owner: bonomani
+limitations:
+  - "TIC inherits 'specified_partial_integration' maturity per BGS-COMPLIANCE.md §13"
+  - "BISS classification is documented in ACTIONS.md but not generated from a machine-checkable source"
+  - "BGS validator runs locally and via pre-commit (BGS_PRECOMMIT=1) but not in GitHub Actions: BGSPrivate is a private sibling repo and CI cannot reach it without cross-repo auth setup"
+known_exclusions:
+  - "Backend (ariaflow) behavior — covered by its own BGS claim at ../ariaflow/BGS.md"
+  - "Browser/runtime security (CSP, SRI, CORS enforcement) — out of scope for this static dashboard"
+  - "Accessibility (a11y) verification — not part of the API boundary scope claimed here"
+
+# External controls rationale:
+# All external controls are not_applicable because ariaflow-web is a static
+# frontend dashboard with no authentication, no secrets, no server-side state,
+# and no user data processing. The backend (ariaflow) owns all security boundaries.
+
+# Evidence detail:
+#
+# BISS — Boundary interaction classification
+# - ACTIONS.md: complete interaction inventory (34 endpoints, all handlers)
+# - FRONTEND_GAPS.md (local) + ../ariaflow/docs/BACKEND_GAPS_REQUESTED_BY_FRONTEND.md (authoritative): boundary gap classification
+# - ARCHITECTURE.md: page-to-endpoint mapping
+#
+# UCC — Declaration/observation/result patterns
+# - EXPECTED_ENDPOINTS: declares which backend endpoints the frontend must call
+# - EXPECTED_PREFERENCES: declares which backend preferences must have UI controls
+# - EXPECTED_FIELDS: declares which backend response fields must be consumed
+# - KNOWN_UNUSED: explicit record of intentionally unconsumed fields with reasons
+# - ENDPOINT_COVERAGE: declares which test covers each endpoint
+#
+# TIC — Oracle-based verification
+# - COVERAGE_MAP: every UI action must map to a test
+# - test_all_backend_fields_consumed: every backend field must be referenced
+# - test_every_api_endpoint_is_called: every endpoint must appear in app.js
+# - test_every_preference_has_ui_control: every preference must have a UI input
+# - test_item_actions_match_backend: UI item actions must match backend actions
+# - test_coverage_map_matches_actions: no stale coverage entries
+# - test_known_unused_count_is_stable: track unused field count drift

@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/bonomani/ariaflow-web/docs/schemas/api-status.schema.json",
+  "title": "GET /api/status response (frontend contract)",
+  "description": "Frontend-owned shape contract for the /api/status endpoint exposed by the ariaflow backend. This is what the dashboard depends on; the backend's openapi.yaml is the source of truth, this schema captures the subset the frontend actually consumes. Used as a TIC oracle by tests/test_api_response_shapes.py.",
+  "type": "object",
+  "required": ["items", "aria2", "state", "summary"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "url", "status"],
+        "properties": {
+          "id":            {"type": "string"},
+          "url":           {"type": "string"},
+          "output":        {"type": "string"},
+          "status":        {"type": "string", "enum": ["downloading", "queued", "done", "error", "paused", "active", "complete", "removed", "waiting"]},
+          "gid":           {"type": ["string", "null"]},
+          "created_at":    {"type": "string"},
+          "error_message": {"type": "string"}
+        }
+      }
+    },
+    "active": {
+      "type": ["object", "null"],
+      "properties": {
+        "gid":             {"type": "string"},
+        "url":             {"type": "string"},
+        "status":          {"type": "string"},
+        "downloadSpeed":   {"type": "number"},
+        "totalLength":     {"type": "number"},
+        "completedLength": {"type": "number"},
+        "percent":         {"type": "number"}
+      }
+    },
+    "actives": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "aria2": {
+      "type": "object",
+      "required": ["reachable"],
+      "properties": {
+        "reachable": {"type": "boolean"},
+        "version":   {"type": ["string", "null"]}
+      }
+    },
+    "state": {
+      "type": "object",
+      "required": ["running", "paused"],
+      "properties": {
+        "running":             {"type": "boolean"},
+        "paused":              {"type": "boolean"},
+        "session_id":          {"type": ["string", "null"]},
+        "session_started_at":  {"type": ["string", "null"]}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["queued", "done", "error", "total"],
+      "properties": {
+        "queued": {"type": "integer", "minimum": 0},
+        "done":   {"type": "integer", "minimum": 0},
+        "error":  {"type": "integer", "minimum": 0},
+        "total":  {"type": "integer", "minimum": 0}
+      }
+    },
+    "bandwidth": {
+      "type": ["object", "null"],
+      "properties": {
+        "source":         {"type": "string"},
+        "downlink_mbps":  {"type": "number"},
+        "uplink_mbps":    {"type": "number"},
+        "cap_mbps":       {"type": "number"},
+        "interface_name": {"type": "string"}
+      }
+    },
+    "ariaflow": {
+      "type": ["object", "null"],
+      "properties": {
+        "reachable": {"type": "boolean"},
+        "version":   {"type": ["string", "null"]},
+        "pid":       {"type": ["integer", "null"]}
+      }
+    },
+    "health": {
+      "type": ["object", "null"],
+      "required": ["disk_ok", "uptime_seconds"],
+      "properties": {
+        "disk_usage_percent":   {"type": "number"},
+        "disk_ok":              {"type": "boolean"},
+        "uptime_seconds":       {"type": "number"},
+        "requests_total":       {"type": "integer"},
+        "errors_total":         {"type": "integer"},
+        "sse_clients":          {"type": "integer"},
+        "bytes_received_total": {"type": "integer"},
+        "bytes_sent_total":     {"type": "integer"}
+      }
+    }
+  }
+}
