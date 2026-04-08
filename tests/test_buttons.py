@@ -68,6 +68,10 @@ class TestDashboardButtons:
         page.click('button:has-text("Pause")')
         page.wait_for_timeout(500)
 
+    def test_stop_button_not_rendered(self, page: Page, web_server: str) -> None:
+        _wait_dashboard(page, web_server)
+        assert page.locator('.panel .gap-sm.mb-md > button:has-text("Stop")').count() == 0
+
     def test_new_session_button(self, page: Page, web_server: str) -> None:
         _wait_dashboard(page, web_server)
         # Button removed

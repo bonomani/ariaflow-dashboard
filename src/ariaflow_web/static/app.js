@@ -407,8 +407,6 @@ document.addEventListener('alpine:init', () => {
         'Downloads resumed',
         'Scheduler started',
         'Scheduler already running',
-        'Scheduler stopped',
-        'Scheduler already stopped',
       ]);
       if (!staleSchedulerMessages.has(this.resultText)) return;
       if (!this.backendReachable) return;
@@ -1130,8 +1128,12 @@ document.addEventListener('alpine:init', () => {
       return this.pauseDownloads();
     },
     async schedulerAction(action) {
-      const endpoint = action === 'start' ? '/api/scheduler/resume' : '/api/scheduler/pause';
-      const payload = action === 'start' ? { auto_preflight_on_run: this.autoPreflightEnabled } : {};
+      if (action !== 'start') {
+        this.resultText = 'Stop not supported';
+        return;
+      }
+      const endpoint = '/api/scheduler/resume';
+      const payload = { auto_preflight_on_run: this.autoPreflightEnabled };
       try {
         const r = await this._fetch(this.apiPath(endpoint), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const data = await r.json();
@@ -1141,13 +1143,10 @@ document.addEventListener('alpine:init', () => {
           return;
         }
         const result = data.result || {};
-        this.resultText = action === 'start'
-          ? (result.started ? 'Scheduler started' : 'Scheduler already running')
-          : (result.stopped ? 'Scheduler stopped' : 'Scheduler already stopped');
+        this.resultText = result.started ? 'Scheduler started' : 'Scheduler already running';
         this.resultJson = JSON.stringify(data, null, 2);
         if (this.lastStatus?.state) {
-          if (action === 'start' && result.started) this.lastStatus = { ...this.lastStatus, state: { ...this.lastStatus.state, running: true } };
-          if (action === 'stop' && result.stopped) this.lastStatus = { ...this.lastStatus, state: { ...this.lastStatus.state, running: false } };
+          if (result.started) this.lastStatus = { ...this.lastStatus, state: { ...this.lastStatus.state, running: true } };
         }
       } catch (e) {
         this.resultText = `Scheduler ${action} failed: ${e.message}`;
