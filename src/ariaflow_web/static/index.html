@@ -98,8 +98,7 @@
         <div class="panel">
           <div class="gap-sm mb-md">
             <button :class="{ secondary: schedulerBtnDisabled }" @click="toggleScheduler()" x-text="schedulerBtnText" :disabled="schedulerBtnDisabled">Start</button>
-            <button x-show="sumDone || sumError" :class="{ secondary: !backendReachable }" @click="cleanup()" :disabled="!backendReachable">Archive</button>
-            <button class="secondary" @click="newSession()" :disabled="!backendReachable">New Session</button>
+            <button :class="{ secondary: archiveBtnDisabled }" @click="cleanup()" :disabled="archiveBtnDisabled">Archive</button>
             <span class="badge" x-text="schedulerStateLabelText">idle</span>
             <span x-show="sumQueued" class="chip">Queued <strong x-text="sumQueued">0</strong></span>
             <span x-show="sumDone" class="chip">Done <strong x-text="sumDone">0</strong></span>

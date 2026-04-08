@@ -168,8 +168,10 @@ document.addEventListener('alpine:init', () => {
       return this.sessionLabel(this.state);
     },
     get sumQueued() { return this.lastStatus?.summary?.queued ?? 0; },
-    get sumDone() { return this.lastStatus?.summary?.done ?? 0; },
-    get sumError() { return this.lastStatus?.summary?.error ?? 0; },
+    get sumDone() { return this.filterCounts.done ?? 0; },
+    get sumError() { return this.filterCounts.error ?? 0; },
+    get canArchive() { return this.sumDone > 0 || this.sumError > 0; },
+    get archiveBtnDisabled() { return !this.backendReachable || !this.canArchive; },
 
     // bandwidth panel getters
     get bw() { return this.lastStatus?.bandwidth || {}; },
@@ -1520,18 +1522,6 @@ document.addEventListener('alpine:init', () => {
         this.selectedSessionStats = await r.json();
       } catch (e) {
         this.selectedSessionStats = { error: 'Failed to load stats' };
-      }
-    },
-
-    async newSession() {
-      try {
-        const r = await this._fetch(this.apiPath('/api/sessions/new'), { method: 'POST' });
-        const data = await r.json();
-        this.resultText = data.ok !== false ? `New session: ${data.session || 'created'}` : (data.message || 'Failed');
-        this.loadSessionHistory();
-        this.refresh();
-      } catch (e) {
-        this.resultText = `New session failed: ${e.message}`;
       }
     },
 

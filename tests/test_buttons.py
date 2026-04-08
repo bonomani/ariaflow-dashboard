@@ -72,6 +72,64 @@ class TestDashboardButtons:
         _wait_dashboard(page, web_server)
         assert page.locator('.panel .gap-sm.mb-md > button:has-text("Stop")').count() == 0
 
+    def test_new_session_button_not_rendered(self, page: Page, web_server: str) -> None:
+        _wait_dashboard(page, web_server)
+        assert page.locator('.panel .gap-sm.mb-md > button:has-text("New Session")').count() == 0
+
+    def test_archive_button_stays_rendered_without_archiveable_items(self, page: Page, web_server: str) -> None:
+        _wait_dashboard(page, web_server)
+        page.evaluate("""(() => {
+            const app = document.querySelector('[x-data]')._x_dataStack[0];
+            app.lastStatus = {
+              ...app.lastStatus,
+              summary: {
+                total: 0,
+                queued: 0,
+                waiting: 0,
+                discovering: 0,
+                active: 0,
+                downloading: 0,
+                paused: 0,
+                stopped: 0,
+                complete: 0,
+                done: 0,
+                error: 0,
+                failed: 0,
+                cancelled: 0,
+              },
+            };
+        })()""")
+        archive = page.locator('.panel .gap-sm.mb-md > button:has-text("Archive")')
+        assert archive.count() == 1
+        assert archive.is_disabled()
+
+    def test_archive_button_uses_complete_and_failed_counts(self, page: Page, web_server: str) -> None:
+        _wait_dashboard(page, web_server)
+        page.evaluate("""(() => {
+            const app = document.querySelector('[x-data]')._x_dataStack[0];
+            app.lastStatus = {
+              ...app.lastStatus,
+              summary: {
+                total: 2,
+                queued: 0,
+                waiting: 0,
+                discovering: 0,
+                active: 0,
+                downloading: 0,
+                paused: 0,
+                stopped: 0,
+                complete: 1,
+                done: 0,
+                error: 0,
+                failed: 1,
+                cancelled: 0,
+              },
+            };
+        })()""")
+        archive = page.locator('.panel .gap-sm.mb-md > button:has-text("Archive")')
+        assert archive.count() == 1
+        assert not archive.is_disabled()
+
     def test_primary_filter_buttons_stay_visible(self, page: Page, web_server: str) -> None:
         _wait_dashboard(page, web_server)
         visible = page.evaluate("""(() => {
@@ -110,13 +168,6 @@ class TestDashboardButtons:
             return app.queueFilter;
         })()""")
         assert result == 'all'
-
-    def test_new_session_button(self, page: Page, web_server: str) -> None:
-        _wait_dashboard(page, web_server)
-        # Button removed
-        return
-        page.wait_for_timeout(500)
-        page.wait_for_timeout(500)
 
     def test_pause_resume_queue_button(self, page: Page, web_server: str) -> None:
         _wait_dashboard(page, web_server)
