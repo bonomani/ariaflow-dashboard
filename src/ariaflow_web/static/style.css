@@ -469,7 +469,87 @@ details.debug summary::-webkit-details-marker { display: none; }
 .footer { color: var(--muted); font-size: var(--font-sm); margin-top: var(--gap-sm); }
 
 /* ========================================
-   8. UTILITIES
+   8. DESIGN AXES (composable utility classes)
+   ======================================== */
+
+/* --- Axis 2: Emphasis (filled / outlined / ghost / text) ---
+   How much visual weight an element demands.
+   Composable with any component: <button class="filled">, <span class="badge outlined">.
+   Components keep their own size/shape; emphasis controls bg, border, color. */
+.filled   { background: var(--btn-bg); color: var(--btn-text); border-color: transparent; }
+.outlined { background: transparent; border: var(--border); color: var(--text); }
+.ghost    { background: transparent; border-color: transparent; color: var(--muted); }
+.text-emphasis { background: transparent; border: none; color: var(--muted); }
+/* Hover for emphasis levels */
+.filled:hover   { filter: brightness(1.05); }
+.outlined:hover { border-color: var(--accent); }
+.ghost:hover    { color: var(--text); background: var(--btn-inactive-bg); }
+.text-emphasis:hover { color: var(--text); }
+
+/* --- Axis 3: Status (neutral / good / warn / danger) ---
+   Semantic color applied to any element.
+   Works on badges, chips, buttons, tabs, tab-badges. */
+.status-neutral { color: var(--text); border-color: var(--line); }
+.status-good    { color: var(--good); border-color: var(--good-border); }
+.status-warn    { color: var(--warn); border-color: var(--warn-border); }
+.status-danger  { color: var(--danger); border-color: var(--danger-border); }
+/* Filled + status: solid bg variants for badges/pills */
+.filled.status-good   { background: var(--good); color: var(--btn-text); }
+.filled.status-warn   { background: var(--warn); color: var(--btn-text); }
+.filled.status-danger { background: var(--danger); color: var(--btn-text); }
+
+/* --- Axis 4: Shape (square / rounded / pill) ---
+   Corner treatment, independent of component. */
+.shape-square  { border-radius: 0; }
+.shape-rounded { border-radius: var(--radius-md); }
+.shape-pill    { border-radius: var(--radius-xl); }
+
+/* --- Axis 5: State (disabled / loading) ---
+   Interaction states beyond :hover/:focus (which are handled per-component). */
+.disabled, [disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+}
+.loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--muted);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* --- Axis 6: Elevation (flat / raised / overlay) ---
+   Visual depth. Available for future use — not wired into markup yet. */
+.elevation-flat    { box-shadow: none; }
+.elevation-raised  { box-shadow: var(--shadow); }
+.elevation-overlay { box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); backdrop-filter: var(--backdrop-blur); }
+
+/* --- Axis 7: Density (compact / default / relaxed) ---
+   Spacing multiplier. Apply to a container to tighten or loosen all children.
+   Available for future use — not wired into markup yet. */
+.density-compact { --gap-sm: 4px; --gap-md: 8px; --pad-xs: 3px 6px; --pad-sm: 5px 8px; --pad-md: 5px 10px; font-size: var(--font-sm); }
+.density-relaxed { --gap-sm: 12px; --gap-md: 18px; --pad-xs: 8px 14px; --pad-sm: 12px 18px; --pad-md: 12px 20px; font-size: var(--font-lg); }
+
+/* --- Axis 8: Breakpoint (visibility utilities) ---
+   Show/hide elements at named breakpoints.
+   Available for future use — not wired into markup yet. */
+.hide-mobile, .show-desktop-only { /* default: visible */ }
+.hide-desktop, .show-mobile-only { display: none; }
+
+/* ========================================
+   9. SPACING UTILITIES
    ======================================== */
 .mt-0 { margin-top: 0; }
 .mb-sm { margin-bottom: var(--gap-sm); }
@@ -487,12 +567,14 @@ details.debug summary::-webkit-details-marker { display: none; }
 .dimmed { opacity: 0.35; }
 
 /* ========================================
-   9. RESPONSIVE
+   10. RESPONSIVE
    ======================================== */
 @media (max-width: 980px) {
   .hero, .summary { grid-template-columns: 1fr; }
   .hero { align-items: start; }
   .span-6 { grid-column: span 12; }
+  .hide-mobile, .show-desktop-only { display: none; }
+  .hide-desktop, .show-mobile-only { display: revert; }
 }
 @media (max-width: 720px) {
   .chips { flex-wrap: wrap; }
