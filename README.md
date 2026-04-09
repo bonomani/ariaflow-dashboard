@@ -8,13 +8,51 @@ ariaflow-web --host 127.0.0.1 --port 8001
 
 Expects an `ariaflow` backend at `http://127.0.0.1:8000` (configurable in UI).
 
-## Homebrew
+## Installation
+
+### macOS (Homebrew)
 
 ```bash
 brew tap bonomani/ariaflow
-brew install ariaflow-web
+brew install ariaflow-web   # installs ariaflow + aria2 automatically
 brew services start ariaflow
 brew services start ariaflow-web
+```
+
+### All platforms (pip / pipx)
+
+```bash
+# 1. Install aria2 (system dependency — not a Python package)
+#    macOS:   brew install aria2
+#    Ubuntu:  sudo apt install aria2
+#    Fedora:  sudo dnf install aria2
+#    Arch:    sudo pacman -S aria2
+#    Windows: winget install aria2
+
+# 2. Install ariaflow-web (dashboard only)
+pipx install ariaflow-web
+
+# Or include the ariaflow backend in one command:
+pipx install "ariaflow-web[local]"
+
+# 3. Start the backend, then the dashboard
+ariaflow &
+ariaflow-web --host 127.0.0.1 --port 8001
+```
+
+### Windows
+
+```powershell
+# aria2 via winget
+winget install aria2
+
+# ariaflow + dashboard via pipx
+pipx install ariaflow
+pipx install ariaflow-web
+
+# Start both
+Start-Process ariaflow
+ariaflow-web --host 127.0.0.1 --port 8001
 ```
 
 ## Features
@@ -47,7 +85,7 @@ Alpine.js single-page app — no build step. See [`ARCHITECTURE.md`](./ARCHITECT
 ## Release
 
 Push to `main` auto-releases via GitHub Actions: bumps version, runs tests,
-builds sdist, creates GitHub release, updates Homebrew tap.
+builds sdist, publishes to PyPI, creates GitHub release, updates Homebrew tap.
 
 ```bash
 python3 scripts/publish.py plan    # preview
