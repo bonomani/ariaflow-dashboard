@@ -363,21 +363,32 @@ details.debug summary::-webkit-details-marker { display: none; }
    ======================================== */
 .nav { display: flex; gap: var(--gap-sm); flex-wrap: wrap; margin: 0 0 var(--nav-mb); }
 .nav .spacer { flex: 1 1 auto; }
+
+/* Tabs reuse the button visual system: active = primary button look,
+   inactive = secondary button look. Two sizes mirror the button sizes. */
 .nav a {
   text-decoration: none;
-  padding: var(--pad-sm);
+  padding: var(--pad-btn);
   border-radius: var(--radius-pill);
   font-weight: 700;
-  background: var(--btn-bg);
-  color: var(--btn-text);
-  border: var(--border-none);
-}
-.nav a.active {
   background: var(--btn-inactive-bg);
   color: var(--text);
+  border: var(--border-none);
   border-color: var(--line);
+  cursor: pointer;
+  font-weight: 400;
+}
+.nav a:hover { filter: brightness(1.05); }
+.nav a.active {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border-color: transparent;
+  font-weight: 700;
   cursor: default;
 }
+/* Small tab variant — matches the icon-btn padding scale. */
+.nav.compact a, .nav a.tab-sm { padding: var(--pad-icon-btn); font-size: var(--font-sm); }
+
 .nav button { border-radius: var(--radius-pill); }
 
 /* ========================================
