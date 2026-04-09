@@ -361,30 +361,66 @@ details.debug summary::-webkit-details-marker { display: none; }
 /* ========================================
    6. NAV
    ======================================== */
-.nav { display: flex; gap: var(--gap-sm); flex-wrap: wrap; margin: 0 0 var(--nav-mb); }
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-md);
+  flex-wrap: wrap;
+  margin: 0 0 var(--nav-mb);
+  border-bottom: 1px solid var(--line);
+  padding: 0 var(--gap-sm);
+}
 .nav .spacer { flex: 1 1 auto; }
 
-/* Tabs reuse the button visual system: active = primary button look,
-   inactive = secondary button look. Two sizes mirror the button sizes. */
+/* Material-style tabs: text only, accent underline on the active tab.
+   The 3px bar overlaps the 1px nav baseline so it reads as a tab indicator. */
 .nav a {
   text-decoration: none;
-  padding: var(--pad-btn);
-  border-radius: 6px;
-  background: var(--btn-inactive-bg);
-  color: var(--text);
-  border: var(--border-none);
+  padding: var(--pad-sm) var(--gap-md);
+  background: transparent;
+  color: var(--muted);
+  border: none;
   cursor: pointer;
-  font-weight: 400;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.12s, border-color 0.12s;
 }
-.nav a:hover { filter: brightness(1.05); }
+.nav a:hover { color: var(--text); }
+.nav a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 .nav a.active {
-  background: var(--btn-bg);
-  color: var(--btn-text);
-  font-weight: 700;
+  color: var(--accent);
+  border-bottom-color: var(--accent);
   cursor: default;
 }
-/* Small tab variant — matches the icon-btn padding scale. */
-.nav.compact a, .nav a.tab-sm { padding: var(--pad-icon-btn); font-size: var(--font-sm); }
+
+/* Per-tab badge: small pill next to the label showing a count. */
+.nav a .tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--btn-inactive-bg);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.nav a.active .tab-badge { background: var(--accent); color: var(--btn-text); }
+.nav a .tab-badge.warn { background: #b91c1c; color: #fff; }
+
+/* Small tab variant. */
+.nav.compact a { padding: var(--pad-xs) var(--gap-sm); font-size: var(--font-sm); }
 
 .nav button { border-radius: var(--radius-pill); }
 

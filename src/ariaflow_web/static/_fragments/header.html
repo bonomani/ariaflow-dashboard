@@ -1,7 +1,10 @@
 <body x-data="ariaflow" :class="'page-' + page">
   <div class="wrap">
     <div class="nav">
-      <a href="/" :class="{ active: page === 'dashboard' }" @click.prevent="navigateTo('dashboard')">Dashboard</a>
+      <a href="/" :class="{ active: page === 'dashboard' }" @click.prevent="navigateTo('dashboard')">
+        <span>Dashboard</span>
+        <span x-show="sumError" class="tab-badge warn" x-text="sumError"></span>
+      </a>
       <a href="/bandwidth" :class="{ active: page === 'bandwidth' }" @click.prevent="navigateTo('bandwidth')">Bandwidth</a>
       <a href="/lifecycle" :class="{ active: page === 'lifecycle' }" @click.prevent="navigateTo('lifecycle')">Service Status</a>
       <a href="/options" :class="{ active: page === 'options' }" @click.prevent="navigateTo('options')">Options</a>
