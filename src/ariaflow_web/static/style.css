@@ -325,6 +325,9 @@ a.btn-link.secondary { background: var(--btn-inactive-bg); color: var(--text); }
   padding: 0 4px;
 }
 .filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 4px 8px;
   background: transparent;
   border: none;
@@ -336,6 +339,7 @@ a.btn-link.secondary { background: var(--btn-inactive-bg); color: var(--text); }
   margin-bottom: -1px;
   transition: color 0.12s, border-color 0.12s;
 }
+.filter-btn .tab-badge { min-width: 16px; height: 16px; font-size: 0.68rem; padding: 0 4px; }
 .filter-btn:hover { color: var(--text); }
 .filter-btn:focus-visible {
   outline: 2px solid var(--accent);
