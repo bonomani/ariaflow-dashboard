@@ -1167,6 +1167,7 @@ document.addEventListener('alpine:init', () => {
       }
     },
     async pauseDownloads() {
+      this.resultText = '';
       try {
         const r = await this._fetch(this.apiPath('/api/scheduler/pause'), { method: 'POST' });
         const data = await r.json();
@@ -1180,6 +1181,7 @@ document.addEventListener('alpine:init', () => {
       }
     },
     async resumeDownloads() {
+      this.resultText = '';
       try {
         const r = await this._fetch(this.apiPath('/api/scheduler/resume'), { method: 'POST' });
         const data = await r.json();
