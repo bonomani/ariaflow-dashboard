@@ -151,6 +151,7 @@ button.secondary, select.secondary {
 }
 button.icon-btn { padding: var(--pad-icon-btn); min-width: 38px; line-height: 1; }
 a.btn-link { display: inline-block; text-decoration: none; padding: var(--pad-btn); border-radius: var(--radius-pill); font-weight: 700; background: var(--btn-bg); color: var(--btn-text); border: var(--border-none); cursor: pointer; }
+a.btn-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 a.btn-link.secondary { background: var(--btn-inactive-bg); color: var(--text); }
 
 /* --- add-row (shared between backend + URL add) --- */
@@ -182,6 +183,10 @@ a.btn-link.secondary { background: var(--btn-inactive-bg); color: var(--text); }
   color: var(--accent);
   font-weight: 700;
   padding: 0;
+}
+.refresh-control:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* ========================================
@@ -326,7 +331,7 @@ a.btn-link.secondary { background: var(--btn-inactive-bg); color: var(--text); }
   flex-wrap: wrap;
   margin-bottom: var(--gap-md);
   border-bottom: 1px solid var(--line);
-  padding: 0 4px;
+  padding: 0 var(--gap-sm);
 }
 .filter-btn {
   display: inline-flex;
@@ -433,7 +438,7 @@ details.debug summary::-webkit-details-marker { display: none; }
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--btn-inactive-bg);
   color: var(--text);
   font-size: 0.72rem;
