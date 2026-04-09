@@ -314,22 +314,37 @@ a.btn-link.secondary { background: var(--btn-inactive-bg); color: var(--text); }
 }
 .chip strong { color: var(--accent); font-weight: 700; }
 
-/* --- filter bar --- */
-.filter-bar { display: flex; gap: var(--gap-sm); flex-wrap: wrap; margin-bottom: var(--gap-md); }
+/* --- filter bar --- compact material-style sub-tabs (smaller than .nav) */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--gap-md);
+  border-bottom: 1px solid var(--line);
+  padding: 0 4px;
+}
 .filter-btn {
-  padding: var(--pad-xs);
-  border-radius: var(--radius-pill);
-  border: var(--border-none);
-  background: var(--btn-bg);
-  color: var(--btn-text);
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
   font-size: var(--font-sm);
+  font-weight: 600;
   cursor: pointer;
-  font-weight: 700;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.12s, border-color 0.12s;
+}
+.filter-btn:hover { color: var(--text); }
+.filter-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 .filter-btn.active {
-  background: var(--btn-inactive-bg);
-  color: var(--text);
-  border-color: var(--line);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
   cursor: default;
 }
 
