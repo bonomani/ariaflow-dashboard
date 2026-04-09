@@ -114,6 +114,96 @@ elevation, density, breakpoint).
    Homebrew/Linuxbrew works on Linux. The existing formula may work
    out of the box. Test and document if it does.
 
+## Gap resolution plan
+
+### BG-12: Remove `/api/sessions/new` — backend action needed
+- **Owner:** backend agent (separate session in `../ariaflow`).
+- **Step 1:** Commit the BG-12 entry already written in
+  `../ariaflow/docs/BACKEND_GAPS_REQUESTED_BY_FRONTEND.md`.
+- **Step 2:** Backend removes route, handler, OpenAPI entry, discovery
+  entry, and tests for `/api/sessions/new`.
+- **Step 3:** Frontend removes `DELIBERATELY_UNUSED` workaround in
+  `tests/test_api_params.py`.
+- **Priority:** low. No functional impact.
+
+### BG-13 (to file): WSL download-dir detection
+- **Owner:** backend.
+- **Problem:** On WSL, aria2 downloads to the Linux filesystem by default.
+  Files are slow to access from Windows Explorer (`\\wsl$\...`).
+- **Desired:** Backend detects WSL (`/proc/version` contains "microsoft")
+  and defaults download dir to `/mnt/c/Users/$USER/Downloads` so files
+  land on the Windows filesystem and are accessible from both sides.
+- **Frontend impact:** None — download dir is a backend config. Dashboard
+  could show a hint ("WSL detected — downloads go to Windows filesystem")
+  but that's cosmetic.
+- **Blocks local gap:** (none).
+- **Priority:** medium — quality-of-life for WSL users.
+
+### BG-14 (to file): Expose archivable count or criteria
+- **Owner:** backend.
+- **Problem:** Frontend enables the Archive button when `sumDone > 0 ||
+  sumError > 0`, but backend `cleanup()` applies extra rules
+  (`max_done_age_days: 7`, `max_done_count: 100`). User clicks Archive,
+  gets "0 archived" — confusing.
+- **Desired:** Either:
+  (a) Backend exposes an `archivable_count` field on `/api/status` so the
+  frontend can disable the button when nothing is actually archivable, or
+  (b) Backend documents the cleanup criteria in the OpenAPI spec so the
+  frontend can replicate the logic locally.
+- **Blocks local gap:** FE-20.
+- **Priority:** low.
+
+### FE-20 (to file): Archive button enabled with nothing archivable
+- **Owner:** frontend.
+- **Problem:** `canArchive` (app.js) only checks `sumDone > 0 || sumError > 0`
+  — doesn't know about the 7-day age threshold the backend enforces.
+- **Blocked by:** BG-14 (need the backend to expose archivable count or
+  document criteria).
+- **Workaround available:** After a cleanup returns "0 archived", disable
+  the button until the next status refresh changes the counts. Not ideal
+  but prevents repeated clicks.
+- **Priority:** low.
+
+### FE-17: No CI enforcement for BGS compliance
+- **Owner:** frontend.
+- **Resolution path:** Accept local-only enforcement as a permanent
+  limitation. The validator depends on `../BGSPrivate` which is private
+  and can't be cloned in CI without exposing credentials. Document this
+  in `BGS.md` as a known limitation. Close FE-17 as "won't fix — by
+  design" and remove it from the open section.
+- **Priority:** low — no regression risk, pre-commit catches it locally.
+
+### FE-18: No schema/test oracle for `/api/events` (SSE)
+- **Owner:** frontend.
+- **Resolution path:** Add a lightweight SSE integration test that
+  connects to `/api/events`, receives at least one `status` event, and
+  validates the JSON payload against `docs/schemas/api-status.schema.json`.
+  Requires a running backend (mark test `@pytest.mark.slow`).
+  Alternatively, defer permanently if SSE payloads haven't caused
+  regressions.
+- **Priority:** low — no regressions reported yet.
+
+### FE-19: Manual BGS SHA maintenance
+- **Owner:** frontend.
+- **Resolution path:** The drift test (`test_bgs_sha_drift.py`) already
+  warns. Promote it to a hard failure only when actively working on BGS
+  updates; otherwise keep the warning. No code change needed — this is
+  a workflow decision, not a bug. Close as "accepted — warning is
+  sufficient" and move to resolved.
+- **Priority:** low.
+
+### Action summary
+
+| Gap | Next action | Who | Effort |
+|---|---|---|---|
+| BG-12 | Commit gap file, then backend removes endpoint | backend session | low |
+| BG-13 | File gap, backend implements WSL detection | file now, backend later | medium |
+| BG-14 | File gap, backend exposes archivable count | file now, backend later | low |
+| FE-20 | File gap, blocked by BG-14 | file now, implement after BG-14 | low |
+| FE-17 | Close as won't-fix, document limitation | frontend now | trivial |
+| FE-18 | Defer or add SSE smoke test | frontend later | low |
+| FE-19 | Close as accepted | frontend now | trivial |
+
 ## Deferred
 
 - **Mock fixtures (DEFAULT_STATUS etc.) → YAML.** Not worth the churn.
