@@ -26,8 +26,9 @@ Needed:
 backend `cleanup()` applies extra rules (`max_done_age_days: 7`,
 `max_done_count: 100`). User clicks Archive, gets "0 archived".
 
-Blocked by: BG-14 (need backend to expose archivable count or document
-the cleanup criteria so the frontend can replicate the logic).
+Unblocked: BG-14 resolved — backend now exposes `archivable_count` in
+`GET /api/status` `summary`. Frontend should use `archivableCount > 0`
+instead of the current `sumDone > 0 || sumError > 0` heuristic.
 
 Workaround: After cleanup returns "0 archived", the resultText shows the
 outcome. Not ideal but prevents confusion on repeated clicks.

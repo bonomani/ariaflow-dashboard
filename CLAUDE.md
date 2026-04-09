@@ -2,8 +2,8 @@
 
 ## Project bindings (adjust per repo)
 - **THIS_REPO:** `ariaflow-web` (frontend)
-- **PAIRED_REPO:** `/home/bc/repos/github/bonomani/ariaflow` (backend)
-- **PAIRED_GAPS_FILE:** `/home/bc/repos/github/bonomani/ariaflow/docs/BACKEND_GAPS_REQUESTED_BY_FRONTEND.md`
+- **PAIRED_REPO:** `/home/bc/repos/github/bonomani/ariaflow-server` (backend)
+- **PAIRED_GAPS_FILE:** `/home/bc/repos/github/bonomani/ariaflow-server/docs/BACKEND_GAPS_REQUESTED_BY_FRONTEND.md`
 - **LOCAL_GAPS_FILE:** `FRONTEND_GAPS.md` (at this repo root)
 - **PAIRED_GAP_ID_PREFIX:** `BG-` (paired repo's gap IDs)
 - **LOCAL_GAP_ID_PREFIX:** `FE-` (local repo's gap IDs)
