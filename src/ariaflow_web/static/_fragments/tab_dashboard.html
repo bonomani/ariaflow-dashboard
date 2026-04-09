@@ -4,9 +4,6 @@
             <button :class="{ secondary: schedulerBtnDisabled }" @click="toggleScheduler()" x-text="schedulerBtnText" :disabled="schedulerBtnDisabled">Start</button>
             <button :class="{ secondary: archiveBtnDisabled }" @click="cleanup()" :disabled="archiveBtnDisabled">Archive</button>
             <span class="badge" x-text="schedulerStateLabelText">idle</span>
-            <span x-show="sumQueued" class="chip">Queued <strong x-text="sumQueued">0</strong></span>
-            <span x-show="sumDone" class="chip">Done <strong x-text="sumDone">0</strong></span>
-            <span x-show="sumError" class="chip badge warn">Errors <strong x-text="sumError">0</strong></span>
             <span class="text-muted text-sm" x-text="resultText" x-show="resultText && resultText !== 'Idle'"></span>
           </div>
           <div class="mb-md">
