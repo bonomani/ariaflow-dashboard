@@ -28,3 +28,135 @@ Resolved gaps (BG-12–14, FE-15–20) — see git history and `FRONTEND_GAPS.md
 - **Mock fixtures (DEFAULT_STATUS etc.) → YAML.** Not worth the churn.
 - **Generated `BGS.md`.** Too small to justify generation.
 - **BGS Grade-2 style profiles/policies.** No clear value for this repo.
+
+## To study — patterns from `claude-sub-proxy/ui` worth borrowing
+
+Comparative review captured 2026-04-26 against `claude-sub-proxy` commit
+`aeefa13`. Each item is **research-only** for now — no code change in
+ariaflow-dashboard until/unless we decide to adopt. Listed roughly from
+"highest leverage" to "cosmetic".
+
+### Architecture & language
+
+1. **TypeScript end-to-end with esbuild bundle.** Replace `app.js`,
+   `formatters.js`, `sparkline.js` with `.ts` modules; bundle via
+   esbuild (~5 ms cold, ~9 MB dev-dep). Strict typing
+   (`noUncheckedIndexedAccess`, `strict`) catches the bug class we
+   currently rely on humans to spot. Source maps inline → real stack
+   traces in devtools. Coverage gate becomes meaningful.
+2. **Mini reactive store + pure `render(parent, state)` functions.**
+   Replace Alpine's Proxy-magic reactivity with an explicit
+   `createStore<S>()` (~40 LOC) plus per-view render fns. Wins:
+   testable in isolation under happy-dom, every state mutation is a
+   breakpoint-able call site, no "I mutated a nested object and the
+   view didn't refresh" surprises. Cost: write `store.subscribe(...)`
+   and `replaceChildren(parent, …)` plumbing manually.
+3. **Build-time constants injected via esbuild `define`.** Inject
+   `__BACKEND__` (URL of the backend the UI talks to) and `__COMMIT__`
+   (`git rev-parse --short HEAD`) into the bundle. Show the commit sha
+   in the header (`v2 aeefa13`). Saved hours of "is the new bundle
+   loaded" debugging during claude-sub-proxy's recent passes.
+
+### Quality & testing
+
+4. **Unit tests on the UI layer.** Use `node:test` + `tsx --test` on
+   pure functions only (formatters, predicate matchers, store
+   derivations). Claude-sub-proxy has 64 UI tests at
+   ~5 LOC each; the formatters file feels like documentation by
+   example. Zero framework dep (node:test is stdlib).
+5. **Defensive runtime asserts.** Patterns like
+   `if (inflight < 0) { log("BUG: …"); inflight = 0 }` and a
+   process-level `uncaughtException` handler that logs + survives
+   instead of dying. Loud-but-recover.
+
+### Embedded-mode discipline
+
+6. **`?embedded=1` flag + postMessage handshake (UbiX-style).** Detect
+   embedded mode at boot; emit `{type:"ready", minSize, preferredSize,
+   title}` to `window.parent`; listen for `visibility` / `theme` /
+   `state` from the host. Standalone path is unchanged (every
+   `parent.postMessage` is a no-op when `parent === window`). Makes
+   ariaflow-dashboard droppable into any future shell aggregator
+   without retrofit. ~80 LOC, see
+   `claude-sub-proxy/ui/src/shell-handshake.ts`.
+7. **CSS scoped under a single root class** (e.g. `.ariaflow-app`).
+   Today everything in `style.css` is global; if/when same-document
+   embedding lands, every selector is a collision risk. Even without
+   embedding, this is hygiene that prevents future bugs at zero cost.
+   One pass of CSS-nesting under one wrapper.
+8. **Visibility-aware polling using BOTH `document.visibilitychange`
+   AND postMessage `visibility`.** Whichever fires first wins; the
+   other becomes a no-op until next change. Works standalone (tab
+   switch / minimize) AND embedded (shell hides the iframe). Pattern
+   in `ui/src/shell-handshake.ts`.
+
+### Deploy flexibility
+
+9. **Three deploy modes via `BACKEND_URL` build env + `CORS_ORIGIN`
+   runtime env.** Single-host (default, same-origin), split-host (UI
+   on a CDN, backend on a VPS), embedded (iframe behind reverse
+   proxy). Same bundle, different envs. Today ariaflow assumes the
+   Python server hosts both; this would let the UI deploy to
+   Cloudflare Pages / Vercel.
+10. **Three-process orchestration script.** `scripts/dev.sh` with
+    `start / stop / restart / status / logs` subcommands; kill-by-port
+    via `lsof -sTCP:LISTEN`; auto-build of native binaries; per-
+    process log files. Cleaner than juggling terminals.
+
+### UX / data presentation
+
+11. **Search-box token syntax with include/exclude.** `messages` /
+    `-otlp` / `!chatgpt` / `claude -opus` (AND-composed). ~30 LOC in
+    a pure `matchesFilter()` predicate, testable. Ariaflow could apply
+    it to whatever indexable list it has.
+12. **Filter persistence with versioned localStorage key.**
+    `csp_admin_flags_v1`-style: explicit schema, per-field `??
+    fallback`, parse-failure → return defaults. New fields don't
+    crash old localStorage; schema bumps to `_v2` cleanly.
+13. **Time formatting context-aware.** `fmtTimeLocal(ts)` shows
+    `HH:MM:SS` for today, `MMM DD · HH:MM:SS` for older. Prevents
+    confusion when the events ring spans days.
+14. **Paused state indicator.** Visual amber pill on the status line
+    when polling is off (auto-refresh unchecked). Avoids the "why
+    isn't it updating" silence.
+15. **Build-artifact identifier in the header.** Show the commit sha
+    (or build timestamp) next to the version: `v2 aeefa13`. Removes
+    the "am I seeing a stale bundle?" question.
+
+### State / persistence
+
+16. **Server-side single source of truth for aggregates.** Anything
+    that's a sum, count, or accumulated total lives on the server,
+    not in client localStorage. Clients are pure views, multi-tab
+    safe by construction. (Claude-sub-proxy did this in G2 — Phase
+    G of the project plan).
+17. **Event ring snapshot persistence with monotonic ID continuity.**
+    On graceful shutdown, write `{nextId, events}` to disk as JSON;
+    restore at boot. The `nextId` field matters: admin clients use
+    `since=N` cursors that would alias old + new events without it.
+18. **`PRIVACY=1` env: explicit data-sensitivity mode.** Redact
+    request previews, response captures, and log lines via
+    heuristic regexes (Bearer / sk- / JWT-shaped). Optional, opt-in.
+    Useful pattern even if ariaflow's domain is less sensitive — the
+    *discipline* of having a named, env-flagged degraded mode is
+    portable.
+
+### Documentation discipline
+
+19. **Living `DEEP_ANALYSIS.md` with dated passes.** Multi-pass code
+    audits (HIGH / MED / LOW classification, items fixed vs items
+    explicitly deferred with rationale). Forces honest pruning and
+    documents *why* something wasn't fixed.
+20. **Stack-comparison decision doc** (`docs/stack-comparison.md`).
+    Articulates the maturity ladder L0/L1/L2/L3 (Alpine|Vanilla JS →
+    TS modulaire → Preact → React+shadcn). Even keeping ariaflow at
+    L0 (current), having the doc clarifies *why* and what L1 would
+    look like.
+
+---
+
+**How to use this list.** When ariaflow-dashboard hits a real pain
+point — bug that types would have caught, a need to embed elsewhere,
+a regression that tests would have prevented — pick the relevant item
+and graduate it from "to study" to a real plan entry. Don't port them
+en bloc; port reactively, when the cost stops being theoretical.
