@@ -67,7 +67,7 @@ def extract_frontend_routes() -> tuple[set[str], list[str]]:
 
 def extract_fetch_paths() -> list[str]:
     """Every backend endpoint the frontend calls via _fetch()."""
-    js = (STATIC / "app.js").read_text(encoding="utf-8")
+    js = (STATIC / "ts" / "app.ts").read_text(encoding="utf-8")
     paths: set[str] = set()
     for m in re.finditer(r"_fetch\(.*?['\"`](/api[^'\"`$]*)['\"`]", js):
         path = re.sub(r"\$\{[^}]+\}", "{param}", m.group(1)).split("?")[0]
@@ -79,7 +79,7 @@ def extract_action_handlers() -> set[str]:
     """JS function names invoked from inline @click/@change/@input handlers."""
     actions: set[str] = set()
     pattern = re.compile(r'@(?:click|change|input)(?:\.[a-z0-9.]+)?="([^"(]+)\(')
-    paths = [STATIC / "index.html", STATIC / "app.js"]
+    paths = [STATIC / "index.html", STATIC / "ts" / "app.ts"]
     paths.extend(sorted((STATIC / "_fragments").glob("*.html")))
     for path in paths:
         for m in pattern.finditer(path.read_text(encoding="utf-8")):

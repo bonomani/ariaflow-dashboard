@@ -29,13 +29,13 @@ class TestStaticFiles:
         assert ":root" in resp.read().decode()
 
     def test_js_served_with_correct_type(self, web_server: str) -> None:
-        resp = urllib.request.urlopen(f"{web_server}/static/app.js", timeout=5)
+        resp = urllib.request.urlopen(f"{web_server}/static/dist/app.js", timeout=5)
         assert "javascript" in resp.headers.get("Content-Type", "")
         assert "Alpine" in resp.read().decode()
 
     def test_html_references_css_and_js(self, web_server: str) -> None:
         body = urllib.request.urlopen(f"{web_server}/", timeout=5).read().decode()
-        assert "/static/style.css" in body and "/static/app.js" in body
+        assert "/static/style.css" in body and "/static/dist/app.js" in body
 
     def test_html_has_version_substituted(self, web_server: str) -> None:
         body = urllib.request.urlopen(f"{web_server}/", timeout=5).read().decode()
@@ -89,5 +89,5 @@ class TestHTMLValidation:
         assert css.count("{") == css.count("}")
 
     def test_js_balanced_parens(self, web_server: str) -> None:
-        js = urllib.request.urlopen(f"{web_server}/static/app.js", timeout=5).read().decode()
+        js = urllib.request.urlopen(f"{web_server}/static/dist/app.js", timeout=5).read().decode()
         assert js.count("(") == js.count(")")

@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from conftest import start_server, stop_server  # noqa: E402
 
 WEBAPP_PY = Path(__file__).resolve().parents[1] / "src" / "ariaflow_dashboard" / "webapp.py"
-APP_JS = Path(__file__).resolve().parents[1] / "src" / "ariaflow_dashboard" / "static" / "app.js"
+APP_JS = Path(__file__).resolve().parents[1] / "src" / "ariaflow_dashboard" / "static" / "ts" / "app.ts"
 INDEX_HTML = Path(__file__).resolve().parents[1] / "src" / "ariaflow_dashboard" / "static" / "index.html"
 _FRAGMENTS_DIR = INDEX_HTML.parent / "_fragments"
 

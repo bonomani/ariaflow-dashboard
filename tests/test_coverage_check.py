@@ -32,7 +32,7 @@ TEMPLATE_RE = re.compile(r'\$\{[^}]+\}')
 def _extract_actions() -> set[str]:
     """Extract all unique JS function names from inline event handlers in static files."""
     actions: set[str] = set()
-    paths = [STATIC_DIR / "index.html", STATIC_DIR / "app.js"]
+    paths = [STATIC_DIR / "index.html", STATIC_DIR / "ts" / "app.ts"]
     paths.extend(sorted((STATIC_DIR / "_fragments").glob("*.html")))
     for path in paths:
         source = path.read_text(encoding="utf-8")

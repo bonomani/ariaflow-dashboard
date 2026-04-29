@@ -1,3 +1,24 @@
+// @ts-nocheck
+// Thin TS port of the original app.js. Type-checking is disabled for
+// this file pending the planned split into typed modules
+// (types/api/state/components). Behavior is unchanged.
+
+import {
+  formatEta,
+  formatBytes,
+  formatRate,
+  formatMbps,
+  humanCap,
+  shortName,
+  relativeTime,
+  timestampLabel,
+  badgeClass,
+  sessionLabel,
+} from './formatters';
+import { renderItemSparkline, renderGlobalSparkline } from './sparkline';
+
+declare const Alpine: any;
+
 document.addEventListener('alpine:init', () => {
   Alpine.data('ariaflow', () => ({
     // --- state ---
