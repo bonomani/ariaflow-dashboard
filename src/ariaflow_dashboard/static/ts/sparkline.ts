@@ -1,6 +1,6 @@
 // Sparkline SVG rendering — no Alpine dependency.
 
-declare function formatRate(bps: number): string;
+import { formatRate } from './formatters';
 
 function sparklinePoints(data: number[], max: number, w: number, h: number): string {
   const step = w / (data.length - 1);
