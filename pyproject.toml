@@ -24,7 +24,7 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-ariaflow_dashboard = ["static/*", "static/_fragments/*"]
+ariaflow_dashboard = ["static/*", "static/_fragments/*", "static/dist/*"]
 
 [tool.pytest.ini_options]
 addopts = "-m 'not slow'"
