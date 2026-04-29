@@ -10,7 +10,8 @@ It does not own engine truth.
 
 - **Framework:** Alpine.js — single `Alpine.data('ariaflow', ...)` on `<body>`
 - **Rendering:** Reactive DOM patching via `x-text`, `x-show`, `:class`, `x-for`
-- **No build step:** Plain JS + HTML, no bundler
+- **Language:** TypeScript (strict, `noUncheckedIndexedAccess`). Sources live in `src/ariaflow_dashboard/static/ts/` and bundle to `static/dist/app.js` via esbuild. `app.ts` is currently a thin port carrying `// @ts-nocheck` pending the planned split into typed component modules; `formatters.ts`, `sparkline.ts`, and `types.ts` are fully typed and unit-tested via `node:test` + `tsx`.
+- **Build:** `make build-frontend` (esbuild). Lint/format/test gates: `make typecheck-frontend lint-frontend test-frontend format-check-frontend`, all wired into `make ci`.
 - **State:** One flat object with computed getters. All state derives from `lastStatus`
 - **HTML assembly:** `index.html` is split into `_fragments/header.html` + 7 `tab_*.html` files. `webapp.py` expands `<!--INCLUDE:-->` markers at startup via `_expand_includes()`, so the browser receives a single merged page.
 
@@ -23,7 +24,7 @@ User click → handler → POST → SSE push or polling updates state
 
 ### Timer model
 
-Polling cadence is driven by a single `LOADERS` manifest in `app.js`.
+Polling cadence is driven by a single `LOADERS` manifest in `ts/app.ts`.
 Each entry declares `{fn, k}` where the effective interval is `k * refreshInterval`.
 `_refreshAll()` fires every loader (used on init, resume, and backend switch).
 `_refreshTabOnly()` fires only the current tab's loaders (used by `navigateTo`).

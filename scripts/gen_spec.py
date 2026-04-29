@@ -4,7 +4,7 @@
 Sources:
   - pyproject.toml
   - src/ariaflow_dashboard/webapp.py
-  - src/ariaflow_dashboard/static/{app.js,index.html}
+  - src/ariaflow_dashboard/static/{ts/app.ts,index.html}
   - docs/ucc-declarations.yaml
   - docs/schemas/api-*.schema.json
   - ACTIONS.md, ARCHITECTURE.md (first paragraph each)
@@ -240,7 +240,7 @@ def render() -> str:
     add(
         f"The frontend calls **{len(fetch_paths)} distinct backend endpoint paths** "
         "(parameterized routes collapsed to `{param}`). Each path appears in "
-        "`src/ariaflow_dashboard/static/app.js`."
+        "`src/ariaflow_dashboard/static/ts/app.ts`."
     )
     add("")
     # Extract exact endpoint from each schema's title (e.g. "GET /api/status response (frontend contract)").
@@ -303,7 +303,7 @@ def render() -> str:
     coverage_map = ucc.get("coverage_map", {})
     add(
         f"`{len(handlers)} action handlers` are wired to inline event listeners "
-        f"in `index.html` / `app.js`. The canonical action→test mapping lives in "
+        f"in `index.html` / `ts/app.ts`. The canonical action→test mapping lives in "
         f"`docs/ucc-declarations.yaml` (`coverage_map`, `{len(coverage_map)}` entries) "
         "and is enforced by `tests/test_coverage_check.py` "
         "(`test_all_actions_have_tests`, `test_coverage_map_matches_actions`)."
