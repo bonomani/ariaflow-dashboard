@@ -1,4 +1,4 @@
-.PHONY: test lint format check check-drift verify ci install clean help build-frontend typecheck-frontend lint-frontend format-check-frontend
+.PHONY: test lint format check check-drift verify ci install clean help build-frontend typecheck-frontend lint-frontend format-check-frontend test-frontend
 
 help: ## Show this help
 	@grep -E '^[a-z_-]+:.*##' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*## "}; {printf "  %-15s %s\n", $$1, $$2}'
@@ -26,13 +26,16 @@ build-frontend: ## Build the TypeScript frontend bundle
 typecheck-frontend: ## Type-check the TypeScript frontend
 	npm run typecheck
 
+test-frontend: ## Run TypeScript unit tests (node:test + tsx)
+	npm test
+
 lint-frontend: ## Lint the TypeScript frontend (eslint)
 	npm run lint
 
 format-check-frontend: ## Check frontend formatting (prettier)
 	npm run format:check
 
-verify: check-drift build-frontend test ## Full verification: check-drift + frontend build + tests
+verify: check-drift build-frontend test-frontend test ## Full verification: check-drift + frontend build + frontend tests + python tests
 	@echo "All verification checks passed."
 
 ci: verify typecheck-frontend lint-frontend format-check-frontend lint ## Pre-push gate: verify + tsc + eslint + prettier + ruff lint + format check
