@@ -15,9 +15,11 @@ htmlcov/
 .venv/
 
 # Build artifacts
-dist/
-build/
+/dist/
+/build/
 node_modules/
+# (note: static/dist/ — the TS bundle — is checked in so the GitHub
+# source tarball used by the Homebrew formula contains it)
 
 # IDE / Editor
 .vscode/
