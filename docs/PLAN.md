@@ -139,6 +139,58 @@ events per client.
 
 Sequence: file BG-31 → backend lands `meta` on `/api/status`, `/api/lifecycle`, `/api/bandwidth` first → frontend ships `FreshnessRouter` consuming those three → expand backend coverage → consider upstream.
 
+## Active: Remove legacy / fallback compatibility
+
+The backend has shipped BG-25, BG-27, BG-30, BG-31, BG-32. The frontend
+still carries fallback paths for "old backend" behaviour. Each one is a
+dead branch that ages into bit-rot. Sweep them out in one focused PR.
+
+### Fallback sites to remove
+
+| # | Site | Today's fallback | Why it can go |
+|---|------|------------------|---------------|
+| 1 | `app.ts` `state.dispatch_paused ?? state.paused` (5 sites) | reads legacy field | BG-30 dual-keyed dispatch_paused; backend can drop the alias |
+| 2 | `app.ts` summary `s.removed ?? s.stopped` | dual-key fallback | BG-30 same as above |
+| 3 | `lifecycle.ts` `labelFromLegacy` (entire function) | maps legacy `reason` enum when axes absent | BG-27 axes are mandatory now; never absent |
+| 4 | `lifecycle.ts` `lifecycleActionsFor` legacy-actions branch | falls back when `hasAxes(result)` is false | same as #3 |
+| 5 | `freshness-bootstrap.ts` returns null on /api/_meta 404 | tolerates legacy backend | BG-31 shipped; /api/_meta is required |
+| 6 | `app.ts` `_fetch.if (this._freshnessRouter)` invalidation guard | skips when router missing | router is always present after #5 |
+| 7 | `app.ts` LOADERS manifest with hardcoded `k` multipliers | per-tab cadence in code | freshness contract supersedes — class+ttl drives cadence |
+| 8 | `formatters.ts` `'stopped'` in bad-badge list | kept during BG-30 cutover | only `removed` should remain |
+| 9 | `app.ts` `itemCanRetry(...).includes('stopped')` | dual-name allowance | only `removed` |
+| 10 | SSE event-name → fallback "all topics" path | when backend doesn't filter | BG-32 shipped; topics are required |
+
+### Constraint: paired with backend cleanup
+
+Items 1, 2, 8, 9 require **backend to drop the alias** first. File as
+**BG-33: Drop legacy aliases** (backend deletes `state.paused`,
+`summary.stopped`, accepts only canonical names). Frontend cuts over in
+the same PR week.
+
+Items 3, 4 are frontend-only — `labelFromLegacy` is unreachable now
+that BG-27 is mandatory. Just delete with the test cases that exercise
+it.
+
+Items 5, 6, 10 require a version bump declaration (e.g. `meta.api_version >= 2`)
+or just the policy "minimum backend version is whatever shipped BG-31".
+Pick the policy, document in `AGENTS.md`, then drop the guards.
+
+Item 7 is the big one — replaces the LOADERS manifest with router
+subscriptions per page. Already on FE-24 step 3 backlog. Stays there.
+
+### Sequence
+
+1. File **BG-33** for backend alias removal.
+2. Frontend ships items 3, 4 (legacy lifecycle path) standalone.
+3. Backend lands BG-33; frontend cuts over items 1, 2, 8, 9 same day.
+4. Frontend declares minimum backend version, drops items 5, 6, 10.
+5. Item 7 lands as part of FE-24 step 3 (router-driven LOADERS).
+
+### Anti-goals
+
+- **Do not break "I'm running an older backend"** without first declaring a minimum version policy. Silent breakage is worse than the dead code.
+- **Do not delete tests just because the production path is gone.** If `labelFromLegacy` is unreachable, the test must come out too — leaving "tests for code that doesn't exist" is a different kind of rot.
+
 ## Active: TypeScript migration of frontend JS
 
 Migrate `src/ariaflow_dashboard/static/*.js` (1853 LOC across `app.js`,
