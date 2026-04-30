@@ -60,6 +60,7 @@ import {
   GLOBAL_SPEED_MAX,
   SPEED_HISTORY_MAX,
 } from './speed_history';
+import { diffItemStatuses } from './notifications';
 
 declare const Alpine: any;
 
@@ -526,20 +527,12 @@ document.addEventListener('alpine:init', () => {
 
     // --- notifications ---
     checkNotifications(items) {
+      const { notifications, nextStatusMap } = diffItemStatuses(this.previousItemStatuses, items);
+      this.previousItemStatuses = nextStatusMap;
       if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-      items.forEach((item) => {
-        const id = item.id || item.url || '';
-        const status = (item.status || '').toLowerCase();
-        const prev = this.previousItemStatuses[id];
-        if (prev && prev !== status) {
-          if (status === 'done') {
-            new Notification('Download complete', { body: this.shortName(item.output || item.url || ''), tag: `ariaflow-${id}` });
-          } else if (status === 'error' || status === 'failed') {
-            new Notification('Download failed', { body: this.shortName(item.output || item.url || '') + (item.error_message ? ` — ${item.error_message}` : ''), tag: `ariaflow-${id}` });
-          }
-        }
-        this.previousItemStatuses[id] = status;
-      });
+      for (const n of notifications) {
+        new Notification(n.title, { body: n.body, tag: n.tag });
+      }
     },
     initNotifications() {
       if (typeof Notification === 'undefined' || Notification.permission !== 'default') return;
