@@ -48,6 +48,12 @@ import {
   filterQueueItems as composeFilterQueueItems,
   isFilterButtonVisible,
 } from './filters';
+import {
+  buildStatusUrl,
+  parseActionLoggedEvent,
+  parseStateChangedEvent,
+  shouldShowOfflineStatus,
+} from './events';
 
 declare const Alpine: any;
 
@@ -816,34 +822,31 @@ document.addEventListener('alpine:init', () => {
         if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
       });
       es.addEventListener('state_changed', (e) => {
-        try {
-          const data = JSON.parse(e.data);
-          // If backend pushes full payload (has items array), assign directly
-          if (data?.items) {
-            if (data?.ok === false || data?.['ariaflow-server']?.reachable === false) {
-              this._consecutiveFailures++;
-              if (!this.lastStatus || this._consecutiveFailures >= 3) this.lastStatus = data;
-              return;
+        const evt = parseStateChangedEvent(e.data);
+        if (evt.kind === 'full') {
+          if (evt.isOffline) {
+            this._consecutiveFailures++;
+            if (shouldShowOfflineStatus(this._consecutiveFailures, !!this.lastStatus)) {
+              this.lastStatus = evt.data;
             }
-            this._consecutiveFailures = 0;
-            this.lastStatus = data;
-            this.lastRev = data._rev || null;
-            this.checkNotifications(this.itemsWithStatus);
-            this.recordGlobalSpeed(this.currentSpeed || 0, this.currentUploadSpeed || 0);
-          } else if (data?.rev != null && data.rev !== this.lastRev) {
-            // Lightweight event with just rev — fetch full status
-            this.refresh();
+            return;
           }
-        } catch (err) { /* SSE parse error — ignored to avoid noise */ }
+          this._consecutiveFailures = 0;
+          this.lastStatus = evt.data;
+          this.lastRev = evt.data._rev || null;
+          this.checkNotifications(this.itemsWithStatus);
+          this.recordGlobalSpeed(this.currentSpeed || 0, this.currentUploadSpeed || 0);
+        } else if (evt.kind === 'rev' && evt.rev !== this.lastRev) {
+          // Lightweight event with just rev — fetch full status
+          this.refresh();
+        }
       });
       // BG-7: backend pushes individual action log entries in real-time
       es.addEventListener('action_logged', (e) => {
-        try {
-          const entry = JSON.parse(e.data);
-          if (entry && typeof entry === 'object') {
-            this.actionLogEntries = [entry, ...this.actionLogEntries].slice(0, this.logLimit || 120);
-          }
-        } catch (err) { /* ignore */ }
+        const entry = parseActionLoggedEvent(e.data);
+        if (entry) {
+          this.actionLogEntries = [entry, ...this.actionLogEntries].slice(0, this.logLimit || 120);
+        }
       });
       es.onerror = () => {
         this._sseConnected = false;
@@ -893,16 +896,10 @@ document.addEventListener('alpine:init', () => {
     _consecutiveFailures: 0,
     _statusETag: null,
     _statusUrl() {
-      let url = this.apiPath('/api/status');
-      const params = [];
-      if (this.queueFilter && this.queueFilter !== 'all') {
-        // Map display names back to backend status names
-        const backendStatus = { downloading: 'active', done: 'complete' }[this.queueFilter] || this.queueFilter;
-        params.push(`status=${encodeURIComponent(backendStatus)}`);
-      }
-      if (this.sessionFilter && this.sessionFilter === 'current') params.push('session=current');
-      if (params.length) url += '?' + params.join('&');
-      return url;
+      return buildStatusUrl(this.apiPath('/api/status'), {
+        queueFilter: this.queueFilter,
+        sessionFilter: this.sessionFilter,
+      });
     },
     async refresh() {
       if (this.refreshInFlight) return;
@@ -922,8 +919,9 @@ document.addEventListener('alpine:init', () => {
         this.lastRev = data?._rev || null;
         if (data?.ok === false || data?.['ariaflow-server']?.reachable === false) {
           this._consecutiveFailures++;
-          // Show offline immediately if no prior data, or after 3 consecutive failures to avoid flicker
-          if (!this.lastStatus || this._consecutiveFailures >= 3) this.lastStatus = data;
+          if (shouldShowOfflineStatus(this._consecutiveFailures, !!this.lastStatus)) {
+            this.lastStatus = data;
+          }
           this.recordGlobalSpeed(0, 0);
           return;
         }
@@ -936,7 +934,7 @@ document.addEventListener('alpine:init', () => {
       } catch (e) {
         this._consecutiveFailures++;
         const message = e && e.message ? e.message : 'connection refused';
-        if (!this.lastStatus || this._consecutiveFailures >= 3) {
+        if (shouldShowOfflineStatus(this._consecutiveFailures, !!this.lastStatus)) {
           this.lastStatus = {
             ...(this.lastStatus || {}),
             ok: false,
