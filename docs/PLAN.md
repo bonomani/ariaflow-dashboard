@@ -9,6 +9,7 @@ History lives in git. This file tracks only **active** and **deferred** work.
 | FE-18 | Deferred | SSE smoke test — add only when payload drift causes a regression |
 | FE-22 | Blocked by BG-15 | Fallback to `/api/peers` when local mDNS unavailable (WSL, containers) |
 | FE-24 | In progress | Freshness routing + Dev map — see below |
+| FE-26 | Blocked by BG-34 | LOADERS manifest → FreshnessRouter subscriptions |
 
 ## Active: FE-24 — Freshness routing remainder
 
@@ -26,9 +27,9 @@ Remaining:
   router can be subscriber-driven without reconnect storms, or (b) `log`
   is modeled as a router-registered SSE-driven endpoint so its topic is
   part of the union. Until then, leave SSE unfiltered (current behavior).
-- **Step 7 of legacy-removal (LOADERS manifest).** Replace the hardcoded
-  per-tab `k` multipliers in `app.ts` with router subscriptions per page.
-  Class+ttl drives cadence.
+- **LOADERS manifest replacement.** Tracked as FE-26 (paired with
+  BG-34). Needs a router fetch-notify hook + backend registration of
+  five tab endpoints before the cutover.
 
 ## Won't-fix legacy fallbacks (small dead code, large policy cost)
 

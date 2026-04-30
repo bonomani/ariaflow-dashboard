@@ -1,6 +1,33 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (3)
+## Open (4)
+
+### FE-26: Replace LOADERS manifest with FreshnessRouter subscriptions (paired with BG-34)
+
+Today every tab's data refresh runs through `app.ts LOADERS` — a static
+manifest of `{fn, k}` per tab that fires each loader once on entry and
+then on `setInterval(k * refreshInterval)`. With BG-31's freshness
+contract shipped, the router knows each endpoint's class + ttl + topics;
+the manifest is now a parallel source of truth for cadence.
+
+Replace it with subscriber-driven router calls per page. Each tab
+component becomes a subscriber; the router decides when to fetch based
+on class + visibility + ref-count. Eliminates the manifest, the per-tab
+`k` multipliers, `_startTabPollers`, and `_stopTabPollers`.
+
+Two prerequisites:
+
+1. **Router needs a fetch-result notify hook** (`onUpdate(endpoint, cb)`
+   or per-subscribe callback). Today the router caches `lastValue` but
+   doesn't notify; without that, ports can't drive Alpine state on each
+   refresh. Frontend-only design.
+2. **BG-34** — five tab endpoints are unregistered in `/api/_meta`
+   (`/api/torrents`, `/api/peers`, `/api/downloads/archive`,
+   `/api/sessions`, `/api/declaration`). Without registration the router
+   can't drive them, so the manifest can't go away cleanly.
+
+Blocked by: BG-34 (partial — frontend can ship the router callback API
+and port already-registered tabs first).
 
 ### FE-24: Per-endpoint freshness routing + Dev-tab map (paired with BG-31)
 
