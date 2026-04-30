@@ -13,12 +13,10 @@ History lives in git. This file tracks only **active** and **deferred** work.
 
 ## Active: FE-24 — Freshness routing remainder
 
-Steps 1–7 shipped (router, eager-refetch removal, visibility, revalidate_on,
-tests, `/api/_meta` consumption, Dev-tab map). Remaining:
+Steps 1–8 shipped (router, eager-refetch removal, visibility, revalidate_on,
+tests, `/api/_meta` consumption, Dev-tab map, `npm run freshness:snapshot`).
+Remaining:
 
-- **Step 8 — `npm run freshness:snapshot`.** Build-time script that hits a
-  running backend and writes `docs/FRESHNESS_SNAPSHOT.md` from `/api/_meta`
-  for PR review / audit. No hand-edited parallel registry.
 - **BG-32 paired wiring.** Types for `transport_topics` exist; the
   `subscribe`/`unsubscribe` flow over the open SSE stream is not wired yet.
   When subscriber visibility changes for a `live` endpoint, send a topic
