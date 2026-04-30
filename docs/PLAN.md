@@ -9,7 +9,6 @@ History lives in git. This file tracks only **active** and **deferred** work.
 | FE-18 | Deferred | SSE smoke test — add only when payload drift causes a regression |
 | FE-22 | Blocked by BG-15 | Fallback to `/api/peers` when local mDNS unavailable (WSL, containers) |
 | FE-24 | In progress | Freshness routing + Dev map — see below |
-| FE-25 | Blocked by BG-33 | Drop legacy alias fallbacks — see below |
 
 ## Active: FE-24 — Freshness routing remainder
 
@@ -31,16 +30,7 @@ Remaining:
   per-tab `k` multipliers in `app.ts` with router subscriptions per page.
   Class+ttl drives cadence.
 
-## Active: FE-25 — Drop legacy alias fallbacks (paired with BG-33)
-
-Items waiting on BG-33 (backend drops `state.paused`, `summary.stopped`):
-
-- `app.ts` `state.dispatch_paused ?? state.paused` (5 sites).
-- `app.ts` summary `s.removed ?? s.stopped`.
-- `formatters.ts` `'stopped'` in bad-badge list.
-- `app.ts` `itemCanRetry(...).includes('stopped')`.
-
-Won't-fix (small dead code, large policy cost):
+## Won't-fix legacy fallbacks (small dead code, large policy cost)
 
 - `freshness-bootstrap.ts` returns null on `/api/_meta` 404.
 - `app.ts` `_fetch` `if (this._freshnessRouter)` invalidation guard.
@@ -50,18 +40,6 @@ These would need a declared minimum backend version (banner, version
 detection, upgrade UX) to drop safely — more weight than the ~5 lines
 of guard code they'd remove. Revisit only if a real divergence between
 old and new backend behavior shows up.
-
-### Sequence
-
-1. Backend lands BG-33; cut over `state.paused` / `s.stopped` / `'stopped'`
-   sites the same day.
-
-### Anti-goals
-
-- Do not break "I'm running an older backend" without first declaring a
-  minimum-version policy. Silent breakage is worse than dead code.
-- If a function becomes unreachable, delete its tests too. Tests for
-  non-existent code are a different kind of rot.
 
 ## Deferred
 

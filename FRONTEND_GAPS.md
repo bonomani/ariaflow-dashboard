@@ -1,16 +1,6 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (4)
-
-### FE-25: Drop legacy alias fallbacks (paired with BG-33)
-
-After BG-33 lands, drop the dual-key reads in the frontend:
-- `state.dispatch_paused ?? state.paused` (5 sites in `app.ts`) → drop legacy half.
-- `s.removed ?? s.stopped` (filterCounts) → drop legacy half.
-- `itemCanRetry` allowance for `'stopped'` → drop.
-- `formatters.ts badgeClass` `'stopped'` in bad-list → drop.
-
-Blocked by: BG-33.
+## Open (3)
 
 ### FE-24: Per-endpoint freshness routing + Dev-tab map (paired with BG-31)
 
@@ -55,6 +45,7 @@ _End of open gaps._
 
 | ID | Summary | Date |
 |----|---------|------|
+| FE-25 | Dropped legacy alias fallbacks (paired with BG-33): `state.dispatch_paused ?? state.paused` collapsed to `dispatch_paused` only, `s.removed ?? s.stopped` to `removed`, `'stopped'` removed from `itemCanRetry` allow-list and `formatters.badgeClass` bad-list. Earlier this session: `lifecycle.ts` `labelFromLegacy` + axes-absent fallbacks deleted | 2026-04-30 |
 | FE-23 | Aria2-aligned item-status vocabulary (BG-30 cutover): dropped phantom statuses (recovered/failed/downloading/done/cancelled), switched filter buckets to canonical names (active/complete/removed), wired waiting counter, switched to `state.dispatch_paused` reads | 2026-04-30 |
 | FE-21 | Bonjour service type fixed (`_ariaflow-server._tcp` / `_ariaflow-dashboard._tcp`) | 2026-04-09 |
 | FE-20 | Archive button uses `archivable_count` from backend | 2026-04-09 |

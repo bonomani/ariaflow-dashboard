@@ -181,7 +181,7 @@ document.addEventListener('alpine:init', () => {
           discovering: s.discovering || 0,
           active: s.active || 0,
           paused: s.paused || 0,
-          removed: s.removed ?? s.stopped ?? 0,
+          removed: s.removed || 0,
           complete: s.complete || 0,
           error: s.error || 0,
         };
@@ -195,7 +195,7 @@ document.addEventListener('alpine:init', () => {
         else if (status === 'discovering') counts.discovering++;
         else if (status === 'active') counts.active++;
         else if (status === 'paused') counts.paused++;
-        else if (status === 'removed' || status === 'stopped') counts.removed++;
+        else if (status === 'removed') counts.removed++;
         else if (status === 'complete') counts.complete++;
         else if (status === 'error') counts.error++;
       });
@@ -218,7 +218,7 @@ document.addEventListener('alpine:init', () => {
     },
     get schedulerBtnText() {
       if (!this.backendReachable) return 'Start';
-      if (this.state?.dispatch_paused ?? this.state?.paused) return 'Resume';
+      if (this.state?.dispatch_paused) return 'Resume';
       if (this.state?.running) return 'Pause';
       return 'Start';
     },
@@ -512,7 +512,7 @@ document.addEventListener('alpine:init', () => {
     },
     schedulerOverviewLabel(state, items, active) {
       if (!state?.running) return 'scheduler idle';
-      if (state?.dispatch_paused ?? state?.paused) return 'paused';
+      if (state?.dispatch_paused) return 'paused';
       if (active && active.status && active.status !== 'idle') return active.status;
       if ((items || []).length) return 'ready';
       return 'idle';
@@ -532,7 +532,7 @@ document.addEventListener('alpine:init', () => {
         this.resultText = 'Scheduler idle';
         return;
       }
-      this.resultText = (this.state?.dispatch_paused ?? this.state?.paused) ? 'Downloads paused' : 'Downloads running';
+      this.resultText = this.state?.dispatch_paused ? 'Downloads paused' : 'Downloads running';
     },
     _offlineStatusLabel() {
       const data = this.lastStatus;
@@ -852,7 +852,7 @@ document.addEventListener('alpine:init', () => {
     itemAllowedActions(item) { return item.allowed_actions || []; },
     itemCanPause(item) { const aa = this.itemAllowedActions(item); return aa.length ? aa.includes('pause') : this.itemNormalizedStatus(item) === 'active'; },
     itemCanResume(item) { const aa = this.itemAllowedActions(item); return aa.length ? aa.includes('resume') : this.itemNormalizedStatus(item) === 'paused'; },
-    itemCanRetry(item) { const aa = this.itemAllowedActions(item); return aa.length ? aa.includes('retry') : ['error', 'removed', 'stopped'].includes(this.itemNormalizedStatus(item)); },
+    itemCanRetry(item) { const aa = this.itemAllowedActions(item); return aa.length ? aa.includes('retry') : ['error', 'removed'].includes(this.itemNormalizedStatus(item)); },
     itemCanRemove(item) { const aa = this.itemAllowedActions(item); return aa.length ? aa.includes('remove') : true; },
     itemToggleAction(item) {
       if (this.itemCanPause(item)) return this.itemAction(item.id, 'pause');
@@ -1201,7 +1201,7 @@ document.addEventListener('alpine:init', () => {
       this.schedulerLoading = true;
       try {
         if (!this.state?.running) return await this.schedulerAction('start');
-        if (this.state?.dispatch_paused ?? this.state?.paused) return await this.resumeDownloads();
+        if (this.state?.dispatch_paused) return await this.resumeDownloads();
         return await this.pauseDownloads();
       } finally { this.schedulerLoading = false; }
     },
