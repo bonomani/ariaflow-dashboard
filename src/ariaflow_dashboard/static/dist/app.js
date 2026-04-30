@@ -576,6 +576,123 @@ function distinctTargets(entries) {
   return [...new Set(entries.map((e) => e.target ?? "unknown"))].sort();
 }
 
+// src/ariaflow_dashboard/static/ts/lifecycle.ts
+function isLaunchdLike(name) {
+  return name.includes("launchd") || name.includes("auto-start");
+}
+function hasAxes(result) {
+  return result.installed !== void 0 || result.current !== void 0 || result.running !== void 0;
+}
+function isLifecycleHealthy(record) {
+  const result = record?.result;
+  if (!result) return false;
+  if (hasAxes(result)) {
+    if (result.installed === false) return false;
+    if (result.current === false) return false;
+    if (result.running === false) return false;
+    return true;
+  }
+  return result.reason === "match" || result.reason === "ready";
+}
+function describeLifecycleStatus(name, record) {
+  const result = record?.result ?? {};
+  if (hasAxes(result)) {
+    return labelFromAxes(name, result);
+  }
+  return labelFromLegacy(name, result);
+}
+function labelFromAxes(name, result) {
+  const { installed, current, running } = result;
+  if (installed === null && current === null) {
+    if (running === true) return isLaunchdLike(name) ? "loaded" : "running";
+    if (running === false) return isLaunchdLike(name) ? "not loaded" : "stopped";
+    return "unknown";
+  }
+  if (installed === false) return "not installed";
+  if (current === false) {
+    const v = result.version;
+    const ev = result.expected_version;
+    if (v && ev) return `update available (${v} \u2192 ${ev})`;
+    return "update available";
+  }
+  if (running === false) return "installed \xB7 stopped";
+  if (running === true) return "running \xB7 current";
+  return "installed \xB7 current";
+}
+function labelFromLegacy(name, result) {
+  const reason = result.reason ?? "";
+  if (name === "ariaflow-server" || name === "aria2") {
+    if (reason === "match") return "installed \xB7 current";
+    if (reason === "missing") return "absent";
+    return result.outcome ?? "unknown";
+  }
+  if (name === "networkquality") {
+    if (reason === "ready") return "installed \xB7 usable";
+    if (reason === "timeout" || reason === "probe_timeout_no_parse" || reason === "probe_timeout_partial_capture") {
+      return "installed \xB7 probe timeout";
+    }
+    if (reason === "no_output" || reason === "probe_no_parse") return "installed \xB7 no parse";
+    if (reason === "missing") return "absent";
+    if (reason === "error" || reason === "probe_error") return "installed \xB7 error";
+    return result.outcome ?? "unknown";
+  }
+  if (reason === "match") return "loaded";
+  if (reason === "missing") return "not loaded";
+  return result.outcome ?? "unknown";
+}
+function lifecycleDetailLines(record) {
+  const result = record?.result;
+  if (!result) return [];
+  const usingAxes = hasAxes(result);
+  const lines = [];
+  if (result.message) lines.push(result.message);
+  if (result.observation && result.observation !== "ok") {
+    lines.push(`Observation: ${result.observation}`);
+  }
+  if (result.reason && (!usingAxes || isDiagnosticReason(result.reason))) {
+    lines.push(`Reason: ${result.reason}`);
+  }
+  if (result.completion) lines.push(`Completion: ${result.completion}`);
+  return lines;
+}
+function isDiagnosticReason(reason) {
+  return ![
+    "match",
+    "ready",
+    "ok",
+    "healthy"
+  ].includes(reason);
+}
+function lifecycleActionsFor(name, record, legacyActions = []) {
+  const result = record?.result;
+  if (!result || !hasAxes(result)) return [...legacyActions];
+  const target = legacyTargetFor(name, legacyActions);
+  if (!target) return [...legacyActions];
+  const { installed, current, running } = result;
+  if (installed === null && current === null) {
+    if (running === true) return [{ target, action: "uninstall", label: "Unload" }];
+    if (running === false) return [{ target, action: "install", label: "Load" }];
+    return [...legacyActions];
+  }
+  if (installed === false) {
+    return [{ target, action: "install", label: "Install" }];
+  }
+  if (current === false) {
+    return [
+      { target, action: "install", label: "Update" },
+      { target, action: "uninstall", label: "Remove" }
+    ];
+  }
+  return [{ target, action: "uninstall", label: "Remove" }];
+}
+function legacyTargetFor(name, legacyActions) {
+  if (legacyActions.length > 0 && legacyActions[0].target) return legacyActions[0].target;
+  if (name === "ariaflow-server") return "ariaflow-server";
+  if (name === "aria2") return "aria2";
+  if (isLaunchdLike(name)) return "aria2-launchd";
+  return null;
+}
+
 // src/ariaflow_dashboard/static/ts/app.ts
 document.addEventListener("alpine:init", () => {
   Alpine.data("ariaflow", () => ({
@@ -1901,11 +2018,31 @@ document.addEventListener("alpine:init", () => {
           this.lifecycleRows = [];
           return;
         }
+        const ariaflowLegacy = [
+          { target: "ariaflow-server", action: "install", label: "Install / Update" },
+          { target: "ariaflow-server", action: "uninstall", label: "Remove" }
+        ];
+        const launchdLegacy = [
+          { target: "aria2-launchd", action: "install", label: "Load" },
+          { target: "aria2-launchd", action: "uninstall", label: "Unload" }
+        ];
         this.lifecycleRows = [
-          { name: "ariaflow-server", record: data["ariaflow-server"], actions: [{ target: "ariaflow-server", action: "install", label: "Install / Update" }, { target: "ariaflow-server", action: "uninstall", label: "Remove" }] },
-          { name: "aria2", record: data.aria2, actions: [] },
+          {
+            name: "ariaflow-server",
+            record: data["ariaflow-server"],
+            actions: lifecycleActionsFor("ariaflow-server", data["ariaflow-server"], ariaflowLegacy)
+          },
+          { name: "aria2", record: data.aria2, actions: lifecycleActionsFor("aria2", data.aria2, []) },
           { name: "networkquality", record: data.networkquality, actions: [] },
-          { name: "aria2 auto-start (advanced)", record: data["aria2-launchd"], actions: [{ target: "aria2-launchd", action: "install", label: "Load" }, { target: "aria2-launchd", action: "uninstall", label: "Unload" }] }
+          {
+            name: "aria2 auto-start (advanced)",
+            record: data["aria2-launchd"],
+            actions: lifecycleActionsFor(
+              "aria2 auto-start (advanced)",
+              data["aria2-launchd"],
+              launchdLegacy
+            )
+          }
         ];
         if (data?.session_id) {
           this._lifecycleSession = data;
@@ -1916,54 +2053,24 @@ document.addEventListener("alpine:init", () => {
         this.lifecycleRows = [];
       }
     },
-    // True if a lifecycle row is in a healthy state. Used by the
-    // Service Status nav badge so optional / informational rows
-    // (notably aria2-launchd) and "ready" probes don't false-positive.
+    // True if a lifecycle row is in a healthy state. Reads BG-27's
+    // three axes when present; falls back to the BG-20 reason-enum
+    // for backward compatibility.
     lifecycleHealthy(row) {
-      const reason = row?.record?.result?.reason || "";
-      const name = row?.name || "";
-      if (name === "networkquality") return reason === "ready";
-      if (name.includes("aria2 auto-start")) return true;
-      return reason === "match";
+      if (row?.name?.includes("aria2 auto-start")) return true;
+      return isLifecycleHealthy(row?.record);
     },
     get lifecycleErrorCount() {
       return (this.lifecycleRows || []).filter((r) => !this.lifecycleHealthy(r)).length;
     },
     lifecycleStateLabel(name, record) {
-      const result = record && record.result ? record.result : {};
-      const reason = result.reason || "";
-      if (name === "ariaflow-server") {
-        if (reason === "match") return "installed \xB7 current";
-        if (reason === "missing") return "absent";
-        return result.outcome || "unknown";
-      }
-      if (name === "aria2") {
-        if (reason === "match") return "installed \xB7 current";
-        if (reason === "missing") return "absent";
-        return result.outcome || "unknown";
-      }
-      if (name === "networkquality") {
-        if (reason === "ready") return "installed \xB7 usable";
-        if (reason === "timeout" || reason === "probe_timeout_no_parse" || reason === "probe_timeout_partial_capture") return "installed \xB7 probe timeout";
-        if (reason === "no_output" || reason === "probe_no_parse") return "installed \xB7 no parse";
-        if (reason === "missing") return "absent";
-        if (reason === "error" || reason === "probe_error") return "installed \xB7 error";
-        return result.outcome || "unknown";
-      }
-      if (reason === "match") return "loaded";
-      if (reason === "missing") return "not loaded";
-      return result.outcome || "unknown";
+      return describeLifecycleStatus(name, record);
     },
     lifecycleItemOutcome(record) {
       return record?.result?.outcome || "unknown";
     },
     lifecycleItemLines(record) {
-      const result = record?.result || {};
-      const lines = [];
-      if (result.message) lines.push(result.message);
-      if (result.observation && result.observation !== "ok") lines.push(`Observation: ${result.observation}`);
-      if (result.reason) lines.push(`Reason: ${result.reason}`);
-      if (result.completion) lines.push(`Completion: ${result.completion}`);
+      const lines = lifecycleDetailLines(record);
       return lines.length ? lines.join(" \xB7 ") : "No details";
     },
     async lifecycleAction(target, action) {
