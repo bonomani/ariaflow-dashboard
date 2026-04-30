@@ -107,6 +107,29 @@ Rule: one declaration site (the endpoint's own `meta`), two read paths
 7. **Dev-tab "Freshness map" panel.** Live table: endpoint · declared class · host visibility · subscribers (visible / hidden) · last fetch · next scheduled fetch · drift warning when inline `meta` disagrees with `/api/_meta`.
 8. **No separate doc to maintain.** A static snapshot for review (PR descriptions, audit) is generated at build time from `/api/_meta`, never hand-edited. Add `npm run freshness:snapshot` that writes `docs/FRESHNESS_SNAPSHOT.md` from a running backend.
 
+### BG-32: Per-topic SSE subscriptions (subscriber concept, end-to-end)
+
+Concept #1 (class) shipped in BG-31. Concept #2 (visibility) is
+frontend-only. Concept #3 (subscribers) is mostly frontend — but to
+get the savings on the wire, the backend's SSE stream needs to filter
+events per client.
+
+**Backend (BG-32):**
+
+1. Accept a topic filter at SSE connect time:
+   - Query: `GET /api/events?topics=items,scheduler,lifecycle`
+   - And/or a JSON-RPC-style command on the open stream: `{"op":"subscribe","topics":[...]}` and `{"op":"unsubscribe","topics":[...]}` so the frontend can adjust topics without reconnecting.
+2. Filter `bus.subscribe(writeEvent)` so only events whose topic is in the client's set are written. Map existing event names to topics: `state_changed → items+scheduler`, `action_logged → log`, `lifecycle_changed → lifecycle` (if/when emitted), etc.
+3. Document the topic vocabulary in `packages/api/src/sse.md` or alongside `freshness.ts` so it's discoverable. Add a `meta.transport_topics` field (or extend `/api/_meta`) so clients know which topic to subscribe to per `live` endpoint.
+4. Default behaviour (no `?topics` query) stays "all topics" for backwards compatibility.
+
+**Frontend (paired update inside FE-24):**
+
+- `FreshnessRouter` reads `meta.transport_topics` from `/api/_meta` for `live` endpoints.
+- When subscriber visibility changes for a `live` endpoint, send `subscribe`/`unsubscribe` over the open stream (or reconnect with adjusted `?topics`). Reference-counted same as polled endpoints.
+
+**Sequence:** Frontend ships FE-24 with full-firehose SSE first (works today) → backend lands BG-32 → frontend wires topic filtering as a follow-up commit.
+
 ### Push upstream (only after second consumer proves the taxonomy)
 
 - Propose `x-freshness` as OpenAPI vendor extension.
