@@ -51,3 +51,31 @@ export async function getJson<T>(url: string, opts: ApiFetchOptions = {}): Promi
   }
   return (await r.json()) as T;
 }
+
+// POST a JSON body and parse the JSON response. Same error semantics
+// as getJson; sets Content-Type unless the caller already did.
+export async function postJson<TResp>(
+  url: string,
+  body: unknown,
+  opts: ApiFetchOptions = {},
+): Promise<TResp> {
+  const headers = new Headers(opts.headers);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  const r = await apiFetch(url, {
+    ...opts,
+    method: opts.method ?? 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    throw new ApiError(`HTTP ${r.status} for ${url}`, r.status, url);
+  }
+  return (await r.json()) as TResp;
+}
+
+// POST with no body. Caller can decide whether to throw on non-2xx
+// (see thrownOnError) or read the raw Response (default returns it
+// without throwing so the caller can inspect data.ok / data.message).
+export async function postEmpty(url: string, opts: ApiFetchOptions = {}): Promise<Response> {
+  return apiFetch(url, { ...opts, method: opts.method ?? 'POST' });
+}
