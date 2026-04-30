@@ -834,32 +834,20 @@ function wireHostVisibility(router, win = typeof window !== "undefined" ? window
 function isLaunchdLike(name) {
   return name.includes("launchd") || name.includes("auto-start");
 }
-function hasAxes(result) {
-  return result.installed !== void 0 || result.current !== void 0 || result.running !== void 0;
-}
 function isLifecycleHealthy(record) {
   const result = record?.result;
   if (!result) return false;
-  if (hasAxes(result)) {
-    if (result.installed === false) return false;
-    if (result.current === false) return false;
-    if (result.expected_running != null) {
-      if (result.running !== result.expected_running) return false;
-    } else if (result.running === false) {
-      return false;
-    }
-    return true;
+  if (result.installed === false) return false;
+  if (result.current === false) return false;
+  if (result.expected_running != null) {
+    if (result.running !== result.expected_running) return false;
+  } else if (result.running === false) {
+    return false;
   }
-  return result.reason === "match" || result.reason === "ready" || result.reason === "probe_complete";
+  return true;
 }
 function describeLifecycleStatus(name, record) {
   const result = record?.result ?? {};
-  if (hasAxes(result)) {
-    return labelFromAxes(name, result);
-  }
-  return labelFromLegacy(name, result);
-}
-function labelFromAxes(name, result) {
   const { installed, current, running } = result;
   if (installed === null && current === null) {
     if (running === true) return isLaunchdLike(name) ? "loaded" : "running";
@@ -881,60 +869,33 @@ function labelFromAxes(name, result) {
   if (running === true) return `running \xB7 current${suffix}`;
   return "installed \xB7 current";
 }
-function labelFromLegacy(name, result) {
-  const reason = result.reason ?? "";
-  if (name === "ariaflow-server" || name === "aria2") {
-    if (reason === "match") return "installed \xB7 current";
-    if (reason === "missing") return "absent";
-    return result.outcome ?? "unknown";
-  }
-  if (name === "networkquality") {
-    if (reason === "ready" || reason === "probe_complete") return "installed \xB7 usable";
-    if (reason === "timeout" || reason === "probe_timeout_no_parse" || reason === "probe_timeout_partial_capture") {
-      return "installed \xB7 probe timeout";
-    }
-    if (reason === "no_output" || reason === "probe_no_parse") return "installed \xB7 no parse";
-    if (reason === "missing") return "absent";
-    if (reason === "error" || reason === "probe_error") return "installed \xB7 error";
-    return result.outcome ?? "unknown";
-  }
-  if (reason === "match") return "loaded";
-  if (reason === "missing") return "not loaded";
-  return result.outcome ?? "unknown";
-}
 function lifecycleDetailLines(record) {
   const result = record?.result;
   if (!result) return [];
-  const usingAxes = hasAxes(result);
   const lines = [];
   if (result.message) lines.push(result.message);
   if (result.observation && result.observation !== "ok") {
     lines.push(`Observation: ${result.observation}`);
   }
-  if (result.reason && (!usingAxes || isDiagnosticReason(result.reason))) {
+  if (result.reason && isDiagnosticReason(result.reason)) {
     lines.push(`Reason: ${result.reason}`);
   }
   if (result.completion) lines.push(`Completion: ${result.completion}`);
   return lines;
 }
 function isDiagnosticReason(reason) {
-  return ![
-    "match",
-    "ready",
-    "ok",
-    "healthy"
-  ].includes(reason);
+  return !["match", "ready", "ok", "healthy"].includes(reason);
 }
 function lifecycleActionsFor(name, record, legacyActions = []) {
   const result = record?.result;
-  if (!result || !hasAxes(result)) return [...legacyActions];
+  if (!result) return [];
   const target = legacyTargetFor(name, legacyActions);
-  if (!target) return [...legacyActions];
+  if (!target) return [];
   const { installed, current, running } = result;
   if (installed === null && current === null) {
     if (running === true) return [{ target, action: "uninstall", label: "Unload" }];
     if (running === false) return [{ target, action: "install", label: "Load" }];
-    return [...legacyActions];
+    return [];
   }
   if (installed === false) {
     return [{ target, action: "install", label: "Install" }];

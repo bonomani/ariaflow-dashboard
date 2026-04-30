@@ -6,7 +6,6 @@ import {
   isLifecycleHealthy,
   lifecycleActionsFor,
   lifecycleDetailLines,
-  type LifecycleRecord,
 } from './lifecycle.js';
 
 // ---------- isLifecycleHealthy ----------
@@ -29,10 +28,7 @@ test('isLifecycleHealthy uses axes when present', () => {
     isLifecycleHealthy({ result: { installed: true, current: false, running: true } }),
     false,
   );
-  assert.equal(
-    isLifecycleHealthy({ result: { installed: false } }),
-    false,
-  );
+  assert.equal(isLifecycleHealthy({ result: { installed: false } }), false);
 });
 
 test('isLifecycleHealthy treats null axis as N/A (healthy on that axis)', () => {
@@ -44,13 +40,6 @@ test('isLifecycleHealthy treats null axis as N/A (healthy on that axis)', () => 
     isLifecycleHealthy({ result: { installed: null, current: null, running: true } }),
     true,
   );
-});
-
-test('isLifecycleHealthy falls back to legacy reason when no axes', () => {
-  assert.equal(isLifecycleHealthy({ result: { reason: 'match' } }), true);
-  assert.equal(isLifecycleHealthy({ result: { reason: 'ready' } }), true);
-  assert.equal(isLifecycleHealthy({ result: { reason: 'missing' } }), false);
-  assert.equal(isLifecycleHealthy({ result: { reason: 'error' } }), false);
 });
 
 // ---------- describeLifecycleStatus ----------
@@ -175,40 +164,6 @@ test('describeLifecycleStatus BG-29 — managed_by suffix on running', () => {
   );
 });
 
-// ---------- describeLifecycleStatus legacy fallback ----------
-
-test('describeLifecycleStatus legacy — ariaflow-server reason match', () => {
-  assert.equal(
-    describeLifecycleStatus('ariaflow-server', { result: { reason: 'match' } }),
-    'installed · current',
-  );
-});
-
-test('describeLifecycleStatus legacy — networkquality probe timeout', () => {
-  assert.equal(
-    describeLifecycleStatus('networkquality', { result: { reason: 'probe_timeout_no_parse' } }),
-    'installed · probe timeout',
-  );
-});
-
-test('describeLifecycleStatus legacy — launchd missing → not loaded', () => {
-  assert.equal(
-    describeLifecycleStatus('aria2 auto-start (advanced)', { result: { reason: 'missing' } }),
-    'not loaded',
-  );
-});
-
-test('describeLifecycleStatus legacy — falls back to outcome when reason unknown', () => {
-  assert.equal(
-    describeLifecycleStatus('aria2', { result: { reason: 'mystery', outcome: 'idk' } }),
-    'idk',
-  );
-  assert.equal(
-    describeLifecycleStatus('aria2', { result: { reason: 'mystery' } }),
-    'unknown',
-  );
-});
-
 // ---------- lifecycleDetailLines ----------
 
 test('lifecycleDetailLines suppresses Reason: match when axes are present', () => {
@@ -236,13 +191,6 @@ test('lifecycleDetailLines keeps diagnostic Reason even when axes are present', 
   assert.deepEqual(lines, ['Reason: rpc_unreachable']);
 });
 
-test('lifecycleDetailLines preserves Reason when axes absent (legacy mode)', () => {
-  const lines = lifecycleDetailLines({
-    result: { reason: 'match', message: 'ok' },
-  });
-  assert.deepEqual(lines, ['ok', 'Reason: match']);
-});
-
 test('lifecycleDetailLines skips observation=ok', () => {
   const lines = lifecycleDetailLines({
     result: { observation: 'ok', message: 'fine' },
@@ -268,15 +216,6 @@ const LEGACY_ARIAFLOW = [
   { target: 'ariaflow-server', action: 'install', label: 'Install / Update' },
   { target: 'ariaflow-server', action: 'uninstall', label: 'Remove' },
 ];
-
-test('lifecycleActionsFor returns legacy actions when axes are absent', () => {
-  const r = lifecycleActionsFor(
-    'ariaflow-server',
-    { result: { reason: 'match' } },
-    LEGACY_ARIAFLOW,
-  );
-  assert.deepEqual(r, LEGACY_ARIAFLOW);
-});
 
 test('lifecycleActionsFor not-installed → only Install', () => {
   const r = lifecycleActionsFor(
