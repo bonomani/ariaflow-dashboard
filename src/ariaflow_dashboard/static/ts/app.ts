@@ -70,6 +70,10 @@ import {
   filterActionLog,
 } from './log_filter';
 import {
+  bootstrapFreshnessRouter,
+  wireHostVisibility,
+} from './freshness-bootstrap';
+import {
   describeLifecycleStatus,
   isLifecycleHealthy,
   lifecycleActionsFor,
@@ -377,6 +381,10 @@ document.addEventListener('alpine:init', () => {
         this._refreshTabOnly(target);
       });
 
+      // FE-24: bootstrap the FreshnessRouter from /api/_meta. Non-blocking,
+      // tolerates legacy backends (returns null on 404).
+      this._initFreshness();
+
       // First load: refresh header + active tab once, then arm fast timer.
       this.refreshInterval = readRefreshInterval(10000);
       this._refreshAll();
@@ -595,9 +603,49 @@ document.addEventListener('alpine:init', () => {
       this.applyTheme(next);
     },
 
+    async _initFreshness() {
+      try {
+        const router = await bootstrapFreshnessRouter({
+          metaUrl: () => this.apiPath('/api/_meta'),
+          now: () => Date.now(),
+          setTimer: (cb, ms) => setTimeout(cb, ms),
+          clearTimer: (token) => clearTimeout(token),
+          fetchJson: async (method, path) => {
+            const r = await apiFetch(this.apiPath(path), { method, timeoutMs: 8000 });
+            return r.json();
+          },
+        });
+        if (!router) return;
+        this._freshnessRouter = router;
+        this._freshnessVisibility = wireHostVisibility(router);
+      } catch (e) {
+        // Legacy backend or transient — silent. Existing fetch system unaffected.
+      }
+    },
+
     // --- fetch with timeout ---
     _fetch(url, opts = {}, timeout = 10000) {
-      return apiFetch(url, { ...opts, timeoutMs: timeout });
+      const promise = apiFetch(url, { ...opts, timeoutMs: timeout });
+      const method = (opts && opts.method ? String(opts.method) : 'GET').toUpperCase();
+      // FE-24: when a non-GET succeeds, ask the freshness router to
+      // invalidate any endpoint whose meta.revalidate_on lists this
+      // METHOD path. No-op when the router isn't booted (legacy backend).
+      if (method !== 'GET' && this._freshnessRouter) {
+        promise.then((r) => {
+          if (r && r.ok) {
+            try {
+              const path = new URL(url, window.location.origin).pathname;
+              this._freshnessRouter.invalidateByAction(method, path);
+            } catch { /* ignore */ }
+          }
+        }).catch(() => { /* propagated to caller */ });
+      }
+      return promise;
+    },
+    _freshnessRouter: null,
+    _freshnessVisibility: null,
+    get freshnessStatus() {
+      return this._freshnessRouter ? this._freshnessRouter.status() : [];
     },
 
     // --- backend management (delegates to ts/backend.ts) ---

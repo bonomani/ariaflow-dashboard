@@ -569,6 +569,267 @@ function distinctTargets(entries) {
   return [...new Set(entries.map((e) => e.target ?? "unknown"))].sort();
 }
 
+// src/ariaflow_dashboard/static/ts/freshness.ts
+function endpointKey(method, path) {
+  return `${method.toUpperCase()} ${path}`;
+}
+var FreshnessRouter = class {
+  constructor(adapters) {
+    this.endpoints = /* @__PURE__ */ new Map();
+    this.hostVisible = true;
+    this.adapters = adapters;
+  }
+  /** Register endpoint metadata from /api/_meta. Idempotent. */
+  registerMeta(meta) {
+    const key = endpointKey(meta.method, meta.path);
+    const existing = this.endpoints.get(key);
+    if (existing) {
+      existing.meta = meta;
+      return;
+    }
+    this.endpoints.set(key, {
+      meta,
+      subscribers: /* @__PURE__ */ new Map(),
+      lastFetchAt: null,
+      lastValue: void 0,
+      inflight: null,
+      timer: null
+    });
+  }
+  /** Subscribe a component to an endpoint. */
+  subscribe(method, path, subscriberId, opts) {
+    const key = endpointKey(method, path);
+    const ep = this.endpoints.get(key);
+    if (!ep) {
+      throw new Error(`FreshnessRouter: no meta registered for ${key}`);
+    }
+    ep.subscribers.set(subscriberId, { id: subscriberId, visible: opts.visible });
+    this.log(key, "subscribe", { subscriberId, visible: opts.visible });
+    this.reconcile(key);
+  }
+  unsubscribe(method, path, subscriberId) {
+    const key = endpointKey(method, path);
+    const ep = this.endpoints.get(key);
+    if (!ep) return;
+    ep.subscribers.delete(subscriberId);
+    this.log(key, "unsubscribe", { subscriberId });
+    this.reconcile(key);
+  }
+  /** Update a subscriber's visibility (component scrolled, tab moved, etc). */
+  setSubscriberVisible(subscriberId, visible) {
+    for (const [key, ep] of this.endpoints) {
+      const rec = ep.subscribers.get(subscriberId);
+      if (rec && rec.visible !== visible) {
+        rec.visible = visible;
+        this.log(key, "visibility-change", { subscriberId, visible });
+        this.reconcile(key);
+      }
+    }
+  }
+  /** Update the host visibility (browser tab / iframe host). */
+  setHostVisible(visible) {
+    if (this.hostVisible === visible) return;
+    this.hostVisible = visible;
+    for (const key of this.endpoints.keys()) {
+      this.log(key, "host-visibility-change", { visible });
+      this.reconcile(key);
+    }
+  }
+  /**
+   * Apply revalidate_on for an action. Call after a successful POST.
+   * Endpoints whose meta lists `${METHOD} ${path}` in revalidate_on
+   * will be refetched if currently active.
+   */
+  invalidateByAction(actionMethod, actionPath) {
+    const action = endpointKey(actionMethod, actionPath);
+    for (const [key, ep] of this.endpoints) {
+      const triggers = ep.meta.revalidate_on ?? [];
+      if (!triggers.includes(action)) continue;
+      this.log(key, "invalidate", { action });
+      if (this.isActive(key)) {
+        void this.runFetch(key);
+      }
+    }
+  }
+  /** Read current cached value for an endpoint, if any. */
+  getCached(method, path) {
+    const ep = this.endpoints.get(endpointKey(method, path));
+    return ep?.lastValue;
+  }
+  /** Snapshot router state for the Dev-tab Freshness map. */
+  status() {
+    const out = [];
+    for (const [key, ep] of this.endpoints) {
+      const visible = this.countVisible(ep);
+      const hidden = ep.subscribers.size - visible;
+      out.push({
+        endpoint: key,
+        freshness: ep.meta.freshness,
+        ttl_s: ep.meta.ttl_s ?? null,
+        visibleSubscribers: visible,
+        hiddenSubscribers: hidden,
+        hostVisible: this.hostVisible,
+        lastFetchAt: ep.lastFetchAt,
+        nextFetchAt: this.nextFetchAt(ep),
+        active: this.isActive(key)
+      });
+    }
+    return out;
+  }
+  /** Tear down all timers. Call on app teardown / hot reload. */
+  dispose() {
+    for (const ep of this.endpoints.values()) {
+      if (ep.timer != null) this.adapters.clearTimer(ep.timer);
+      ep.timer = null;
+    }
+  }
+  // --- internals ---
+  countVisible(ep) {
+    let n = 0;
+    for (const s of ep.subscribers.values()) if (s.visible) n++;
+    return n;
+  }
+  isActive(key) {
+    const ep = this.endpoints.get(key);
+    if (!ep) return false;
+    if (!this.hostVisible) return false;
+    return this.countVisible(ep) > 0;
+  }
+  nextFetchAt(ep) {
+    const ttl = ep.meta.ttl_s;
+    if (!ttl) return null;
+    if (!ep.lastFetchAt) return this.adapters.now();
+    return ep.lastFetchAt + ttl * 1e3;
+  }
+  reconcile(key) {
+    const ep = this.endpoints.get(key);
+    if (!ep) return;
+    const active = this.isActive(key);
+    if (!active) {
+      if (ep.timer != null) {
+        this.adapters.clearTimer(ep.timer);
+        ep.timer = null;
+        this.log(key, "pause");
+      }
+      return;
+    }
+    switch (ep.meta.freshness) {
+      case "bootstrap":
+        if (!ep.lastFetchAt) void this.runFetch(key);
+        return;
+      case "cold":
+        if (!ep.lastFetchAt) void this.runFetch(key);
+        return;
+      case "live":
+        return;
+      case "on-action":
+        if (!ep.lastFetchAt) void this.runFetch(key);
+        return;
+      case "derived":
+        return;
+      case "warm":
+      case "swr": {
+        const ttl = ep.meta.ttl_s ?? 30;
+        const due = ep.lastFetchAt == null ? 0 : Math.max(0, ep.lastFetchAt + ttl * 1e3 - this.adapters.now());
+        if (ep.timer != null) this.adapters.clearTimer(ep.timer);
+        ep.timer = this.adapters.setTimer(() => {
+          ep.timer = null;
+          if (this.isActive(key)) {
+            void this.runFetch(key).then(() => this.reconcile(key));
+          }
+        }, due);
+        if (!ep.lastFetchAt) {
+          this.log(key, "resume");
+        }
+        return;
+      }
+    }
+  }
+  async runFetch(key) {
+    const ep = this.endpoints.get(key);
+    if (!ep) return void 0;
+    if (ep.inflight) return ep.inflight;
+    this.log(key, "fetch-start");
+    const promise = this.adapters.fetchJson(ep.meta.method, ep.meta.path).then((value) => {
+      ep.lastValue = value;
+      ep.lastFetchAt = this.adapters.now();
+      ep.inflight = null;
+      this.log(key, "fetch-end");
+      return value;
+    }).catch((err) => {
+      ep.inflight = null;
+      this.log(key, "fetch-error", { message: err instanceof Error ? err.message : String(err) });
+      throw err;
+    });
+    ep.inflight = promise;
+    return promise;
+  }
+  log(endpoint, event, detail) {
+    if (!this.adapters.log) return;
+    const entry = { at: this.adapters.now(), endpoint, event };
+    if (detail !== void 0) entry.detail = detail;
+    this.adapters.log(entry);
+  }
+};
+
+// src/ariaflow_dashboard/static/ts/freshness-bootstrap.ts
+async function bootstrapFreshnessRouter(adapters) {
+  let body;
+  try {
+    const raw = await adapters.fetchJson("GET", new URL(adapters.metaUrl()).pathname);
+    body = raw;
+  } catch {
+    return null;
+  }
+  if (!body || body.ok === false || !Array.isArray(body.endpoints)) return null;
+  const router = new FreshnessRouter(adapters);
+  for (const m of body.endpoints) {
+    if (!m.method || !m.path || !m.freshness) continue;
+    const meta = {
+      method: m.method,
+      path: m.path,
+      freshness: m.freshness
+    };
+    if (m.ttl_s !== void 0) meta.ttl_s = m.ttl_s;
+    if (m.revalidate_on !== void 0) meta.revalidate_on = m.revalidate_on;
+    if (m.transport !== void 0) meta.transport = m.transport;
+    if (m.transport_topics !== void 0) meta.transport_topics = m.transport_topics;
+    router.registerMeta(meta);
+  }
+  return router;
+}
+function wireHostVisibility(router, win = typeof window !== "undefined" ? window : null, doc = typeof document !== "undefined" ? document : null) {
+  let visible = doc ? !doc.hidden : true;
+  router.setHostVisible(visible);
+  const onDocChange = () => {
+    if (!doc) return;
+    const next = !doc.hidden;
+    if (next !== visible) {
+      visible = next;
+      router.setHostVisible(visible);
+    }
+  };
+  const onMessage = (ev) => {
+    const data = ev.data;
+    if (!data || typeof data !== "object") return;
+    if (data.type !== "visibility") return;
+    const next = data.visible !== false;
+    if (next !== visible) {
+      visible = next;
+      router.setHostVisible(visible);
+    }
+  };
+  if (doc) doc.addEventListener("visibilitychange", onDocChange);
+  if (win) win.addEventListener("message", onMessage);
+  return {
+    dispose: () => {
+      if (doc) doc.removeEventListener("visibilitychange", onDocChange);
+      if (win) win.removeEventListener("message", onMessage);
+    },
+    isVisible: () => visible
+  };
+}
+
 // src/ariaflow_dashboard/static/ts/lifecycle.ts
 function isLaunchdLike(name) {
   return name.includes("launchd") || name.includes("auto-start");
@@ -1035,6 +1296,7 @@ document.addEventListener("alpine:init", () => {
         this.page = target;
         this._refreshTabOnly(target);
       });
+      this._initFreshness();
       this.refreshInterval = readRefreshInterval(1e4);
       this._refreshAll();
       if (this.refreshInterval > 0) {
@@ -1255,9 +1517,46 @@ document.addEventListener("alpine:init", () => {
       const next = current === "system" ? "dark" : current === "dark" ? "light" : "system";
       this.applyTheme(next);
     },
+    async _initFreshness() {
+      try {
+        const router = await bootstrapFreshnessRouter({
+          metaUrl: () => this.apiPath("/api/_meta"),
+          now: () => Date.now(),
+          setTimer: (cb, ms) => setTimeout(cb, ms),
+          clearTimer: (token) => clearTimeout(token),
+          fetchJson: async (method, path) => {
+            const r = await apiFetch(this.apiPath(path), { method, timeoutMs: 8e3 });
+            return r.json();
+          }
+        });
+        if (!router) return;
+        this._freshnessRouter = router;
+        this._freshnessVisibility = wireHostVisibility(router);
+      } catch (e) {
+      }
+    },
     // --- fetch with timeout ---
     _fetch(url, opts = {}, timeout = 1e4) {
-      return apiFetch(url, { ...opts, timeoutMs: timeout });
+      const promise = apiFetch(url, { ...opts, timeoutMs: timeout });
+      const method = (opts && opts.method ? String(opts.method) : "GET").toUpperCase();
+      if (method !== "GET" && this._freshnessRouter) {
+        promise.then((r) => {
+          if (r && r.ok) {
+            try {
+              const path = new URL(url, window.location.origin).pathname;
+              this._freshnessRouter.invalidateByAction(method, path);
+            } catch {
+            }
+          }
+        }).catch(() => {
+        });
+      }
+      return promise;
+    },
+    _freshnessRouter: null,
+    _freshnessVisibility: null,
+    get freshnessStatus() {
+      return this._freshnessRouter ? this._freshnessRouter.status() : [];
     },
     // --- backend management (delegates to ts/backend.ts) ---
     loadBackendState() {
