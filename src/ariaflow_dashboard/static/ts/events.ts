@@ -116,3 +116,47 @@ export function buildStatusUrl(basePath: string, opts: StatusUrlOptions = {}): s
   }
   return params.length ? `${basePath}?${params.join('&')}` : basePath;
 }
+
+// ---------- SSE reconnect backoff ----------
+//
+// Exponential backoff with ±25% jitter, capped. Used by the SSE
+// reconnect path so a single backend outage doesn't pin every client
+// in a tight 5-second loop, and so when the backend comes back up the
+// reconnect storm spreads out instead of all hitting at once.
+
+export interface BackoffOptions {
+  /** First retry delay in ms. Default 5_000. */
+  baseMs?: number;
+  /** Maximum delay in ms; backoff caps here. Default 60_000. */
+  capMs?: number;
+  /** Multiplicative jitter spread (0..1). Default 0.25 (±25%). */
+  jitter?: number;
+  /** Random source — override in tests. Default Math.random. */
+  random?: () => number;
+}
+
+export function nextReconnectDelayMs(attempts: number, opts: BackoffOptions = {}): number {
+  const baseMs = opts.baseMs ?? 5_000;
+  const capMs = opts.capMs ?? 60_000;
+  const jitter = opts.jitter ?? 0.25;
+  const random = opts.random ?? Math.random;
+  const safeAttempts = Math.max(0, Math.floor(attempts));
+  const exp = Math.min(baseMs * 2 ** safeAttempts, capMs);
+  // (random()*2 - 1) ∈ [-1, 1) → spread = exp * jitter * that
+  const spread = exp * jitter * (random() * 2 - 1);
+  return Math.max(0, Math.round(exp + spread));
+}
+
+// ---------- SSE liveness predicate ----------
+//
+// True when no event has arrived from the server in `timeoutMs`. Used
+// to detect "TCP open, no data" zombie connections that EventSource
+// won't surface on its own.
+
+export function isStreamStale(
+  lastActivityAt: number,
+  now: number,
+  timeoutMs = 60_000,
+): boolean {
+  return now - lastActivityAt > timeoutMs;
+}

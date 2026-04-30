@@ -442,6 +442,19 @@ function buildStatusUrl(basePath, opts = {}) {
   }
   return params.length ? `${basePath}?${params.join("&")}` : basePath;
 }
+function nextReconnectDelayMs(attempts, opts = {}) {
+  const baseMs = opts.baseMs ?? 5e3;
+  const capMs = opts.capMs ?? 6e4;
+  const jitter = opts.jitter ?? 0.25;
+  const random = opts.random ?? Math.random;
+  const safeAttempts = Math.max(0, Math.floor(attempts));
+  const exp = Math.min(baseMs * 2 ** safeAttempts, capMs);
+  const spread = exp * jitter * (random() * 2 - 1);
+  return Math.max(0, Math.round(exp + spread));
+}
+function isStreamStale(lastActivityAt, now, timeoutMs = 6e4) {
+  return now - lastActivityAt > timeoutMs;
+}
 
 // src/ariaflow_dashboard/static/ts/speed_history.ts
 var SPEED_HISTORY_MAX = 30;
@@ -576,6 +589,17 @@ document.addEventListener("alpine:init", () => {
     _sseConnected: false,
     _sseFallbackTimer: null,
     _inBackoff: false,
+    // SSE reliability state (see _initSSE / _armSseLivenessTimer):
+    //   _sseReconnectAttempts — exponential backoff counter, reset on
+    //   each successful 'connected' event.
+    //   _sseLastActivityAt — timestamp of the last received SSE event;
+    //   the liveness timer reconnects if no traffic arrives for >60s
+    //   even when the TCP connection looks healthy.
+    _sseReconnectAttempts: 0,
+    _sseLastActivityAt: 0,
+    _sseLivenessTimer: null,
+    SSE_LIVENESS_TIMEOUT_MS: 6e4,
+    SSE_LIVENESS_CHECK_MS: 15e3,
     queueFilter: "all",
     queueSearch: "",
     speedHistory: {},
@@ -1382,8 +1406,14 @@ document.addEventListener("alpine:init", () => {
         return;
       }
       this._sse = es;
+      const markActivity = () => {
+        this._sseLastActivityAt = Date.now();
+      };
       es.addEventListener("connected", () => {
         this._sseConnected = true;
+        this._sseReconnectAttempts = 0;
+        markActivity();
+        this._armSseLivenessTimer();
         if (this._sseFallbackTimer) {
           clearTimeout(this._sseFallbackTimer);
           this._sseFallbackTimer = null;
@@ -1398,6 +1428,7 @@ document.addEventListener("alpine:init", () => {
         }
       });
       es.addEventListener("state_changed", (e) => {
+        markActivity();
         const evt = parseStateChangedEvent(e.data);
         if (evt.kind === "full") {
           if (evt.isOffline) {
@@ -1417,6 +1448,7 @@ document.addEventListener("alpine:init", () => {
         }
       });
       es.addEventListener("action_logged", (e) => {
+        markActivity();
         const entry = parseActionLoggedEvent(e.data);
         if (entry) {
           this.actionLogEntries = [entry, ...this.actionLogEntries].slice(0, this.logLimit || 120);
@@ -1424,6 +1456,7 @@ document.addEventListener("alpine:init", () => {
       });
       es.onerror = () => {
         this._sseConnected = false;
+        this._disarmSseLivenessTimer();
         if (this._sseFallbackTimer) clearTimeout(this._sseFallbackTimer);
         this._sseFallbackTimer = setTimeout(async () => {
           this._sseFallbackTimer = null;
@@ -1434,8 +1467,10 @@ document.addEventListener("alpine:init", () => {
               this.refreshTimer = setInterval(() => this.refresh(), this.refreshInterval);
             }
           } catch (e) {
-            this._sseFallbackTimer = setTimeout(() => this._initSSE(), 5e3);
           }
+          const delay = nextReconnectDelayMs(this._sseReconnectAttempts);
+          this._sseReconnectAttempts++;
+          this._sseFallbackTimer = setTimeout(() => this._initSSE(), delay);
         }, 2e3);
       };
     },
@@ -1445,6 +1480,23 @@ document.addEventListener("alpine:init", () => {
         this._sse = null;
       }
       this._sseConnected = false;
+      this._disarmSseLivenessTimer();
+    },
+    _armSseLivenessTimer() {
+      this._disarmSseLivenessTimer();
+      this._sseLivenessTimer = setInterval(() => {
+        if (!this._sseConnected) return;
+        if (isStreamStale(this._sseLastActivityAt, Date.now(), this.SSE_LIVENESS_TIMEOUT_MS)) {
+          this._closeSSE();
+          this._initSSE();
+        }
+      }, this.SSE_LIVENESS_CHECK_MS);
+    },
+    _disarmSseLivenessTimer() {
+      if (this._sseLivenessTimer) {
+        clearInterval(this._sseLivenessTimer);
+        this._sseLivenessTimer = null;
+      }
     },
     // --- refresh ---
     setRefreshInterval(value) {

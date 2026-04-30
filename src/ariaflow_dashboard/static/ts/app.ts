@@ -50,6 +50,8 @@ import {
 } from './filters';
 import {
   buildStatusUrl,
+  isStreamStale,
+  nextReconnectDelayMs,
   parseActionLoggedEvent,
   parseStateChangedEvent,
   shouldShowOfflineStatus,
@@ -82,6 +84,17 @@ document.addEventListener('alpine:init', () => {
     _sseConnected: false,
     _sseFallbackTimer: null,
     _inBackoff: false,
+    // SSE reliability state (see _initSSE / _armSseLivenessTimer):
+    //   _sseReconnectAttempts — exponential backoff counter, reset on
+    //   each successful 'connected' event.
+    //   _sseLastActivityAt — timestamp of the last received SSE event;
+    //   the liveness timer reconnects if no traffic arrives for >60s
+    //   even when the TCP connection looks healthy.
+    _sseReconnectAttempts: 0,
+    _sseLastActivityAt: 0,
+    _sseLivenessTimer: null,
+    SSE_LIVENESS_TIMEOUT_MS: 60_000,
+    SSE_LIVENESS_CHECK_MS: 15_000,
     queueFilter: 'all',
     queueSearch: '',
     speedHistory: {},
@@ -817,14 +830,19 @@ document.addEventListener('alpine:init', () => {
       let es;
       try { es = new EventSource(url); } catch (e) { return; }
       this._sse = es;
+      const markActivity = () => { this._sseLastActivityAt = Date.now(); };
       es.addEventListener('connected', () => {
         this._sseConnected = true;
+        this._sseReconnectAttempts = 0;
+        markActivity();
+        this._armSseLivenessTimer();
         if (this._sseFallbackTimer) { clearTimeout(this._sseFallbackTimer); this._sseFallbackTimer = null; }
         if (this._deferTimer) { clearTimeout(this._deferTimer); this._deferTimer = null; }
         // Pause polling — SSE will push updates
         if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
       });
       es.addEventListener('state_changed', (e) => {
+        markActivity();
         const evt = parseStateChangedEvent(e.data);
         if (evt.kind === 'full') {
           if (evt.isOffline) {
@@ -846,6 +864,7 @@ document.addEventListener('alpine:init', () => {
       });
       // BG-7: backend pushes individual action log entries in real-time
       es.addEventListener('action_logged', (e) => {
+        markActivity();
         const entry = parseActionLoggedEvent(e.data);
         if (entry) {
           this.actionLogEntries = [entry, ...this.actionLogEntries].slice(0, this.logLimit || 120);
@@ -853,6 +872,7 @@ document.addEventListener('alpine:init', () => {
       });
       es.onerror = () => {
         this._sseConnected = false;
+        this._disarmSseLivenessTimer();
         if (this._sseFallbackTimer) clearTimeout(this._sseFallbackTimer);
         this._sseFallbackTimer = setTimeout(async () => {
           this._sseFallbackTimer = null;
@@ -862,15 +882,39 @@ document.addEventListener('alpine:init', () => {
             if (r.ok && !this.refreshTimer && this.refreshInterval > 0) {
               this.refreshTimer = setInterval(() => this.refresh(), this.refreshInterval);
             }
-          } catch (e) {
-            this._sseFallbackTimer = setTimeout(() => this._initSSE(), 5000);
-          }
+          } catch (e) { /* health probe failed — no polling fallback */ }
+          // Schedule SSE reconnect with exponential backoff + jitter,
+          // regardless of whether health succeeded. EventSource itself
+          // also auto-retries internally; this manual path provides
+          // bounded, observable behavior on prolonged outages.
+          const delay = nextReconnectDelayMs(this._sseReconnectAttempts);
+          this._sseReconnectAttempts++;
+          this._sseFallbackTimer = setTimeout(() => this._initSSE(), delay);
         }, 2000);
       };
     },
     _closeSSE() {
       if (this._sse) { this._sse.close(); this._sse = null; }
       this._sseConnected = false;
+      this._disarmSseLivenessTimer();
+    },
+    _armSseLivenessTimer() {
+      this._disarmSseLivenessTimer();
+      this._sseLivenessTimer = setInterval(() => {
+        if (!this._sseConnected) return;
+        if (isStreamStale(this._sseLastActivityAt, Date.now(), this.SSE_LIVENESS_TIMEOUT_MS)) {
+          // TCP open but no events arriving — proxy/middlebox dropped
+          // the stream silently. Force a fresh connection.
+          this._closeSSE();
+          this._initSSE();
+        }
+      }, this.SSE_LIVENESS_CHECK_MS);
+    },
+    _disarmSseLivenessTimer() {
+      if (this._sseLivenessTimer) {
+        clearInterval(this._sseLivenessTimer);
+        this._sseLivenessTimer = null;
+      }
     },
 
     // --- refresh ---
