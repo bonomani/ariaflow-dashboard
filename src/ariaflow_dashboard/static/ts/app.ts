@@ -62,6 +62,11 @@ import {
 } from './speed_history';
 import { diffItemStatuses } from './notifications';
 import { normalizeFiles, selectedFileIndexes } from './file_selection';
+import {
+  distinctActions,
+  distinctTargets,
+  filterActionLog,
+} from './log_filter';
 
 declare const Alpine: any;
 
@@ -1413,32 +1418,23 @@ document.addEventListener('alpine:init', () => {
       }
     },
     get availableActions() {
-      return [...new Set(this.actionLogEntries.map((e) => e.action || 'unknown'))].sort();
+      return distinctActions(this.actionLogEntries);
     },
     get availableTargets() {
-      return [...new Set(this.actionLogEntries.map((e) => e.target || 'unknown'))].sort();
+      return distinctTargets(this.actionLogEntries);
     },
     get filteredActionLog() {
-      const sessionId = this.state?.session_id || this.lastLifecycle?.session_id || this.lastDeclaration?.session_id || null;
-      const entries = this.actionLogEntries
-        .filter((entry) => this.actionFilter === 'all' || (entry.action || 'unknown') === this.actionFilter)
-        .filter((entry) => this.targetFilter === 'all' || (entry.target || 'unknown') === this.targetFilter)
-        .filter((entry) => this.sessionFilter === 'all' || (this.sessionFilter === 'current' ? (sessionId ? entry.session_id === sessionId : false) : true));
-      // Collapse consecutive poll entries with same gid into one
-      const collapsed = [];
-      for (const entry of entries) {
-        if (entry.action === 'poll' && collapsed.length) {
-          const prev = collapsed[collapsed.length - 1];
-          if (prev.action === 'poll' && prev.detail?.gid === entry.detail?.gid) {
-            prev._pollCount = (prev._pollCount || 1) + 1;
-            prev.detail = entry.detail;
-            prev.timestamp = entry.timestamp;
-            continue;
-          }
-        }
-        collapsed.push({ ...entry });
-      }
-      return collapsed.slice().reverse();
+      const currentSessionId =
+        this.state?.session_id ||
+        this.lastLifecycle?.session_id ||
+        this.lastDeclaration?.session_id ||
+        null;
+      return filterActionLog(this.actionLogEntries, {
+        actionFilter: this.actionFilter,
+        targetFilter: this.targetFilter,
+        sessionFilter: this.sessionFilter,
+        currentSessionId,
+      });
     },
     sanitizeLogValue(value, depth = 0) {
       if (value == null) return value;
