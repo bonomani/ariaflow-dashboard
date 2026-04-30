@@ -17,10 +17,16 @@ Steps 1–8 shipped (router, eager-refetch removal, visibility, revalidate_on,
 tests, `/api/_meta` consumption, Dev-tab map, `npm run freshness:snapshot`).
 Remaining:
 
-- **BG-32 paired wiring.** Types for `transport_topics` exist; the
-  `subscribe`/`unsubscribe` flow over the open SSE stream is not wired yet.
-  When subscriber visibility changes for a `live` endpoint, send a topic
-  command (or reconnect with adjusted `?topics`).
+- **BG-32 paired wiring — deferred.** Backend v1 is connect-time filter
+  only (mid-stream subscribe/unsubscribe deferred upstream), so any topic
+  change forces an SSE reconnect. Today only `/api/status` declares topics
+  (`items, scheduler`); the Log tab depends on `action_logged` events
+  (`log` topic) but `/api/log` isn't a `live` endpoint, so a naive union
+  over registered live endpoints would silently dark the Log tab.
+  Revisit when either (a) backend ships mid-stream subscribe so the
+  router can be subscriber-driven without reconnect storms, or (b) `log`
+  is modeled as a router-registered SSE-driven endpoint so its topic is
+  part of the union. Until then, leave SSE unfiltered (current behavior).
 - **Step 7 of legacy-removal (LOADERS manifest).** Replace the hardcoded
   per-tab `k` multipliers in `app.ts` with router subscriptions per page.
   Class+ttl drives cadence.
