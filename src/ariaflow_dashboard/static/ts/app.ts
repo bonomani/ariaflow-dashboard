@@ -16,6 +16,7 @@ import {
   sessionLabel,
 } from './formatters';
 import { renderItemSparkline, renderGlobalSparkline } from './sparkline';
+import { apiFetch } from './api';
 
 declare const Alpine: any;
 
@@ -538,9 +539,7 @@ document.addEventListener('alpine:init', () => {
 
     // --- fetch with timeout ---
     _fetch(url, opts = {}, timeout = 10000) {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), timeout);
-      return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(id));
+      return apiFetch(url, { ...opts, timeoutMs: timeout });
     },
 
     // --- backend management ---
