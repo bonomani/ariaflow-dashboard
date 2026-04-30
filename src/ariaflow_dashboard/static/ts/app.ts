@@ -1616,6 +1616,7 @@ document.addEventListener('alpine:init', () => {
     activeTransfer(items, active, state) {
       const liveItems = Array.isArray(items) ? items : [];
       return liveItems.find((item) => item && (item.gid === active?.gid || (state?.active_gid && item.gid === state.active_gid) || (active?.url && item.url && active.url === item.url)))
+        || liveItems.find((item) => item && (Number(item.downloadSpeed) > 0 || Number(item.uploadSpeed) > 0))
         || active
         || null;
     },
