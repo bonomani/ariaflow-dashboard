@@ -112,6 +112,55 @@ The `FreshnessRouter` should expose a single `setVisible(bool)` entry point that
 
 This matters because today our SSE keeps polling and the lifecycle / bandwidth refetches keep firing when the tab is in the background — burning bandwidth and the user's battery for nobody to read.
 
+## Subscribers — the third concept
+
+Class says *how* to fetch. Visibility says *whether the user can see anything*. Neither answers *whether anyone is actually reading this endpoint right now*.
+
+A `warm` endpoint like `/api/lifecycle` doesn't need a 30s poll while the user is on the Dashboard tab and nobody's looking at lifecycle data. SSE for `/api/status` doesn't need to stay connected when every component that consumes it has unmounted. The freshness class is only an upper bound — the router should not exceed it, but it also shouldn't run when no one is reading.
+
+So the router is **subscriber-driven and ref-counted**:
+
+```
+component mounts:
+  router.subscribe(endpoint, subscriberId, { visible: bool })
+
+component visibility changes (tab switch, scroll out of viewport, host hides iframe):
+  router.setSubscriberVisible(subscriberId, bool)
+
+component unmounts:
+  router.unsubscribe(endpoint, subscriberId)
+```
+
+Per-endpoint router state:
+
+| Visible subscribers | Hidden subscribers | Action |
+|---|---|---|
+| ≥ 1 | any | run strategy at declared cadence |
+| 0 | ≥ 1 | per-class fallback (see below) |
+| 0 | 0 | stop / disconnect; drop cache after a grace period |
+
+Per-class fallback when only hidden subscribers remain:
+
+| Class | Hidden-only behaviour |
+|---|---|
+| **bootstrap** | already cached; no-op |
+| **live** | disconnect transport (or throttle to keep cheap WebSocket open if `transport: ws` and reconnect cost is high) |
+| **warm** | stop polling; resume when a subscriber becomes visible again |
+| **cold** | n/a — `cold` only fetches on subscribe-while-visible |
+| **on-action** | still listens to action invalidations (cheap), but the *refetch* is deferred until visible |
+| **swr** | serve cache, no background revalidate |
+| **derived** | recompute on dep change as usual (no I/O) |
+
+**Three conditions, all must hold for the router to do I/O on an endpoint:**
+
+1. The endpoint's **class** permits work right now (e.g. `cold` permits only at subscribe-time, `warm` permits at intervals).
+2. The host **visibility** is true (tab visible, or host shell hasn't hidden us).
+3. At least one **subscriber** is visible.
+
+This is the pattern TanStack Query calls "active observers" — but with two refinements: (a) tied to DOM visibility, not just mount state; (b) the strategy ceiling is declared by the **server** (the freshness class), not configured at the call site.
+
+The Dev-tab "Freshness map" panel surfaces all three: per endpoint, show declared class, current host visibility, subscriber count (visible / hidden), last fetch, next scheduled fetch. "Why isn't this updating?" becomes one glance.
+
 ## Anti-goals
 
 - **Not a cache implementation.** This is a *declaration*; clients still implement caching with whatever they prefer (TanStack Query, plain Map, IndexedDB).

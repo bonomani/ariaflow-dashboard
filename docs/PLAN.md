@@ -81,7 +81,7 @@ venues).
 
 ### Frontend (this repo, after backend ships meta)
 
-1. **`FreshnessRouter` module.** Single `setVisible(bool)` entry, maps class → strategy (SSE subscribe / setInterval / on-mount fetch / SWR cache / no-op).
+1. **`FreshnessRouter` module.** Subscriber-driven, ref-counted. Three conditions must hold for the router to do I/O on an endpoint: (a) class permits work now, (b) host visibility true, (c) ≥1 visible subscriber. API: `subscribe(endpoint, subscriberId, {visible})`, `setSubscriberVisible(subscriberId, bool)`, `unsubscribe(endpoint, subscriberId)`, plus host-level `setVisible(bool)`. Maps class → strategy (SSE subscribe / setInterval / on-mount fetch / SWR cache / no-op).
 2. **Replace eager SSE-tick refetch.** Today every `state_changed` triggers a full `/api/status` GET; route per-class instead.
 3. **Visibility wiring.** Listen to `document.visibilitychange` + `postMessage({type:'visibility'})` from host shell; first event wins, both call `setVisible`.
 4. **`revalidate_on` interceptor.** After any `_fetch` POST returns 2xx, invalidate endpoints whose `meta.revalidate_on` matches `<METHOD> <path>`.
@@ -104,7 +104,7 @@ Rule: one declaration site (the endpoint's own `meta`), two read paths
 **Frontend (this repo, paired):**
 
 6. **Consume `/api/_meta` at boot.** Cache the index (it's `bootstrap`); `FreshnessRouter` reads classes from there instead of from each response's inline meta. Inline `meta` stays as a per-response confirmation but the router doesn't depend on it.
-7. **Dev-tab "Freshness map" panel.** Live table: endpoint · declared class · last fetch · next scheduled · visibility state · subscriber count. Plus a runtime warning row when an inline `meta` disagrees with the index (drift detector).
+7. **Dev-tab "Freshness map" panel.** Live table: endpoint · declared class · host visibility · subscribers (visible / hidden) · last fetch · next scheduled fetch · drift warning when inline `meta` disagrees with `/api/_meta`.
 8. **No separate doc to maintain.** A static snapshot for review (PR descriptions, audit) is generated at build time from `/api/_meta`, never hand-edited. Add `npm run freshness:snapshot` that writes `docs/FRESHNESS_SNAPSHOT.md` from a running backend.
 
 ### Push upstream (only after second consumer proves the taxonomy)
