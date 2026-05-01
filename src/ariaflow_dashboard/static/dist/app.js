@@ -1346,19 +1346,73 @@ document.addEventListener("alpine:init", () => {
         { fn: "loadSessionHistory", k: 12 },
         { fn: "loadDeclaration", k: 12 }
       ],
-      archive: [
-        { fn: "loadArchive", k: 6 }
-      ],
+      archive: [],
       dev: []
+    },
+    // FE-26: per-tab router subscriptions. Each entry maps a tab to one
+    // or more endpoints; the router decides when to fetch (class+ttl) and
+    // calls `apply(self, data)` to update view state. As tabs migrate off
+    // the LOADERS manifest, their entries land here.
+    TAB_SUBS: {
+      archive: [
+        {
+          method: "GET",
+          path: "/api/downloads/archive",
+          getParams: (self) => ({ limit: self.archiveLimit }),
+          apply: (self, data) => {
+            self.archiveItems = data?.items || [];
+          }
+        }
+      ]
     },
     _tabPollers: [],
     _tabHidden: false,
+    _currentTabSubs: [],
+    _unsubscribeTab() {
+      if (!this._freshnessRouter) {
+        this._currentTabSubs = [];
+        return;
+      }
+      for (const s of this._currentTabSubs) {
+        try {
+          this._freshnessRouter.unsubscribe(s.method, s.path, s.id);
+        } catch (e) {
+        }
+      }
+      this._currentTabSubs = [];
+    },
+    _subscribeTab(target) {
+      this._unsubscribeTab();
+      if (!this._freshnessRouter) return;
+      const subs = this.TAB_SUBS && this.TAB_SUBS[target] || [];
+      for (const s of subs) {
+        const id = `tab:${target}:${s.method} ${s.path}`;
+        const params = s.getParams ? s.getParams(this) : void 0;
+        try {
+          this._freshnessRouter.subscribe(s.method, s.path, id, {
+            visible: true,
+            params,
+            onUpdate: (v) => {
+              try {
+                s.apply(this, v);
+              } catch (e) {
+                console.warn(e);
+              }
+            }
+          });
+          this._currentTabSubs.push({ method: s.method, path: s.path, id });
+        } catch (e) {
+        }
+      }
+    },
     _stopTabPollers() {
       for (const t of this._tabPollers) clearInterval(t);
       this._tabPollers = [];
+      this._unsubscribeTab();
     },
     _startTabPollers(target) {
       this._stopTabPollers();
+      this._subscribeTab(target);
       const loaders = this.LOADERS[target] || [];
       for (const { fn, k } of loaders) {
         if (typeof this[fn] !== "function") continue;
@@ -1547,6 +1601,7 @@ document.addEventListener("alpine:init", () => {
         if (!router) return;
         this._freshnessRouter = router;
         this._freshnessVisibility = wireHostVisibility(router);
+        this._subscribeTab(this.page);
       } catch (e) {
       }
     },
@@ -2282,7 +2337,11 @@ document.addEventListener("alpine:init", () => {
     },
     loadMoreArchive() {
       this.archiveLimit += 100;
-      this.loadArchive();
+      if (this._freshnessRouter && this.page === "archive") {
+        this._subscribeTab("archive");
+      } else {
+        this.loadArchive();
+      }
     },
     async cleanup() {
       this.archiveLoading = true;
