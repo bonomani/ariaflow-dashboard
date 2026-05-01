@@ -461,7 +461,7 @@ class TestApiParamCoverage:
             "_fetch", "_sendAria2Option", "_flushPrefQueue", "refresh",
             "_statusUrl", "_closeSSE", "_initSSE",
             "schedulerAction", "loadScheduler", "loadAria2Options", "setAria2Limits",
-            "loadLifecycle", "loadArchive",
+            "loadLifecycle",
             "refreshActionLog", "discoverBackends",
             "recordGlobalSpeed", "recordSpeed",
             "checkNotifications",

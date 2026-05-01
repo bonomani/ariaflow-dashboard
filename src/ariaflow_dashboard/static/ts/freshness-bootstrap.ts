@@ -1,9 +1,9 @@
 // FE-24 step 2: bootstrap the FreshnessRouter from /api/_meta.
 //
 // Fetches the backend's freshness index (BG-31), constructs a router,
-// registers every endpoint. Returns null if the backend is legacy (no
-// /api/_meta yet) — caller should fall back to its existing fetch
-// system in that case.
+// registers every endpoint. Returns null only on a transport / parse
+// error or a malformed payload — the contract requires /api/_meta to
+// always be present (BG-31).
 
 import {
   FreshnessRouter,

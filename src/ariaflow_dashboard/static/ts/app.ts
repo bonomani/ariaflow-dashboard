@@ -386,8 +386,8 @@ document.addEventListener('alpine:init', () => {
         this._refreshTabOnly(target);
       });
 
-      // FE-24: bootstrap the FreshnessRouter from /api/_meta. Non-blocking,
-      // tolerates legacy backends (returns null on 404).
+      // FE-24: bootstrap the FreshnessRouter from /api/_meta. Non-blocking;
+      // a transport error leaves the router null and tabs render empty.
       this._initFreshness();
 
       // First load: refresh header + active tab once, then arm fast timer.
@@ -482,8 +482,11 @@ document.addEventListener('alpine:init', () => {
           });
           this._currentTabSubs.push({ method: s.method, path: s.path, id });
         } catch (e) {
-          // Router lacks meta for this endpoint — legacy backend without
-          // BG-31/BG-34. The endpoint stays empty until the user upgrades.
+          // Endpoint isn't registered with the router — should never
+          // happen under the current contract (BG-31 / BG-34 cover all
+          // TAB_SUBS endpoints; LOCAL_METAS covers the rest). Surface
+          // the bug rather than silently breaking the tab.
+          console.warn(`subscribe failed for ${id}:`, e);
         }
       }
     },
@@ -661,7 +664,8 @@ document.addEventListener('alpine:init', () => {
         // every tab's subscriptions were skipped.
         this._subscribeTab(this.page);
       } catch (e) {
-        // Legacy backend or transient — silent. Existing fetch system unaffected.
+        // Transport / parse error reaching /api/_meta. Tabs render
+        // empty until the next reload retries.
       }
     },
 
@@ -671,7 +675,8 @@ document.addEventListener('alpine:init', () => {
       const method = (opts && opts.method ? String(opts.method) : 'GET').toUpperCase();
       // FE-24: when a non-GET succeeds, ask the freshness router to
       // invalidate any endpoint whose meta.revalidate_on lists this
-      // METHOD path. No-op when the router isn't booted (legacy backend).
+      // METHOD path. The router is async-booted, so this short-circuits
+      // for any _fetch that races init() before the router resolves.
       if (method !== 'GET' && this._freshnessRouter) {
         promise.then((r) => {
           if (r && r.ok) {
@@ -1339,25 +1344,11 @@ document.addEventListener('alpine:init', () => {
     },
 
     // --- archive & cleanup ---
-    async loadArchive() {
-      try {
-        const r = await this._fetch(this.apiPath(`/api/downloads/archive?limit=${this.archiveLimit}`));
-        const data = await r.json();
-        this.archiveItems = data.items || [];
-      } catch (e) {
-        this.archiveItems = [];
-      }
-    },
     loadMoreArchive() {
       this.archiveLimit += 100;
-      // FE-26: when the router drives the archive tab, re-subscribing
-      // with new params invalidates the cache and refetches. Fall back
-      // to a direct load when the router isn't booted (legacy backend).
-      if (this._freshnessRouter && this.page === 'archive') {
-        this._subscribeTab('archive');
-      } else {
-        this.loadArchive();
-      }
+      // Re-subscribe with new params: the router treats a params change
+      // as a cache invalidation and refetches.
+      this._subscribeTab('archive');
     },
     async cleanup() {
       this.archiveLoading = true;

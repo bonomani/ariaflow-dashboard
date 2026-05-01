@@ -1402,6 +1402,7 @@ document.addEventListener("alpine:init", () => {
           });
           this._currentTabSubs.push({ method: s.method, path: s.path, id });
         } catch (e) {
+          console.warn(`subscribe failed for ${id}:`, e);
         }
       }
     },
@@ -2281,22 +2282,9 @@ document.addEventListener("alpine:init", () => {
       this.fileSelectionFiles = [];
     },
     // --- archive & cleanup ---
-    async loadArchive() {
-      try {
-        const r = await this._fetch(this.apiPath(`/api/downloads/archive?limit=${this.archiveLimit}`));
-        const data = await r.json();
-        this.archiveItems = data.items || [];
-      } catch (e) {
-        this.archiveItems = [];
-      }
-    },
     loadMoreArchive() {
       this.archiveLimit += 100;
-      if (this._freshnessRouter && this.page === "archive") {
-        this._subscribeTab("archive");
-      } else {
-        this.loadArchive();
-      }
+      this._subscribeTab("archive");
     },
     async cleanup() {
       this.archiveLoading = true;
