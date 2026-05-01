@@ -28,9 +28,8 @@ Remaining:
   part of the union. Until then, leave SSE unfiltered (current behavior).
 - **LOADERS manifest replacement.** Done — tracked as FE-26, shipped
   2026-05-01. All six tabs subscribe through the router via `TAB_SUBS`
-  declarations. Follow-up cleanup: remove the now-empty `LOADERS` /
-  `_startTabPollers` / `_stopTabPollers` harness once the new flow has
-  been browser-validated.
+  declarations; the empty `LOADERS` / `_startTabPollers` /
+  `_stopTabPollers` harness was removed in the same release.
 
 ## Won't-fix legacy fallbacks (small dead code, large policy cost)
 

@@ -407,24 +407,13 @@ document.addEventListener('alpine:init', () => {
       setTimeout(() => this.discoverBackends().catch((e) => console.warn(e.message)), 2000);
     },
 
-    // --- timer model / per-tab refresh policies ---
-    // Per-tab loaders, each declared with a multiplier k of the user-selectable
-    // refresh interval R. Actual cadence = k * R. Every loader fires once when
-    // the tab is entered (init / navigateTo / visibility resume / backend switch).
-    // Note: declaration response field "policies" is surfaced via loadDeclaration.
-    LOADERS: {
-      dashboard: [],
-      bandwidth: [],
-      lifecycle: [],
-      options: [],
-      log: [],
-      archive: [],
-      dev: [],
-    },
-    // FE-26: per-tab router subscriptions. Each entry maps a tab to one
-    // endpoint; the router decides when to fetch (class+ttl) and calls
-    // `apply(self, data)` to update view state. Replaces the LOADERS
-    // manifest's per-tab cadence multipliers.
+    // --- per-tab data routing ---
+    // Each entry maps a tab to one or more endpoints; the FreshnessRouter
+    // decides when to fetch (class + ttl + visibility + ref-count) and
+    // calls `apply(self, data)` to update view state. Tab entry / exit
+    // subscribes / unsubscribes; visibility is delegated to the router.
+    // Declaration's "policies" field is surfaced via loadDeclaration's
+    // apply path.
     TAB_SUBS: {
       dashboard: [
         { method: 'GET', path: '/api/declaration', apply: (s, d) => s._applyDeclaration(d) },
@@ -464,7 +453,6 @@ document.addEventListener('alpine:init', () => {
       { method: 'GET', path: '/api/web/log',            freshness: 'warm', ttl_s: 30 },
       { method: 'GET', path: '/api/aria2/option_tiers', freshness: 'cold' },
     ],
-    _tabPollers: [],
     _tabHidden: false,
     _currentTabSubs: [],
 
@@ -490,42 +478,20 @@ document.addEventListener('alpine:init', () => {
           });
           this._currentTabSubs.push({ method: s.method, path: s.path, id });
         } catch (e) {
-          // Router lacks meta for this endpoint (legacy backend). Caller
-          // should keep a LOADERS fallback for that scenario.
-        }
-      }
-    },
-
-    _stopTabPollers() {
-      for (const t of this._tabPollers) clearInterval(t);
-      this._tabPollers = [];
-      this._unsubscribeTab();
-    },
-    _startTabPollers(target) {
-      this._stopTabPollers();
-      this._subscribeTab(target);
-      const loaders = this.LOADERS[target] || [];
-      for (const { fn, k } of loaders) {
-        if (typeof this[fn] !== 'function') continue;
-        // Fire once on entry — guarantees the tab is populated immediately,
-        // even on reload-onto-tab or visibility resume.
-        try { this[fn](); } catch (e) { console.warn(e); }
-        // Off ("R=0") suppresses background polling but keeps the one-shot fire.
-        if (this.refreshInterval > 0) {
-          const ms = k * this.refreshInterval;
-          this._tabPollers.push(setInterval(() => this[fn](), ms));
+          // Router lacks meta for this endpoint — legacy backend without
+          // BG-31/BG-34. The endpoint stays empty until the user upgrades.
         }
       }
     },
     // Refresh header AND active tab (init / visibility resume / backend switch).
     _refreshAll() {
       this.refresh();
-      this._startTabPollers(this.page);
+      this._subscribeTab(this.page);
     },
     // Refresh only the active tab (navigateTo): the header keeps ticking on
     // its own fast timer, no need to force an extra refresh().
     _refreshTabOnly(target) {
-      this._startTabPollers(target);
+      this._subscribeTab(target);
     },
 
     navigateTo(target) {
@@ -544,7 +510,7 @@ document.addEventListener('alpine:init', () => {
         if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
         if (this._sseFallbackTimer) { clearTimeout(this._sseFallbackTimer); this._sseFallbackTimer = null; }
         if (this._deferTimer) { clearTimeout(this._deferTimer); this._deferTimer = null; }
-        this._stopTabPollers();
+        this._unsubscribeTab();
         this._closeSSE();
       } else {
         // Tab visible: header + active tab are stale, refresh both
@@ -686,9 +652,9 @@ document.addEventListener('alpine:init', () => {
         }
         this._freshnessRouter = router;
         this._freshnessVisibility = wireHostVisibility(router);
-        // FE-26: now that the router is up, re-subscribe the current
-        // tab. _startTabPollers ran during init() before the router
-        // booted, so any TAB_SUBS-only tab was skipped.
+        // FE-26: now that the router is up, subscribe the current
+        // tab. init() / _refreshAll ran before the router booted, so
+        // every tab's subscriptions were skipped.
         this._subscribeTab(this.page);
       } catch (e) {
         // Legacy backend or transient — silent. Existing fetch system unaffected.
@@ -1052,10 +1018,9 @@ document.addEventListener('alpine:init', () => {
       if (this.refreshInterval > 0) {
         this.refreshTimer = setInterval(() => this.refresh(), this.refreshInterval);
       }
-      // Re-arm tab pollers at the new k*R cadence. _startTabPollers also fires
-      // each loader once — that's intentional: switching from Off to a real
-      // interval should populate the page immediately.
-      this._startTabPollers(this.page);
+      // Re-subscribe so the router applies the new visibility / cadence
+      // (and re-fires onUpdate from cache so the page repopulates).
+      this._subscribeTab(this.page);
     },
 
     _deferTimer: null,
@@ -1125,14 +1090,14 @@ document.addEventListener('alpine:init', () => {
           clearInterval(this.refreshTimer);
           this.refreshTimer = setInterval(() => this.refresh(), backoff);
           this._inBackoff = true;
-          // Pause tab pollers — backend is unreachable
-          this._stopTabPollers();
+          // Pause tab subscriptions — backend is unreachable
+          this._unsubscribeTab();
         } else if (this._consecutiveFailures === 0 && this._inBackoff && this.refreshTimer) {
           clearInterval(this.refreshTimer);
           this.refreshTimer = setInterval(() => this.refresh(), this.refreshInterval);
           this._inBackoff = false;
-          // Resume tab pollers — backend is back
-          this._startTabPollers(this.page);
+          // Resume tab subscriptions — backend is back
+          this._subscribeTab(this.page);
         }
       }
     },
