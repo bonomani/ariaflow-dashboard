@@ -12,9 +12,12 @@
     "format": "prettier --write src/ariaflow_dashboard/static/ts",
     "format:check": "prettier --check src/ariaflow_dashboard/static/ts",
     "test": "node --import tsx --test 'src/ariaflow_dashboard/static/ts/*.test.ts'",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install chromium",
     "freshness:snapshot": "node scripts/freshness-snapshot.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "^1.48.0",
     "@types/alpinejs": "^3.13.10",
     "@types/node": "^25.6.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",

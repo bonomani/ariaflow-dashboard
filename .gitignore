@@ -34,3 +34,8 @@ node_modules/
 .claude/
 screenshots/
 docs/SPEC.md
+
+# Playwright e2e
+playwright-report/
+test-results/
+.playwright/
