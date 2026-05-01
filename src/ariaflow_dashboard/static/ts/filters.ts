@@ -1,6 +1,6 @@
 // Pure queue-item filtering: status filter (all / active / paused
 // / complete / error / waiting / removed / queued / discovering) +
-// free-text search across url, output, and live.url. Stays decoupled
+// free-text search across url and output. Stays decoupled
 // from Alpine state so the predicate is reusable and testable.
 //
 // Vocabulary aligns with aria2 (BG-30): the six aria2-native statuses
@@ -25,7 +25,6 @@ export interface FilterableItem {
   status?: string | null;
   url?: string | null;
   output?: string | null;
-  live?: { url?: string | null } | null;
   [k: string]: unknown;
 }
 
@@ -43,8 +42,7 @@ export function matchesSearch(item: FilterableItem, search: string): boolean {
   const needle = search.toLowerCase();
   const url = (item.url ?? '').toLowerCase();
   const output = (item.output ?? '').toLowerCase();
-  const liveUrl = (item.live?.url ?? '').toLowerCase();
-  return url.includes(needle) || output.includes(needle) || liveUrl.includes(needle);
+  return url.includes(needle) || output.includes(needle);
 }
 
 export function filterQueueItems<T extends FilterableItem>(

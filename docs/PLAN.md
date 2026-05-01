@@ -34,16 +34,23 @@ Remaining:
   declarations; the empty `LOADERS` / `_startTabPollers` /
   `_stopTabPollers` harness was removed in the same release.
 
-## Won't-fix legacy fallbacks (small dead code, large policy cost)
+## Backend compatibility
 
-- `freshness-bootstrap.ts` returns null on `/api/_meta` 404.
-- `app.ts` `_fetch` `if (this._freshnessRouter)` invalidation guard.
-- SSE event-name → "all topics" fallback path.
+This repo targets the **current** ariaflow-server contract only — BG-29
+(lifecycle axes), BG-30 (state machine + `state.active_gid` derived from
+`tellActive`), BG-31 (per-endpoint freshness + `/api/_meta`), BG-32 v1
+(per-topic SSE), BG-33 (legacy aliases dropped), BG-34 (per-tab loader
+endpoints registered). Older backends are not supported.
 
-These would need a declared minimum backend version (banner, version
-detection, upgrade UX) to drop safely — more weight than the ~5 lines
-of guard code they'd remove. Revisit only if a real divergence between
-old and new backend behavior shows up.
+Two remaining defensive guards are runtime-resilience, not version
+shims, and stay:
+
+- `freshness-bootstrap.ts` returns null on network/parse error or
+  malformed `/api/_meta` body — guards a network call, not a
+  back-version.
+- `app.ts` `_fetch` `if (this._freshnessRouter)` invalidation guard —
+  guards init-order (router boots async after first `_fetch`s), not a
+  back-version.
 
 ## Deferred
 

@@ -360,8 +360,7 @@ function matchesSearch(item, search) {
   const needle = search.toLowerCase();
   const url = (item.url ?? "").toLowerCase();
   const output = (item.output ?? "").toLowerCase();
-  const liveUrl = (item.live?.url ?? "").toLowerCase();
-  return url.includes(needle) || output.includes(needle) || liveUrl.includes(needle);
+  return url.includes(needle) || output.includes(needle);
 }
 function filterQueueItems(items, filter, search) {
   return items.filter((item) => matchesStatusFilter(item, filter) && matchesSearch(item, search));
@@ -1050,23 +1049,24 @@ document.addEventListener("alpine:init", () => {
     get state() {
       return this.lastStatus?.state || {};
     },
-    get active() {
-      return this.lastStatus?.active || null;
-    },
-    get actives() {
-      return Array.isArray(this.lastStatus?.actives) ? this.lastStatus.actives : this.lastStatus?.active ? [this.lastStatus.active] : [];
-    },
+    // Current transfer = the item matching state.active_gid (BG-30 #5: backend
+    // derives this from aria2.tellActive). Falls back to the first item with
+    // non-zero download/upload speed — covers HTTP downloads where the
+    // backend hasn't stamped active_gid yet (e.g. between a fresh start and
+    // the next tellActive read).
     get currentTransfer() {
-      return this.activeTransfer(this.actives, this.active, this.state);
+      const items = this.lastStatus?.items || [];
+      const gid = this.state?.active_gid;
+      return gid && items.find((it) => it && it.gid === gid) || items.find((it) => it && (Number(it.downloadSpeed) > 0 || Number(it.uploadSpeed) > 0)) || null;
     },
     get currentSpeed() {
-      return this.currentTransfer?.downloadSpeed || this.active?.downloadSpeed || this.state?.download_speed || null;
+      return this.currentTransfer?.downloadSpeed || this.state?.download_speed || null;
     },
     get currentUploadSpeed() {
-      return this.currentTransfer?.uploadSpeed || this.active?.uploadSpeed || null;
+      return this.currentTransfer?.uploadSpeed || null;
     },
     get itemsWithStatus() {
-      return this.annotateQueueItems(this.lastStatus?.items || [], this.actives, this.state);
+      return this.lastStatus?.items || [];
     },
     get filteredItems() {
       return this.filterQueueItems(this.itemsWithStatus);
@@ -1709,29 +1709,6 @@ document.addEventListener("alpine:init", () => {
       }[this.bonjourState] || "";
     },
     // --- queue ---
-    annotateQueueItems(items, active, state) {
-      const liveItems = Array.isArray(active) ? active : active ? [active] : [];
-      return (items || []).map((item) => {
-        const matches = liveItems.find((live2) => live2 && (item.gid === live2.gid || state?.active_gid && item.gid === state.active_gid || item.url && live2.url && item.url === live2.url));
-        if (!matches) return item;
-        const total = Number(matches.totalLength || item.totalLength || 0);
-        const done = Number(matches.completedLength || item.completedLength || 0);
-        const computedPercent = total > 0 ? done / total * 100 : null;
-        const live = {
-          percent: matches.percent != null ? matches.percent : computedPercent,
-          downloadSpeed: matches.downloadSpeed,
-          totalLength: matches.totalLength,
-          completedLength: matches.completedLength,
-          errorMessage: matches.errorMessage,
-          recovered: matches.recovered,
-          recovered_at: matches.recovered_at,
-          url: matches.url,
-          status: matches.status,
-          gid: matches.gid
-        };
-        return { ...item, live, url: item.url || live.url };
-      });
-    },
     filterQueueItems(items) {
       return filterQueueItems(items, this.queueFilter, this.queueSearch);
     },
@@ -1750,7 +1727,7 @@ document.addEventListener("alpine:init", () => {
       return ["active", "paused"].includes(item.status || "unknown");
     },
     itemShortUrl(item) {
-      return this.shortName(item.output || item.url || item.live?.url || "(no url)");
+      return this.shortName(item.output || item.url || "(no url)");
     },
     itemDetail(item) {
       return [
@@ -1761,27 +1738,25 @@ document.addEventListener("alpine:init", () => {
       ].filter(Boolean).join(" \xB7 ");
     },
     itemLiveStatus(item) {
-      return item.live?.status || null;
+      return item.live_status || null;
     },
     itemSpeed(item) {
-      return item.live?.downloadSpeed || item.downloadSpeed;
+      return item.downloadSpeed;
     },
     itemTotalLength(item) {
-      return item.live?.totalLength || item.totalLength;
+      return item.totalLength;
     },
     itemCompletedLength(item) {
-      return item.live?.completedLength || item.completedLength;
+      return item.completedLength;
     },
     itemProgress(item) {
-      const live = item.live || {};
-      const progress = live.percent != null ? live.percent : item.percent;
-      if (progress != null) return progress;
-      const total = Number(this.itemTotalLength(item) || 0);
-      const completed = Number(this.itemCompletedLength(item) || 0);
+      if (item.percent != null) return item.percent;
+      const total = Number(item.totalLength || 0);
+      const completed = Number(item.completedLength || 0);
       return total > 0 ? completed / total * 100 : 0;
     },
     itemShowTransferPanel(item) {
-      return this.itemHasActiveStatus(item) || this.itemTotalLength(item) || this.itemCompletedLength(item) || (item.live?.percent != null || item.percent != null);
+      return this.itemHasActiveStatus(item) || item.totalLength || item.completedLength || item.percent != null;
     },
     itemRateLabel(item) {
       const speed = this.itemSpeed(item);
@@ -1807,7 +1782,7 @@ document.addEventListener("alpine:init", () => {
       return item.priority != null ? item.priority : null;
     },
     itemDisplayUrl(item) {
-      return item.url || item.live?.url || "";
+      return item.url || "";
     },
     itemStateLabel(item) {
       const ns = this.itemNormalizedStatus(item);
@@ -2578,11 +2553,6 @@ document.addEventListener("alpine:init", () => {
       } catch (e) {
         this.selectedSessionStats = { error: "Failed to load stats" };
       }
-    },
-    // --- active transfer helper ---
-    activeTransfer(items, active, state) {
-      const liveItems = Array.isArray(items) ? items : [];
-      return liveItems.find((item) => item && (item.gid === active?.gid || state?.active_gid && item.gid === state.active_gid || active?.url && item.url && active.url === item.url)) || liveItems.find((item) => item && (Number(item.downloadSpeed) > 0 || Number(item.uploadSpeed) > 0)) || active || null;
     },
     // --- aria2 options ---
     _applyAria2GlobalOption(data) {

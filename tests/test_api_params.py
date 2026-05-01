@@ -463,7 +463,7 @@ class TestApiParamCoverage:
             "schedulerAction", "loadScheduler", "loadAria2Options", "setAria2Limits",
             "loadLifecycle", "loadArchive",
             "refreshActionLog", "discoverBackends",
-            "annotateQueueItems", "recordGlobalSpeed", "recordSpeed",
+            "recordGlobalSpeed", "recordSpeed",
             "checkNotifications",
             "pauseDownloads", "resumeDownloads", "itemAction",
             "apiPath", "saveDeclaration",

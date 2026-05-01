@@ -17,9 +17,8 @@ const items: FilterableItem[] = [
   { status: 'error', url: 'https://example.com/qux.deb', output: '/tmp/qux.deb' },
   {
     status: 'waiting',
-    url: 'https://example.com/quux.iso',
+    url: 'https://example.com/mirror-quux.iso',
     output: '/tmp/quux.iso',
-    live: { url: 'http://mirror.example.com/quux.iso' },
   },
 ];
 
@@ -42,10 +41,10 @@ test('matchesStatusFilter direct comparison only (no aliases)', () => {
   assert.equal(matchesStatusFilter({ status: 'queued' }, 'queued'), true);
 });
 
-test('matchesSearch is case-insensitive across url, output, live.url', () => {
+test('matchesSearch is case-insensitive across url and output', () => {
   assert.equal(matchesSearch(items[0]!, 'FOO'), true); // url
   assert.equal(matchesSearch(items[0]!, '/tmp/'), true); // output
-  assert.equal(matchesSearch(items[4]!, 'mirror'), true); // live.url
+  assert.equal(matchesSearch(items[4]!, 'mirror'), true); // url substring
   assert.equal(matchesSearch(items[0]!, 'nope'), false);
 });
 
