@@ -412,8 +412,7 @@ document.addEventListener('alpine:init', () => {
     // decides when to fetch (class + ttl + visibility + ref-count) and
     // calls `apply(self, data)` to update view state. Tab entry / exit
     // subscribes / unsubscribes; visibility is delegated to the router.
-    // Declaration's "policies" field is surfaced via loadDeclaration's
-    // apply path.
+    // Declaration's "policies" field is surfaced via _applyDeclaration.
     TAB_SUBS: {
       dashboard: [
         { method: 'GET', path: '/api/declaration', apply: (s, d) => s._applyDeclaration(d) },
@@ -1108,17 +1107,10 @@ document.addEventListener('alpine:init', () => {
       const pref = prefs.find((item) => item.name === name);
       return pref ? pref.value : undefined;
     },
-    _declarationLoadedAt: 0,
     _applyDeclaration(data) {
       this.lastDeclaration = data;
       if (data?.ok === false || data?.['ariaflow-server']?.reachable === false) return;
       this.declarationText = JSON.stringify(this.lastDeclaration, null, 2);
-      this._declarationLoadedAt = Date.now();
-    },
-    async loadDeclaration(force = false) {
-      if (!force && this.lastDeclaration && this.lastDeclaration.ok !== false && Date.now() - this._declarationLoadedAt < 30000) return;
-      const r = await this._fetch(this.apiPath('/api/declaration'));
-      this._applyDeclaration(await r.json());
     },
     async saveDeclaration() {
       let parsed;
@@ -1410,7 +1402,8 @@ document.addEventListener('alpine:init', () => {
         const data = await r.json();
         this.resultText = data.ok ? 'Probe complete' : (data.message || 'Probe finished');
         this.resultJson = JSON.stringify(data, null, 2);
-        await this.refreshBandwidth();
+        // Router refetches /api/bandwidth automatically via revalidate_on
+        // (BG-31: POST /api/bandwidth/probe triggers it).
       } catch (e) {
         this.resultText = `Probe failed: ${e.message}`;
       } finally {
@@ -1421,12 +1414,6 @@ document.addEventListener('alpine:init', () => {
       if (data && data.ok !== false) {
         this.lastStatus = { ...(this.lastStatus || {}), bandwidth: data };
       }
-    },
-    async refreshBandwidth() {
-      try {
-        const r = await this._fetch(this.apiPath('/api/bandwidth'));
-        this._applyBandwidth(await r.json());
-      } catch (e) { console.warn('refreshBandwidth:', e.message); }
     },
 
     // --- lifecycle ---
@@ -1557,14 +1544,6 @@ document.addEventListener('alpine:init', () => {
     _applyWebLog(data) {
       this.webLogEntries = data?.items || [];
     },
-    async loadWebLog() {
-      try {
-        const r = await this._fetch('/api/web/log?limit=100');
-        this._applyWebLog(await r.json());
-      } catch (e) {
-        this.webLogEntries = [];
-      }
-    },
     get availableActions() {
       return distinctActions(this.actionLogEntries);
     },
@@ -1643,14 +1622,6 @@ document.addEventListener('alpine:init', () => {
     // --- session history ---
     _applySessionHistory(data) {
       this.sessionHistory = data?.sessions || [];
-    },
-    async loadSessionHistory() {
-      try {
-        const r = await this._fetch(this.apiPath('/api/sessions?limit=50'));
-        this._applySessionHistory(await r.json());
-      } catch (e) {
-        this.sessionHistory = [];
-      }
     },
     async loadSessionStats(sessionId) {
       this.selectedSessionId = sessionId;
@@ -1767,14 +1738,6 @@ document.addEventListener('alpine:init', () => {
     // --- torrents ---
     _applyPeers(data) {
       this.peerList = data?.peers || [];
-    },
-    async loadPeers() {
-      try {
-        const r = await this._fetch(this.apiPath('/api/peers'));
-        this._applyPeers(await r.json());
-      } catch (e) {
-        this.peerList = [];
-      }
     },
     _applyTorrents(data) {
       this.torrentList = data?.torrents || data?.items || [];

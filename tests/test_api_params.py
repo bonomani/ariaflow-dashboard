@@ -436,7 +436,7 @@ class TestApiParamCoverage:
         """Verify every async method that calls an API has a UI trigger in HTML.
 
         Each method that posts/fetches should be reachable from a @click,
-        @change, @input, x-show, called from init, or declared in LOADERS.
+        @change, @input, x-show, or called from init.
         """
         js = APP_JS.read_text(encoding="utf-8")
         html = _read_index_html_assembled()
@@ -452,30 +452,31 @@ class TestApiParamCoverage:
                         api_methods.add(m.group(1))
                         break
 
-        # Methods that are internal (called by other methods, not UI)
+        # Methods that are internal (called by other methods, not UI).
+        # FE-26: tab-loader functions kept post-cutover are listed here —
+        # they're invoked from action handlers (loadLifecycle from
+        # lifecycleAction, loadTorrents from stopTorrent, etc.) rather
+        # than directly from the UI.
         INTERNAL_METHODS = {
             "_fetch", "_sendAria2Option", "_flushPrefQueue", "refresh",
             "_statusUrl", "_closeSSE", "_initSSE",
             "schedulerAction", "loadScheduler", "loadAria2Options", "setAria2Limits",
-            "loadDeclaration", "loadSessionHistory", "loadArchive",
-            "refreshActionLog", "refreshBandwidth", "discoverBackends",
+            "loadLifecycle", "loadArchive",
+            "refreshActionLog", "discoverBackends",
             "annotateQueueItems", "recordGlobalSpeed", "recordSpeed",
             "checkNotifications",
             "pauseDownloads", "resumeDownloads", "itemAction",
             "apiPath", "saveDeclaration",
         }
 
-        # Check each API method is referenced in HTML, called from init, or
-        # declared in the LOADERS manifest (per-tab timer-driven loaders).
+        # Check each API method is referenced in HTML or called from init.
         init_block = js[js.find("init()"):js.find("navigateTo(")]
-        loaders_block = js[js.find("LOADERS:"):js.find("_tabPollers")]
 
         missing = []
         for method in sorted(api_methods - INTERNAL_METHODS):
             in_html = method in html
             in_init = method in init_block
-            in_loaders = f"'{method}'" in loaders_block
-            if not (in_html or in_init or in_loaders):
+            if not (in_html or in_init):
                 missing.append(method)
 
         assert missing == [], (
