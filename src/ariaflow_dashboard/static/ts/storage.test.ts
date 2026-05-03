@@ -6,8 +6,6 @@ import {
   readString,
   readNumber,
   readJson,
-  readTheme,
-  writeTheme,
   readRefreshInterval,
   writeRefreshInterval,
   readBackends,
@@ -38,12 +36,12 @@ beforeEach(() => {
 });
 
 test('readString returns fallback on missing key', () => {
-  assert.equal(readString(KEYS.theme, 'system'), 'system');
+  assert.equal(readString(KEYS.selectedBackend, 'fallback'), 'fallback');
 });
 
 test('readString trims and falls back on empty string', () => {
-  localStorage.setItem(KEYS.theme, '   ');
-  assert.equal(readString(KEYS.theme, 'system'), 'system');
+  localStorage.setItem(KEYS.selectedBackend, '   ');
+  assert.equal(readString(KEYS.selectedBackend, 'fallback'), 'fallback');
 });
 
 test('readNumber returns fallback for missing / non-positive / NaN', () => {
@@ -59,14 +57,6 @@ test('readNumber returns fallback for missing / non-positive / NaN', () => {
 test('readJson returns fallback on parse error', () => {
   localStorage.setItem(KEYS.backends, '{not json');
   assert.deepEqual(readJson(KEYS.backends, []), []);
-});
-
-test('readTheme normalizes invalid values to system', () => {
-  assert.equal(readTheme(), 'system');
-  writeTheme('dark');
-  assert.equal(readTheme(), 'dark');
-  localStorage.setItem(KEYS.theme, 'rainbow');
-  assert.equal(readTheme(), 'system');
 });
 
 test('refreshInterval round-trips', () => {

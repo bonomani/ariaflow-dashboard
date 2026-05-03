@@ -5,7 +5,7 @@
   "description": "TypeScript sources for the ariaflow-dashboard frontend (bundled into src/ariaflow_dashboard/static/dist/).",
   "type": "module",
   "scripts": {
-    "build": "esbuild src/ariaflow_dashboard/static/ts/main.ts --bundle --format=esm --target=es2020 --sourcemap --outfile=src/ariaflow_dashboard/static/dist/app.js",
+    "build": "esbuild src/ariaflow_dashboard/static/ts/main.ts --bundle --format=esm --target=es2020 --sourcemap --outfile=src/ariaflow_dashboard/static/dist/app.js && cp node_modules/@bonomani/webstyle/dist/webstyle.css src/ariaflow_dashboard/static/dist/webstyle.css",
     "dev": "npm run build -- --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/ariaflow_dashboard/static/ts",
@@ -17,6 +17,7 @@
     "freshness:snapshot": "node scripts/freshness-snapshot.mjs"
   },
   "devDependencies": {
+    "@bonomani/webstyle": "file:../webstyle",
     "@playwright/test": "^1.48.0",
     "@types/alpinejs": "^3.13.10",
     "@types/node": "^25.6.0",

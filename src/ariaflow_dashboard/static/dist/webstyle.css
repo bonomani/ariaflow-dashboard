@@ -1,0 +1,1455 @@
+/*!
+ * webstyle.css — orthogonal CSS framework
+ *
+ * Design principle: every visual property is decomposed into an
+ * independent "axis" of variation. You compose axes on a node:
+ *
+ *   <button class="ws-button ws-filled ws-status-good ws-shape-pill ws-density-compact">
+ *           ↑ component   ↑ emphasis  ↑ status        ↑ shape       ↑ density
+ *
+ * Each axis touches its own set of CSS properties only. No conflicts.
+ *
+ * All classes are prefixed `ws-` so the framework drops into any
+ * existing project without collisions. All tokens live on `:root` as
+ * `--ws-*` custom properties.
+ *
+ * Copy this file into your project, link it from your HTML, done.
+ *
+ *   <link rel="stylesheet" href="webstyle.css">
+ *
+ * License: MIT.
+ */
+
+/* All framework rules live in the 'webstyle' cascade layer. Consumer
+   overrides written OUTSIDE any layer (or in a later-declared layer)
+   automatically beat the framework — no specificity wars, no
+   !important needed. Just write your CSS and it wins. */
+@layer webstyle {
+
+/* ============================================================
+   1. TOKENS
+   ============================================================ */
+
+:root {
+  color-scheme: light dark;
+
+  /* ── Color RGB triplets (default = Aurora Vivid dark) ────
+     Stored as space-separated triplets so they compose with alpha
+     tokens via rgb(R G B / A) modern syntax. Override either side
+     independently — change --ws-accent-rgb to recolor every accent
+     surface, change --ws-alpha-* to retune the interactive
+     graduation. */
+  --ws-accent-rgb: 90 211 255;         /* sky — OKLCH L=82 C=0.13 H=230 (matches accents L/C scale) */
+  --ws-accent-2-rgb: 52 211 153;        /* tw emerald-400 */
+  --ws-good-rgb: 134 239 172;           /* tw green-300 — H 154° pure green */
+  --ws-warn-rgb: 253 224 71;            /* tw yellow-300 — H 98° pure yellow (was amber-300 H=92) */
+  --ws-danger-rgb: 252 165 165;         /* tw red-300 — H 20° pure red (was rose-300 H=12) */
+  --ws-info-rgb: 214 211 209;           /* tw stone-300 — warm-tinted neutral
+     (OKLCH H=56°, vs slate accent's cool H=257°). Stays grey but
+     differs from the slate accent so 'info' reads as a neutral
+     notice distinct from a slate-branded surface. AA=12.82 dark. */
+  --ws-muted-rgb: 148 163 184;          /* tw slate-400 */
+  --ws-text-rgb: 226 232 240;           /* tw slate-200 */
+  --ws-shadow-rgb: 0 0 0;
+
+  /* ── Alpha graduation tokens ─────────────────────────────
+     Semantic alphas reused across status borders + interactive
+     graduations. Tuned for dark themes; light themes tend to
+     override slightly (mostly via the palette block below). */
+  --ws-alpha-idle: 0.07;
+  --ws-alpha-hover: 0.12;
+  --ws-alpha-active: 0.18;
+  --ws-alpha-border-soft: 0.25;
+  --ws-alpha-border-medium: 0.35;
+  --ws-alpha-border-strong: 0.40;
+  --ws-alpha-border-heavy: 0.50;
+  --ws-alpha-glow: 0.35;
+  --ws-alpha-glow-soft: 0.12;
+  --ws-alpha-shadow: 0.35;
+  --ws-alpha-shadow-overlay: 0.50;
+
+  /* ── Solid colors (for non-rgba uses: text, fills) ──────── */
+  --ws-bg: #08111f;
+  --ws-text: #e2e8f0;
+  --ws-muted: rgb(var(--ws-muted-rgb));
+  --ws-accent: rgb(var(--ws-accent-rgb));
+  --ws-accent-2: rgb(var(--ws-accent-2-rgb));
+  --ws-good: rgb(var(--ws-good-rgb));
+  --ws-warn: rgb(var(--ws-warn-rgb));
+  --ws-danger: rgb(var(--ws-danger-rgb));
+  --ws-info: rgb(var(--ws-info-rgb));
+
+  /* ── Surface (composed from triplets + alphas) ──────────── */
+  --ws-panel: rgba(15, 23, 42, 0.88);
+  --ws-panel-2: rgba(8, 17, 31, 0.9);
+  --ws-surface: rgba(8, 17, 31, 0.65);
+  --ws-line: rgb(var(--ws-muted-rgb) / 0.18);
+
+  /* ── Status text-on-bg (manual; per palette) ──────────── */
+  --ws-good-border: rgb(var(--ws-good-rgb) / var(--ws-alpha-border-strong));
+  --ws-good-on: #052e16;
+  --ws-warn-border: rgb(var(--ws-warn-rgb) / var(--ws-alpha-border-medium));
+  --ws-warn-on: #422006;
+  --ws-danger-border: rgb(var(--ws-danger-rgb) / var(--ws-alpha-border-medium));
+  --ws-danger-on: #4c0519;
+  --ws-info-border: rgb(var(--ws-info-rgb) / var(--ws-alpha-border-medium));
+  --ws-info-on: #082f49;
+
+  /* ── Effects (composed) ─────────────────────────────────── */
+  --ws-glow: rgb(var(--ws-accent-rgb) / var(--ws-alpha-glow));
+  --ws-glow-soft: rgb(var(--ws-accent-rgb) / var(--ws-alpha-glow-soft));
+  --ws-shadow: 0 20px 60px rgb(var(--ws-shadow-rgb) / var(--ws-alpha-shadow));
+  --ws-shadow-overlay: 0 30px 80px rgb(var(--ws-shadow-rgb) / var(--ws-alpha-shadow-overlay));
+  --ws-backdrop-blur: blur(16px);
+
+  /* ── Interactive state graduations ──────────────────────
+     All four lines compose accent-rgb × alpha-* — change either side
+     in your own theme to retune. */
+  --ws-interact-bg-idle: rgb(var(--ws-accent-rgb) / var(--ws-alpha-idle));
+  --ws-interact-bg-hover: rgb(var(--ws-accent-rgb) / var(--ws-alpha-hover));
+  --ws-interact-bg-active: rgb(var(--ws-accent-rgb) / var(--ws-alpha-active));
+  --ws-interact-border-idle: rgb(var(--ws-accent-rgb) / var(--ws-alpha-border-soft));
+  --ws-interact-border-active: rgb(var(--ws-accent-rgb) / var(--ws-alpha-border-heavy));
+
+  /* ── Accent-on — text color over a solid accent surface ─
+     Author-set per theme (CSS can't pick contrasting text from a
+     triplet automatically). */
+  --ws-accent-on: #082f49;
+
+  /* ── Status composition vars ───────────────────────────
+     This is what makes Component × Emphasis × Status truly
+     orthogonal. The Status axis modifiers (.ws-status-*) set
+     these three vars; the Emphasis axis modifiers (.ws-filled,
+     .ws-outlined, .ws-ghost, .ws-text-emphasis) consume them.
+     Default is accent — so a bare .ws-filled with no Status reads
+     as the brand color. */
+  --ws-status-rgb: var(--ws-accent-rgb);
+  --ws-status-on:  var(--ws-accent-on);
+  --ws-status-border: rgb(var(--ws-accent-rgb) / var(--ws-alpha-border-strong));
+
+  /* ── Filled-emphasis gradient parameters ────────────────
+     Two knobs that describe ANY linear gradient over a status hue:
+       --ws-filled-angle: 0deg = horizontal, 180deg = top→bottom
+       --ws-filled-depth: 0% = solid, 30% = strong shading
+     Override either to retune all filled surfaces (button, badge,
+     panel) at once, regardless of which Status is on. */
+  --ws-filled-angle: 180deg;
+  --ws-filled-depth: 18%;
+  /* The color the gradient blends TOWARD at its dark stop. Black
+     gives a classic darkening; a theme can override (e.g. Fluent
+     blends toward a lighter shade for its acrylic look). */
+  --ws-filled-mix: #000;
+
+  /* ── Inactive surface — page bg at low alpha ────────────
+     Used by ghost-emphasis hover. Tracks --ws-bg automatically. */
+  --ws-alpha-inactive: 0.55;
+  --ws-btn-inactive-bg: color-mix(in srgb, var(--ws-bg) calc(var(--ws-alpha-inactive) * 100%), transparent);
+
+  /* ── Scale: xs / sm / md / lg / xl ──────────────────────── */
+  --ws-radius-xs: 4px;
+  --ws-radius-sm: 8px;
+  --ws-radius-md: 14px;
+  --ws-radius-lg: 18px;
+  --ws-radius-xl: 999px;
+
+  --ws-gap-xs: 4px;
+  --ws-gap-sm: 8px;
+  --ws-gap-md: 12px;
+  --ws-gap-lg: 18px;
+  --ws-gap-xl: 24px;
+
+  --ws-pad-xs: 5px 10px;
+  --ws-pad-sm: 8px 12px;
+  --ws-pad-md: 8px 14px;
+  --ws-pad-lg: 14px 18px;
+  --ws-pad-xl: 18px 24px;
+
+  --ws-font-xs: 0.75rem;
+  --ws-font-sm: 0.85rem;
+  --ws-font-md: 0.92rem;
+  --ws-font-lg: 1.1rem;
+  --ws-font-xl: 1.4rem;
+
+  /* ── Density-driven font (NEW) — rebound by .ws-density-* */
+  --ws-font-density: var(--ws-font-md);
+
+  /* ── Typography ─────────────────────────────────────────── */
+  --ws-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ws-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --ws-tracking-tight: -0.03em;
+  --ws-tracking-wide: 0.08em;
+
+  /* ── Layout ─────────────────────────────────────────────── */
+  --ws-input-sm-w: 72px;
+  --ws-input-md-w: 180px;
+  --ws-wrap-max-w: 1180px;
+  --ws-wrap-pad: 20px;
+  --ws-metric-min-h: 76px;
+  --ws-overflow-max-h: 280px;
+  --ws-debug-max-h: var(--ws-overflow-max-h);  /* legacy alias, kept for v0.1 consumers */
+
+  /* ── Border widths ──────────────────────────────────────── */
+  --ws-border-w-thin: 1px;
+  --ws-border-w-md: 2px;            /* tab underline, focus ring, spinner */
+  --ws-border-w-thick: 3px;         /* accent side-band */
+
+  /* ── Borders (composite) ────────────────────────────────── */
+  --ws-border: var(--ws-border-w-thin) solid var(--ws-line);
+  --ws-border-none: var(--ws-border-w-thin) solid transparent;
+
+  /* ── Line-heights ───────────────────────────────────────── */
+  --ws-lh-tight: 1.35;
+  --ws-lh-base: 1.5;
+  --ws-lh-relaxed: 1.65;
+
+  /* ── Opacities ──────────────────────────────────────────── */
+  --ws-opacity-disabled: 0.45;
+  --ws-opacity-dim: 0.6;
+  --ws-opacity-very-dim: 0.4;
+
+  /* ── Timing ─────────────────────────────────────────────── */
+  --ws-transition-fast: 0.12s;
+  --ws-transition-morph: 0.3s;
+  --ws-spin-duration: 0.6s;
+  /* Easing tokens — overridable per theme. Fluent uses an
+     asymmetric decel curve, macOS approximates a spring with
+     CSS Easing L2 linear() (fallback to bezier here). */
+  --ws-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ws-easing-emphasized: cubic-bezier(0.3, 0, 0.1, 1);
+
+  /* ── Hover filters ──────────────────────────────────────
+     What filter the Emphasis variants apply on hover. Themes
+     can override (e.g. Fluent overlays a 6 % white veil instead
+     of brightness). */
+  --ws-hover-filter-emphasis: brightness(1.05);
+  --ws-hover-filter-text: brightness(1.15);
+
+  /* ── Focus ring ─────────────────────────────────────────
+     Full multi-layer box-shadow value so themes can ship a
+     double ring (Fluent), a halo (macOS), or anything in
+     between. Default = a single accent ring offset by 2 px. */
+  --ws-focus-ring-w: var(--ws-border-w-md);
+  --ws-focus-ring-offset: 2px;
+  --ws-focus-ring:
+    0 0 0 var(--ws-focus-ring-offset) var(--ws-bg),
+    0 0 0 calc(var(--ws-focus-ring-offset) + var(--ws-focus-ring-w)) var(--ws-accent);
+
+  /* ── Radius roles (control vs surface) ──────────────────
+     Components reference a *role*, not a raw scale step. Fluent
+     wants control=4 / surface=8, macOS wants control=10 / surface=22.
+     The scale (xs..xl) stays as a primitive for one-off cases. */
+  --ws-radius-control: var(--ws-radius-md);
+  --ws-radius-surface: var(--ws-radius-md);
+
+  /* ── Component-specific dimensions ──────────────────────── */
+  --ws-pill-size: 14px;
+  --ws-spinner-size: 16px;
+  --ws-loading-min: 24px;
+  --ws-grid-min: 220px;
+  --ws-fade-stop: 70%;              /* .ws-truncate-fade cut point */
+  --ws-glow-blur: 16px;              /* .ws-elevation-glow radius */
+  --ws-line-clamp: 2;                /* default for .ws-truncate-clamp */
+
+  /* ── z-index layers ─────────────────────────────────────── */
+  --ws-z-sticky: 1;
+  --ws-z-overlay: 100;
+}
+
+/* ── Light theme overrides ─────────────────────────────────
+   Add data-theme="light" on <html> to switch. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  /* Default light = Aurora Vivid light. The compositions in :root above
+     auto-update once we redefine the triplets — they read variables. */
+  --ws-accent-rgb: 0 111 171;          /* sky — OKLCH L=50 C=0.16 H=230 (light, AA 5.18:1) */
+  --ws-accent-2-rgb: 5 150 105;        /* tw emerald-600 */
+  --ws-good-rgb: 21 128 61;             /* tw green-700 */
+  --ws-warn-rgb: 183 77 0;              /* warn — OKLCH L=55 C=0.16 H=50° vivid orange,
+     AA 4.91:1. Pure yellow (H=90+) at AA-passing L is mustard/olive
+     in sRGB; embracing amber/orange (panneaux travaux, signage) reads
+     warmer and more 'warning' than brown-yellow. */
+  --ws-danger-rgb: 185 28 28;           /* tw red-700 — H 28° purer red (AA 6.16:1) */
+  --ws-info-rgb: 68 64 60;              /* tw stone-700 — warm grey, AA 9.78:1 on white, distinct from slate */
+  --ws-muted-rgb: 100 116 139;          /* tw slate-500 */
+  --ws-text-rgb: 15 23 42;              /* tw slate-900 */
+  --ws-shadow-rgb: 15 23 42;             /* tw slate-900 for shadow */
+
+  --ws-bg: #f8fafc;
+  --ws-text: #0f172a;
+
+  /* Light-theme alpha tweaks (slightly subtler) */
+  --ws-alpha-idle: 0.05;
+  --ws-alpha-hover: 0.10;
+  --ws-alpha-active: 0.18;
+  --ws-alpha-border-strong: 0.30;       /* status borders 30% in light */
+  --ws-alpha-border-medium: 0.30;
+  --ws-alpha-shadow: 0.08;
+  --ws-alpha-shadow-overlay: 0.16;
+
+  --ws-panel: #ffffff;
+  --ws-panel-2: #f1f5f9;
+  --ws-surface: rgba(241, 245, 249, 0.7);
+
+  --ws-accent-on: #ffffff;          /* light: dark accent → white text */
+  --ws-good-on: #ffffff;
+  --ws-warn-on: #ffffff;
+  --ws-danger-on: #ffffff;
+  --ws-info-on: #ffffff;
+
+  --ws-shadow: 0 12px 32px rgb(var(--ws-shadow-rgb) / var(--ws-alpha-shadow));
+  --ws-shadow-overlay: 0 24px 64px rgb(var(--ws-shadow-rgb) / var(--ws-alpha-shadow-overlay));
+}
+
+/* ============================================================
+   1bis. PALETTES (opt-in via data-palette="…")
+
+   Two ready-to-go color palettes. The default values declared
+   above are the "Aurora Vivid" palette (Tailwind sky/emerald
+   on near-black blue). To switch:
+
+     <html data-palette="nord-aurora">
+     <html data-palette="aurora-vivid">       (explicit; same as default)
+
+   Theme (light/dark) is independent — works inside either palette:
+
+     <html data-palette="nord-aurora" data-theme="light">
+
+   Each palette redeclares every color token. The non-color tokens
+   (sizes, fonts, shadows, layout) stay shared across palettes.
+   ============================================================ */
+
+/* ── Aurora Vivid — explicit alias of the default palette ──── */
+:root[data-palette="aurora-vivid"] {
+  /* Same as :root above. Declared here so consumers can write the
+     attribute explicitly without losing the default values. */
+}
+:root[data-palette="aurora-vivid"][data-theme="light"] {
+  /* Same as :root[data-theme="light"]. */
+}
+
+/* ── Nord Aurora — Nord palette (Arctic Ice Studio) ──────────
+   Sober, scientific, low-saturation. Ideal for observability
+   dashboards and admin tools — long screen-time without fatigue. */
+:root[data-palette="nord-aurora"] {
+  /* DARK — Nord palette by Arctic Ice Studio */
+  --ws-accent-rgb: 136 192 208;        /* frost #2 */
+  --ws-accent-2-rgb: 143 188 187;      /* frost #1 */
+  --ws-good-rgb: 163 190 140;           /* aurora green */
+  --ws-warn-rgb: 235 203 139;            /* aurora yellow */
+  --ws-danger-rgb: 191 97 106;           /* aurora red */
+  --ws-info-rgb: 129 161 193;            /* frost #3 */
+  --ws-muted-rgb: 216 222 233;           /* snow storm #0 */
+  --ws-text-rgb: 236 239 244;            /* snow storm #2 */
+  --ws-shadow-rgb: 0 0 0;
+
+  --ws-bg: #2e3440;
+  --ws-text: #eceff4;
+
+  /* Nord prefers slightly stronger interactive presence */
+  --ws-alpha-active: 0.20;
+  --ws-alpha-shadow: 0.40;
+
+  --ws-panel: #3b4252;
+  --ws-panel-2: #434c5e;
+  --ws-surface: rgba(67, 76, 94, 0.5);
+
+  --ws-accent-on: #2e3440;          /* nord dark: light frost accent → polar-night text */
+  --ws-good-on: #2e3440;
+  --ws-warn-on: #2e3440;
+  --ws-danger-on: #eceff4;
+  --ws-info-on: #2e3440;
+
+  --ws-shadow: 0 16px 48px rgb(var(--ws-shadow-rgb) / var(--ws-alpha-shadow));
+  --ws-shadow-overlay: 0 24px 64px rgb(var(--ws-shadow-rgb) / var(--ws-alpha-shadow-overlay));
+}
+
+:root[data-palette="nord-aurora"][data-theme="light"] {
+  color-scheme: light;
+  /* LIGHT — same Nord hues, lower-lightness for AA contrast on white */
+  --ws-accent-rgb: 94 129 172;          /* frost #4 darkened */
+  --ws-accent-2-rgb: 129 161 193;
+  --ws-good-rgb: 91 138 58;
+  --ws-warn-rgb: 124 94 0;               /* AA on white = 5.7:1 */
+  --ws-danger-rgb: 161 62 71;
+  --ws-info-rgb: 76 110 145;
+  --ws-muted-rgb: 76 86 106;             /* polar night #3 */
+  --ws-text-rgb: 46 52 64;               /* polar night #0 */
+  --ws-shadow-rgb: 46 52 64;             /* polar night #0 for shadow */
+
+  --ws-bg: #eceff4;
+  --ws-text: #2e3440;
+
+  --ws-alpha-idle: 0.05;
+  --ws-alpha-hover: 0.10;
+  --ws-alpha-active: 0.18;
+  --ws-alpha-border-strong: 0.30;
+  --ws-alpha-border-medium: 0.30;
+  --ws-alpha-shadow: 0.10;
+  --ws-alpha-shadow-overlay: 0.18;
+
+  --ws-panel: #e5e9f0;
+  --ws-panel-2: #d8dee9;
+  --ws-surface: rgba(229, 233, 240, 0.6);
+
+  --ws-accent-on: #eceff4;
+  --ws-good-on: #eceff4;
+  --ws-warn-on: #eceff4;
+  --ws-danger-on: #eceff4;
+  --ws-info-on: #eceff4;
+
+  --ws-shadow: 0 8px 24px rgb(var(--ws-shadow-rgb) / var(--ws-alpha-shadow));
+  --ws-shadow-overlay: 0 16px 48px rgb(var(--ws-shadow-rgb) / var(--ws-alpha-shadow-overlay));
+}
+
+/* ── Fluent — STRUCTURE only (Microsoft Fluent inspiration) ──────
+   Not affiliated with Microsoft. The look provides geometry and
+   timing — sharp radii, Fluent decel easing, double-layer focus
+   ring, near-flat fills, Mica-like material via tinted panel.
+   Colors (accent + status) inherit from the Aurora palette so
+   pairing look=fluent + accent=sky/blue/etc. is fully orthogonal. */
+:root[data-palette="fluent"] {
+  --ws-radius-control: 4px;
+  --ws-radius-surface: 8px;
+
+  --ws-easing-standard:   cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ws-easing-emphasized: cubic-bezier(0.3, 0, 0, 1);
+
+  --ws-backdrop-blur: blur(30px);
+
+  --ws-focus-ring:
+    0 0 0 1px var(--ws-bg),
+    0 0 0 3px var(--ws-accent);
+
+  --ws-shadow: 0 4px 12px rgb(var(--ws-shadow-rgb) / 0.20);
+  --ws-shadow-overlay: 0 12px 32px rgb(var(--ws-shadow-rgb) / 0.30);
+}
+
+/* ── Liquid Glass — STRUCTURE only (macOS Tahoe inspiration) ─────
+   Not affiliated with Apple. Generous radii, heavy backdrop blur,
+   halo focus ring, richer gradients. Colors inherit from Aurora. */
+:root[data-palette="liquid-glass"] {
+  --ws-radius-control: 10px;
+  --ws-radius-surface: 20px;
+
+  --ws-easing-standard:   cubic-bezier(0.32, 0.72, 0, 1);
+  --ws-easing-emphasized: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --ws-backdrop-blur: blur(40px);
+
+  --ws-focus-ring:
+    0 0 0 4px rgb(var(--ws-accent-rgb) / 0.35),
+    0 0 0 1px rgb(var(--ws-accent-rgb) / 0.6);
+
+  --ws-shadow: 0 8px 24px rgb(var(--ws-shadow-rgb) / 0.30);
+  --ws-shadow-overlay: 0 24px 60px rgb(var(--ws-shadow-rgb) / 0.45);
+}
+
+/* ============================================================
+   2. RESET & BASE — three opt-in levels
+
+   Pick the smallest level that satisfies your case. They stack:
+   `.ws-app` already implies `.ws-reset` automatically.
+
+     .ws-tokens   — declarative no-op. Tokens are on :root anyway,
+                    but the class anchors intent: "this subtree
+                    consumes webstyle tokens".
+     .ws-reset    — universal box-sizing reset on the subtree.
+                    No background, no font, no color.
+     .ws-app      — full scaffold: reset + body font + bg + text
+                    color + link styling. Apply to <body> or a
+                    top-level wrapper.
+   ============================================================ */
+
+.ws-tokens { /* anchor only — see comment above */ }
+
+.ws-reset,
+.ws-reset *,
+.ws-reset *::before,
+.ws-reset *::after { box-sizing: border-box; }
+
+.ws-app {
+  font-family: var(--ws-font-sans);
+  font-size: var(--ws-font-density);
+  line-height: var(--ws-lh-base);
+  color: var(--ws-text);
+  background: var(--ws-bg);
+}
+
+/* .ws-app implies .ws-reset (so a single class on <body> is enough) */
+.ws-app,
+.ws-app *,
+.ws-app *::before,
+.ws-app *::after { box-sizing: border-box; }
+
+.ws-app a { color: var(--ws-accent); text-decoration: none; }
+.ws-app a:hover { text-decoration: underline; }
+
+/* ============================================================
+   3. AXIS — Component (forme + taille de base)
+
+   The "what is it" dimension. Each component class establishes a
+   baseline visual but leaves emphasis/status/shape/etc. to other
+   axes. Components are intentionally minimal — they're scaffolds.
+   ============================================================ */
+
+/* ── Button ──────────────────────────────────────────────── */
+.ws-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ws-gap-sm);
+  padding: var(--ws-pad-md);
+  font: inherit;
+  border-radius: var(--ws-radius-control);
+  border: var(--ws-border);
+  background: transparent;
+  color: var(--ws-text);
+  cursor: pointer;
+  user-select: text;
+  -webkit-user-select: text;
+  transition:
+    background var(--ws-transition-fast) var(--ws-easing-standard),
+    border-color var(--ws-transition-fast) var(--ws-easing-standard),
+    color var(--ws-transition-fast) var(--ws-easing-standard),
+    filter var(--ws-transition-fast) var(--ws-easing-standard);
+}
+.ws-button:focus-visible {
+  outline: none;
+  box-shadow: var(--ws-focus-ring);
+  outline-offset: var(--ws-focus-ring-offset);
+}
+
+/* ── Badge / Chip (small inline label) ───────────────────── */
+.ws-badge,
+.ws-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ws-gap-xs);
+  padding: var(--ws-pad-xs);
+  font-family: inherit;
+  font-size: var(--ws-font-sm);
+  background: transparent;
+  color: inherit;
+  border-radius: var(--ws-radius-sm);
+  border: var(--ws-border);
+  white-space: nowrap;
+  user-select: text;
+  -webkit-user-select: text;
+}
+/* Focus ring for chips on natively-focusable elements (button, a[href],
+   summary, [tabindex]). Mirrors the .ws-button rule so any clickable chip
+   shows a ring without needing .ws-interactive. */
+.ws-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--ws-focus-ring);
+  outline-offset: var(--ws-focus-ring-offset);
+}
+
+/* Persistent selection marker on buttons/chips marked as the current page
+   or the pressed item in a toggle group. Two paths:
+   (1) Default — webstyle auto-renders a small accent bullet via ::after.
+       Zero markup, but the bullet is a pseudo-element (not text-selectable).
+   (2) Selectable — include <span class="ws-marker"> •</span> inside the
+       button. The span is hidden by default, revealed by ARIA. The CSS below
+       suppresses the ::after when a real .ws-marker exists, so you don't
+       get two dots. Use this when drag-selecting the button label should
+       also capture the bullet (e.g. copying a row of stats as plain text). */
+.ws-button[aria-current]::after,
+.ws-button[aria-current="page"]::after,
+.ws-button[aria-pressed="true"]::after,
+.ws-chip[aria-current]::after,
+.ws-chip[aria-current="page"]::after,
+.ws-chip[aria-pressed="true"]::after {
+  content: "•";
+  color: var(--ws-accent);
+  font-weight: bold;
+  line-height: 1;
+}
+.ws-button:has(.ws-marker)[aria-current]::after,
+.ws-button:has(.ws-marker)[aria-current="page"]::after,
+.ws-button:has(.ws-marker)[aria-pressed="true"]::after,
+.ws-chip:has(.ws-marker)[aria-current]::after,
+.ws-chip:has(.ws-marker)[aria-current="page"]::after,
+.ws-chip:has(.ws-marker)[aria-pressed="true"]::after {
+  content: none;
+}
+/* Always rendered (so drag-selection captures the bullet on every button
+   in the row, not just the active one), but visually zero-sized and
+   transparent when inactive. The active state restores width and color. */
+/* Invisible copy-paste-only marker. The bullet is never rendered visibly —
+   ever. On *inactive* buttons it's removed from the DOM render tree
+   (display: none) so it doesn't appear in selections either. On the
+   *active* button (aria-current / aria-pressed="true") it's still invisible
+   but rendered as a zero-size absolutely-positioned span — drag-selecting
+   the button captures the bullet, so copy/paste yields "All time•" while
+   inactive options copy as plain "Last 7 days". Visual active state is
+   carried entirely by the button's emphasis variant (ws-filled / etc.). */
+.ws-button:has(> .ws-marker),
+.ws-chip:has(> .ws-marker) {
+  position: relative;
+}
+.ws-marker {
+  display: none;
+}
+[aria-current] > .ws-marker,
+[aria-current="page"] > .ws-marker,
+[aria-pressed="true"] > .ws-marker {
+  display: inline-block;
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  color: transparent;
+  pointer-events: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Opt-out for action-only buttons whose label shouldn't be text-selectable
+   (theme switchers, copy/clear utility chips). Apply alongside ws-button
+   or ws-chip when the click *is* the only meaning of the label. */
+.ws-no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ── Tab (nav item) ──────────────────────────────────────────
+   Component is purely structural. The "current page" highlight
+   is provided by the .ws-tab-current State (or the W3C-blessed
+   [aria-current] selector below). This avoids overloading the
+   .ws-active class — which already means "interactive pressed"
+   in the State axis — with a different meaning here. */
+.ws-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ws-gap-sm);
+  padding: var(--ws-pad-sm);
+  font: inherit;
+  background: transparent;
+  border: none;
+  border-bottom: var(--ws-border-w-md) solid transparent;
+  color: var(--ws-muted);
+  cursor: pointer;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.ws-tab.ws-tab-current,
+.ws-tab[aria-current],
+.ws-tab[aria-current="page"] {
+  color: var(--ws-text);
+  border-bottom-color: var(--ws-accent);
+}
+
+/* ── Input ───────────────────────────────────────────────── */
+.ws-input,
+.ws-select,
+.ws-textarea {
+  font: inherit;
+  padding: var(--ws-pad-sm);
+  border-radius: var(--ws-radius-sm);
+  border: var(--ws-border);
+  background: var(--ws-surface);
+  color: var(--ws-text);
+}
+/* Focus ring: native outline only, no border-color override.
+   Matches the browser-native focus pattern (single ring) and avoids
+   the double-band visual effect when both the border and the outline
+   colored on focus. */
+.ws-input:focus,
+.ws-select:focus,
+.ws-textarea:focus {
+  outline: none;
+  box-shadow: var(--ws-focus-ring);
+}
+
+/* ── Panel (boxed surface) ───────────────────────────────── */
+.ws-panel {
+  background: var(--ws-panel);
+  border: var(--ws-border);
+  border-radius: var(--ws-radius-surface);
+  padding: var(--ws-pad-lg);
+  backdrop-filter: var(--ws-backdrop-blur);
+}
+
+/* ── Table ───────────────────────────────────────────────── */
+.ws-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ws-font-density);
+}
+.ws-table th,
+.ws-table td { padding: var(--ws-pad-xs); vertical-align: middle; }
+/* Cells holding mixed plain text and badge/pill components align
+   on their visual center by default — avoids the "$1.77 vs ok"
+   row drift caused by badges' inline-flex padding pushing visible
+   content down while top-anchored text stays high. Use
+   .ws-table.ws-align-top to opt back into top alignment for tables
+   with long-wrapping cells. */
+.ws-table.ws-align-top th,
+.ws-table.ws-align-top td { vertical-align: top; }
+.ws-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ws-muted);
+  border-bottom: var(--ws-border);
+}
+.ws-table th.ws-num,
+.ws-table td.ws-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+/* Hover-row highlight is opt-in via .ws-interactive on the table
+   (or on a single <tr>). Component stays purely structural — the
+   State axis owns interaction visuals. */
+.ws-table.ws-interactive tbody tr:hover td,
+.ws-table tbody tr.ws-interactive:hover td { background: var(--ws-interact-bg-hover); }
+
+/* Sticky table header — opt-in via .ws-table-sticky */
+.ws-table-sticky th {
+  position: sticky;
+  top: 0;
+  background: var(--ws-bg);
+  z-index: var(--ws-z-sticky);
+}
+
+/* ============================================================
+   4. AXIS — Status (couleur sémantique)
+
+   Status only sets three composition vars (--ws-status-rgb,
+   --ws-status-on, --ws-status-border). Emphasis (next section)
+   reads them. Wrapped in :where() so specificity stays 0 — that
+   way Emphasis rules (specificity 0,1,0) always override the
+   color/border without needing compound .ws-filled.ws-status-X
+   rules. Result: Component × Emphasis × Status is N+M+K rules,
+   not N×M×K.
+   ============================================================ */
+
+:where(.ws-status-neutral) {
+  --ws-status-rgb: var(--ws-text-rgb);
+  --ws-status-on:  var(--ws-bg);
+  --ws-status-border: var(--ws-line);
+}
+:where(.ws-status-good) {
+  --ws-status-rgb: var(--ws-good-rgb);
+  --ws-status-on:  var(--ws-good-on);
+  --ws-status-border: var(--ws-good-border);
+}
+:where(.ws-status-warn) {
+  --ws-status-rgb: var(--ws-warn-rgb);
+  --ws-status-on:  var(--ws-warn-on);
+  --ws-status-border: var(--ws-warn-border);
+}
+:where(.ws-status-danger) {
+  --ws-status-rgb: var(--ws-danger-rgb);
+  --ws-status-on:  var(--ws-danger-on);
+  --ws-status-border: var(--ws-danger-border);
+}
+:where(.ws-status-info) {
+  --ws-status-rgb: var(--ws-info-rgb);
+  --ws-status-on:  var(--ws-info-on);
+  --ws-status-border: var(--ws-info-border);
+}
+
+/* Bare Status (no Emphasis) — inline text/badge gets the hue.
+   Specificity 0,1,0 since the class isn't wrapped in :where. */
+.ws-status-neutral,
+.ws-status-good,
+.ws-status-warn,
+.ws-status-danger,
+.ws-status-info {
+  color: rgb(var(--ws-status-rgb));
+  border-color: var(--ws-status-border);
+}
+
+/* ============================================================
+   5. AXIS — Emphasis (poids visuel)
+
+   Each Emphasis renders the SAME --ws-status-* vars differently:
+     filled    → gradient bg of the hue + on-color text
+     outlined  → transparent bg + bordered + hued text
+     ghost     → transparent bg, no border, hued text
+     text-emp  → no surface, hued text only
+   Defaults (no Status class) read from :root where --ws-status-rgb
+   = accent. So Component × Emphasis × Status is fully orthogonal:
+   any Emphasis with any Status with any Component just works.
+
+   Padding is intentionally NOT touched by Emphasis — Density's job.
+   ============================================================ */
+
+.ws-filled {
+  background: linear-gradient(
+    var(--ws-filled-angle),
+    rgb(var(--ws-status-rgb)),
+    color-mix(in srgb, rgb(var(--ws-status-rgb)), var(--ws-filled-mix) var(--ws-filled-depth))
+  );
+  color: var(--ws-status-on);
+  border-color: transparent;
+}
+.ws-outlined {
+  background: transparent;
+  border: var(--ws-border-w-thin) solid var(--ws-status-border);
+  color: rgb(var(--ws-status-rgb));
+}
+.ws-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: rgb(var(--ws-status-rgb));
+}
+.ws-text-emphasis {
+  background: transparent;
+  border: none;
+  color: rgb(var(--ws-status-rgb));
+}
+
+/* Emphasis-aware hover */
+.ws-filled:hover { filter: var(--ws-hover-filter-emphasis); }
+.ws-outlined:hover { border-color: rgb(var(--ws-status-rgb)); }
+.ws-ghost:hover { background: var(--ws-btn-inactive-bg); }
+.ws-text-emphasis:hover { filter: var(--ws-hover-filter-text); }
+
+/* ============================================================
+   6. AXIS — Shape (rayon de coins)
+   ============================================================ */
+
+.ws-shape-square { border-radius: 0; }
+.ws-shape-rounded { border-radius: var(--ws-radius-md); }
+.ws-shape-pill { border-radius: var(--ws-radius-xl); }
+
+/* ============================================================
+   7. AXIS — State (états interactifs)
+
+   ENRICHED vs ariaflow. The original axis only covered disabled +
+   loading. This version adds the .ws-interactive opt-in so any
+   component can use the standard idle/hover/active graduation
+   without re-implementing it.
+   ============================================================ */
+
+.ws-disabled,
+.ws-app [disabled] {
+  opacity: var(--ws-opacity-disabled);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.ws-loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+  min-width: var(--ws-loading-min);
+  min-height: var(--ws-loading-min);
+}
+.ws-loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: var(--ws-spinner-size);
+  height: var(--ws-spinner-size);
+  border: var(--ws-border-w-md) solid var(--ws-muted);
+  border-top-color: var(--ws-accent);
+  border-radius: 50%;
+  animation: ws-spin var(--ws-spin-duration) linear infinite;
+}
+@keyframes ws-spin { to { transform: rotate(360deg); } }
+
+/* NEW — opt-in interactive graduation. Add .ws-interactive to any
+   component. Hover, active, and selected use tokenized alphas, so
+   the same idle→hover→active rhythm is shared across components. */
+.ws-interactive {
+  background: var(--ws-interact-bg-idle);
+  border-color: var(--ws-interact-border-idle);
+  cursor: pointer;
+  transition:
+    background var(--ws-transition-fast) var(--ws-easing-standard),
+    border-color var(--ws-transition-fast) var(--ws-easing-standard);
+}
+.ws-interactive:hover { background: var(--ws-interact-bg-hover); }
+.ws-interactive.ws-active,
+.ws-interactive[aria-pressed="true"] {
+  background: var(--ws-interact-bg-active);
+  border-color: var(--ws-interact-border-active);
+}
+.ws-interactive:focus-visible {
+  outline: none;
+  box-shadow: var(--ws-focus-ring);
+}
+
+/* Selected (vs Active) — for list/table rows. Persistent state. */
+.ws-selected,
+.ws-app [aria-selected="true"] {
+  background: var(--ws-interact-bg-active);
+  border-color: var(--ws-interact-border-active);
+}
+
+/* ============================================================
+   8. AXIS — Elevation (profondeur)
+   ============================================================ */
+
+.ws-elevation-flat { box-shadow: none; }
+.ws-elevation-raised { box-shadow: var(--ws-shadow); }
+.ws-elevation-overlay {
+  box-shadow: var(--ws-shadow-overlay);
+  backdrop-filter: var(--ws-backdrop-blur);
+}
+/* Glow is shadow-based depth (Elevation), not a colored band like
+   the rest of Accent. Lives here so the axis stays coherent: every
+   Accent-* draws a border on a side; every Elevation-* uses
+   box-shadow. */
+.ws-elevation-glow {
+  box-shadow:
+    0 0 0 var(--ws-border-w-thin) var(--ws-glow-soft),
+    0 0 var(--ws-glow-blur) var(--ws-glow);
+}
+
+/* ============================================================
+   9. AXIS — Density (compact / default / relaxed)
+
+   ENRICHED vs ariaflow. Now also drives font-size and line-height,
+   not just spacing. A single .ws-density-compact actually reads
+   denser — smaller font + tighter padding + tighter gaps.
+   ============================================================ */
+
+.ws-density-compact {
+  --ws-gap-xs: 2px;
+  --ws-gap-sm: 4px;
+  --ws-gap-md: 8px;
+  --ws-pad-xs: 3px 6px;
+  --ws-pad-sm: 5px 8px;
+  --ws-pad-md: 5px 10px;
+  --ws-font-density: var(--ws-font-sm);
+  line-height: var(--ws-lh-tight);
+}
+
+.ws-density-relaxed {
+  --ws-gap-sm: 12px;
+  --ws-gap-md: 18px;
+  --ws-gap-lg: 24px;
+  --ws-pad-xs: 8px 14px;
+  --ws-pad-sm: 12px 18px;
+  --ws-pad-md: 12px 20px;
+  --ws-font-density: var(--ws-font-lg);
+  line-height: var(--ws-lh-relaxed);
+}
+
+/* ============================================================
+   10. AXIS — Breakpoint (visibilité responsive)
+
+   Three viewport bands: mobile (< 641 px), tablet (641-1024 px),
+   desktop (> 1024 px). Three "hide-X" classes hide at one band,
+   three "show-X-only" classes hide everywhere except their band.
+
+   Pure media-query thresholds — CSS variables can't drive
+   media-query conditions natively, so the breakpoints are baked
+   into the rules. To customize, fork this section.
+   ============================================================ */
+
+@media (max-width: 640px) {
+  .ws-hide-mobile,
+  .ws-show-tablet-only,
+  .ws-show-desktop-only { display: none !important; }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .ws-hide-tablet,
+  .ws-show-mobile-only,
+  .ws-show-desktop-only { display: none !important; }
+}
+
+@media (min-width: 1025px) {
+  .ws-hide-desktop,
+  .ws-show-mobile-only,
+  .ws-show-tablet-only { display: none !important; }
+}
+
+/* ============================================================
+   11. AXIS — Truncation (NEW)
+
+   How content that overflows the box is visually terminated. Pure
+   text ellipsis, hard clip, or a fade-out gradient. Composes with
+   any text-bearing component.
+   ============================================================ */
+
+.ws-truncate-none { /* default */ }
+
+/* min-width:0 is the missing-piece footgun fix. Without it, a flex
+   item refuses to shrink below its intrinsic content width and
+   text-overflow:ellipsis silently does nothing. With min-width:0
+   the element shrinks to its parent and ellipsis fires correctly.
+   Author still needs the parent to have a definite width or be in
+   a flex/grid container — which is the common case anyway. */
+.ws-truncate-ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-truncate-clip {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.ws-truncate-fade {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  -webkit-mask-image: linear-gradient(to right, black var(--ws-fade-stop), transparent);
+          mask-image: linear-gradient(to right, black var(--ws-fade-stop), transparent);
+}
+
+/* Multi-line clamp — number of lines is tokenized via --ws-line-clamp.
+   Use one of the named .ws-truncate-{2,3,4,5} classes for the common
+   counts, OR set the variable inline for arbitrary depth:
+     <p class="ws-truncate-clamp" style="--ws-line-clamp:7">…</p>     */
+.ws-truncate-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: var(--ws-line-clamp, 2);
+          line-clamp: var(--ws-line-clamp, 2);
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ws-truncate-2 { --ws-line-clamp: 2; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ws-truncate-3 { --ws-line-clamp: 3; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.ws-truncate-4 { --ws-line-clamp: 4; display: -webkit-box; -webkit-line-clamp: 4; line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.ws-truncate-5 { --ws-line-clamp: 5; display: -webkit-box; -webkit-line-clamp: 5; line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ============================================================
+   12. AXIS — Overflow (NEW)
+
+   How a container behaves when its content exceeds its bounds.
+   Distinct from Truncation, which is about cutting off text.
+   Overflow is about scroll/clip semantics on the container.
+   ============================================================ */
+
+.ws-overflow-visible { overflow: visible; }
+
+.ws-overflow-bounded {
+  /* The most common pattern: cap height, scroll vertical when needed,
+     break long words so request-ids etc. don't blow out the box. */
+  max-height: var(--ws-overflow-max-h);
+  overflow: auto;
+  word-break: break-word;
+}
+
+.ws-overflow-scroll {
+  overflow: auto;
+  word-break: break-word;
+}
+
+.ws-overflow-hidden { overflow: hidden; }
+
+/* ============================================================
+   13. AXIS — Accent (NEW)
+
+   A colored band on one side of an element. Distinct from Elevation
+   (shadow-based depth) and Status (whole-element semantic color).
+   Use to mark a sub-section, a "selected", or a category accent.
+   ============================================================ */
+
+.ws-accent-none {
+  border-left: 0;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  box-shadow: none;
+}
+
+/* Accent band reads --ws-status-rgb so it auto-tints with any
+   .ws-status-* sibling class — same Component × Status orthogonality
+   as Emphasis. Default (no Status) = accent. */
+.ws-accent-left {
+  border-left: var(--ws-border-w-thick) solid rgb(var(--ws-status-rgb));
+  padding-left: var(--ws-gap-sm);
+}
+.ws-accent-top {
+  border-top: var(--ws-border-w-thick) solid rgb(var(--ws-status-rgb));
+  padding-top: var(--ws-gap-sm);
+}
+.ws-accent-right {
+  border-right: var(--ws-border-w-thick) solid rgb(var(--ws-status-rgb));
+  padding-right: var(--ws-gap-sm);
+}
+.ws-accent-bottom {
+  border-bottom: var(--ws-border-w-thick) solid rgb(var(--ws-status-rgb));
+  padding-bottom: var(--ws-gap-sm);
+}
+
+/* (.ws-accent-glow moved to the Elevation axis as .ws-elevation-glow —
+   it was shadow-based, not a colored side-band, so it didn't fit the
+   Accent axis's contract. Use .ws-elevation-glow instead.) */
+
+/* ============================================================
+   14. AXIS — Typography (NEW small axis)
+
+   Sans (default) vs mono. Two values, but worth being orthogonal
+   so any component can opt into mono (code blocks, numeric tables,
+   IDs) without overriding font in custom CSS.
+   ============================================================ */
+
+.ws-font-sans { font-family: var(--ws-font-sans); }
+.ws-font-mono { font-family: var(--ws-font-mono); }
+
+/* Numeric helpers — also typography-related */
+.ws-tabular { font-variant-numeric: tabular-nums; }
+.ws-tracking-tight { letter-spacing: var(--ws-tracking-tight); }
+.ws-tracking-wide { letter-spacing: var(--ws-tracking-wide); }
+
+/* ============================================================
+   15. SPACING UTILITIES
+
+   Marginal — most layout should use Density + parent gap. These
+   are escape hatches for the rare ad-hoc adjustment.
+   ============================================================ */
+
+.ws-mt-0 { margin-top: 0; }
+.ws-mt-xs { margin-top: var(--ws-gap-xs); }
+.ws-mt-sm { margin-top: var(--ws-gap-sm); }
+.ws-mt-md { margin-top: var(--ws-gap-md); }
+.ws-mt-lg { margin-top: var(--ws-gap-lg); }
+
+.ws-mb-0 { margin-bottom: 0; }
+.ws-mb-xs { margin-bottom: var(--ws-gap-xs); }
+.ws-mb-sm { margin-bottom: var(--ws-gap-sm); }
+.ws-mb-md { margin-bottom: var(--ws-gap-md); }
+.ws-mb-lg { margin-bottom: var(--ws-gap-lg); }
+
+/* Salience — opacity steps. Useful for "this is here but not the
+   focus": meta info, secondary timestamps, inactive controls.
+   Distinct from Status (semantic color) and Emphasis (visual weight). */
+.ws-dim { opacity: var(--ws-opacity-dim); }
+.ws-very-dim { opacity: var(--ws-opacity-very-dim); }
+.ws-strong { opacity: 1; font-weight: 600; }
+
+/* ============================================================
+   16. LAYOUT PRIMITIVES
+
+   Tiny set — most layout is on the consumer.
+   ============================================================ */
+
+.ws-row { display: flex; gap: var(--ws-gap-md); align-items: center; flex-wrap: wrap; }
+.ws-col { display: flex; gap: var(--ws-gap-md); flex-direction: column; }
+.ws-stack > * + * { margin-top: var(--ws-gap-md); }
+
+/* Auto-fit grid — tile layout that wraps when items don't fit.
+   Override --ws-grid-min inline (style="--ws-grid-min: 320px") for
+   wider tiles; default 220 px works for typical card layouts. */
+.ws-grid-auto {
+  display: grid;
+  gap: var(--ws-gap-md);
+  grid-template-columns: repeat(auto-fit, minmax(var(--ws-grid-min, 220px), 1fr));
+}
+
+.ws-wrap { max-width: var(--ws-wrap-max-w); padding: 0 var(--ws-wrap-pad); margin: 0 auto; }
+
+.ws-grow { flex: 1; }
+.ws-shrink-0 { flex-shrink: 0; }
+
+/* ============================================================
+   17. PROVIDER / CATEGORY CHIP
+
+   Compact one-letter or one-icon chip with fixed width — useful
+   for tagging rows in dense tables. Composes with Status.
+   ============================================================ */
+
+.ws-pill-letter {
+  display: inline-block;
+  width: var(--ws-pill-size);
+  height: var(--ws-pill-size);
+  line-height: var(--ws-pill-size);
+  text-align: center;
+  border-radius: var(--ws-radius-xs);
+  font-size: var(--ws-font-xs);
+  font-weight: 700;
+  font-family: var(--ws-font-mono);
+  background: var(--ws-muted);
+  color: var(--ws-bg);
+}
+/* Pill-letter background reads --ws-status-rgb so any Status class
+   tints automatically; text uses --ws-status-on. One rule, all
+   statuses (Component × Status orthogonality). */
+.ws-app .ws-pill-letter.ws-status-neutral,
+.ws-app .ws-pill-letter.ws-status-good,
+.ws-app .ws-pill-letter.ws-status-warn,
+.ws-app .ws-pill-letter.ws-status-danger,
+.ws-app .ws-pill-letter.ws-status-info {
+  background: rgb(var(--ws-status-rgb));
+  color: var(--ws-status-on);
+}
+
+/* ============================================================
+   PHASE 1 ADDITIONS — Form layout, Skeleton, Tooltip, Aspect axis
+   ============================================================ */
+
+/* ── Form layout primitives ─────────────────────────────────
+   Pair label + input + help/error in a vertical stack. Spacing
+   uses gap tokens, colors flow via Status (no hardcoded
+   palette references — orthogonality preserved). */
+.ws-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ws-gap-xs);
+  margin-bottom: var(--ws-gap-md);
+}
+.ws-form-label {
+  font-size: var(--ws-font-sm);
+  font-weight: 600;
+  color: var(--ws-text);
+}
+.ws-form-help {
+  font-size: var(--ws-font-xs);
+  color: var(--ws-muted);
+  line-height: var(--ws-lh-tight);
+}
+.ws-form-error {
+  font-size: var(--ws-font-xs);
+  color: var(--ws-danger);
+  line-height: var(--ws-lh-tight);
+}
+
+/* ── Skeleton (loading placeholder) ─────────────────────────
+   Distinct from .ws-loading (State axis: hides content + shows
+   spinner). Skeleton REPLACES content with shimmer rectangle —
+   typically used to reserve layout space before data arrives.
+   Author sets explicit width/height; the class supplies bg + animation. */
+.ws-skeleton {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--ws-muted-rgb) / var(--ws-alpha-idle)) 0%,
+    rgb(var(--ws-muted-rgb) / var(--ws-alpha-hover)) 50%,
+    rgb(var(--ws-muted-rgb) / var(--ws-alpha-idle)) 100%
+  );
+  background-size: 200% 100%;
+  animation: ws-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--ws-radius-control);
+  min-height: 1em;
+}
+@keyframes ws-shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+/* ── Tooltip (CSS-only via [data-tooltip]) ──────────────────
+   Pure CSS reveal on :hover / :focus-visible. No JS, no extra
+   wrapper. Bubble positioned above the host. */
+.ws-app [data-tooltip] {
+  position: relative;
+}
+.ws-app [data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + var(--ws-gap-xs));
+  left: 50%;
+  transform: translateX(-50%) translateY(var(--ws-gap-xs));
+  padding: var(--ws-pad-xs);
+  background: var(--ws-panel-2);
+  color: var(--ws-text);
+  border: var(--ws-border);
+  border-radius: var(--ws-radius-sm);
+  font-size: var(--ws-font-xs);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity var(--ws-transition-fast) var(--ws-easing-standard),
+    transform var(--ws-transition-fast) var(--ws-easing-standard);
+  z-index: var(--ws-z-tooltip, 50);
+}
+.ws-app [data-tooltip]:hover::after,
+.ws-app [data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ============================================================
+   AXIS — Aspect (NEW)
+
+   Set aspect-ratio for media tiles, video embeds, image cards.
+   Independent of every other axis: composes with any Component,
+   any Shape, any Density. Sub-space = aspect-ratio property only.
+   ============================================================ */
+.ws-aspect-1-1   { aspect-ratio: 1 / 1; }
+.ws-aspect-4-3   { aspect-ratio: 4 / 3; }
+.ws-aspect-3-4   { aspect-ratio: 3 / 4; }
+.ws-aspect-16-9  { aspect-ratio: 16 / 9; }
+.ws-aspect-21-9  { aspect-ratio: 21 / 9; }
+
+/* ============================================================
+   PHASE 2 ADDITIONS — Dialog/Popover, Progress, Avatar, Tab vertical
+   ============================================================ */
+
+/* ── Dialog / Popover (paint-only frames) ───────────────────
+   Pure CSS surfaces. Consumer wires <dialog> via JS or the
+   native HTMLDialogElement.showModal() API. */
+.ws-dialog,
+.ws-popover {
+  background: var(--ws-panel);
+  border: var(--ws-border);
+  border-radius: var(--ws-radius-surface);
+  padding: var(--ws-pad-lg);
+  box-shadow: var(--ws-shadow-overlay);
+  backdrop-filter: var(--ws-backdrop-blur);
+  color: var(--ws-text);
+}
+.ws-dialog::backdrop {
+  background: rgb(var(--ws-shadow-rgb) / 0.5);
+  backdrop-filter: blur(4px);
+}
+
+/* ── Progress (linear bar with --ws-progress percent) ───────
+   Composes with Status: .ws-progress.ws-status-good = green bar.
+   Author sets --ws-progress: 0..100 percent. */
+.ws-progress {
+  display: block;
+  height: var(--ws-border-w-md);
+  width: 100%;
+  background: rgb(var(--ws-muted-rgb) / var(--ws-alpha-idle));
+  border-radius: var(--ws-radius-xl);
+  overflow: hidden;
+  position: relative;
+}
+.ws-progress::after {
+  content: "";
+  display: block;
+  width: var(--ws-progress, 0%);
+  height: 100%;
+  background: rgb(var(--ws-status-rgb));
+  border-radius: inherit;
+  transition: width var(--ws-transition-fast) var(--ws-easing-standard);
+}
+
+/* ── Avatar (sized container, Shape-aware) ──────────────────
+   Square by default; pair with .ws-shape-pill for circular,
+   .ws-shape-rounded for soft squircle. Size via --ws-avatar-size. */
+.ws-avatar {
+  --ws-avatar-size: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--ws-avatar-size);
+  height: var(--ws-avatar-size);
+  border-radius: var(--ws-radius-control);
+  background: rgb(var(--ws-muted-rgb) / var(--ws-alpha-active));
+  color: var(--ws-text);
+  font-weight: 600;
+  font-size: calc(var(--ws-avatar-size) * 0.4);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.ws-avatar > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Tab vertical orientation (enriches Component: tab) ─────
+   Was a missing capability — sidebar nav items used to need a
+   separate Component. Now .ws-tab.ws-tab-vertical reuses the
+   same Tab component for vertical orientation. Avoids ws-nav
+   redundancy. */
+.ws-tab.ws-tab-vertical {
+  border-bottom: 0;
+  border-left: var(--ws-border-w-thin) solid transparent;
+  padding: var(--ws-pad-sm) var(--ws-pad-md);
+  width: 100%;
+  justify-content: flex-start;
+}
+.ws-tab.ws-tab-vertical.ws-tab-current,
+.ws-tab.ws-tab-vertical[aria-current],
+.ws-tab.ws-tab-vertical[aria-current="page"] {
+  border-bottom: 0;
+  border-left-width: var(--ws-border-w-md);
+  border-left-color: var(--ws-accent);
+}
+
+/* ============================================================
+   PHASE 3 ADDITIONS — Code, Kbd, Icon button, Segmented, Banner, Toast
+   ============================================================ */
+
+/* ── Code block (composes with ws-panel + ws-overflow-bounded) ── */
+.ws-code {
+  font-family: var(--ws-font-mono);
+  font-size: var(--ws-font-sm);
+  background: var(--ws-panel-2);
+  color: var(--ws-text);
+  padding: var(--ws-pad-md);
+  border-radius: var(--ws-radius-control);
+  border: var(--ws-border);
+  white-space: pre;
+  line-height: var(--ws-lh-base);
+}
+
+/* ── Keyboard key display ───────────────────────────────────
+   Inline span styled to look pressable. */
+.ws-kbd {
+  font-family: var(--ws-font-mono);
+  font-size: var(--ws-font-xs);
+  padding: 1px 6px;
+  border: var(--ws-border-w-thin) solid var(--ws-line);
+  border-bottom-width: var(--ws-border-w-md);
+  border-radius: var(--ws-radius-xs);
+  background: var(--ws-panel-2);
+  color: var(--ws-text);
+  white-space: nowrap;
+}
+
+/* ── Icon-only button (modifier on .ws-button — NOT new Component) ──
+   Square aspect, no padding asymmetry. Compose normally with
+   Emphasis / Status / Shape. */
+.ws-button.ws-icon {
+  width: 2.4em;
+  padding: 0;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+}
+
+/* ── Segmented control (button group with connected radii) ──── */
+.ws-segmented {
+  display: inline-flex;
+  border-radius: var(--ws-radius-control);
+  overflow: hidden;
+}
+.ws-segmented > .ws-button {
+  border-radius: 0;
+  border-right-width: 0;
+}
+.ws-segmented > .ws-button:first-child {
+  border-top-left-radius: var(--ws-radius-control);
+  border-bottom-left-radius: var(--ws-radius-control);
+}
+.ws-segmented > .ws-button:last-child {
+  border-right-width: var(--ws-border-w-thin);
+  border-top-right-radius: var(--ws-radius-control);
+  border-bottom-right-radius: var(--ws-radius-control);
+}
+
+/* ── Banner (in-page persistent surface, Status-flavored) ──── */
+.ws-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--ws-gap-sm);
+  padding: var(--ws-pad-md);
+  border-radius: var(--ws-radius-control);
+  border-left: var(--ws-border-w-thick) solid var(--ws-status-border);
+  background: rgb(var(--ws-status-rgb) / var(--ws-alpha-idle));
+  color: var(--ws-text);
+}
+
+/* ── Toast (transient floating notification) ──────────────── */
+.ws-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ws-gap-sm);
+  padding: var(--ws-pad-md);
+  border-radius: var(--ws-radius-control);
+  background: var(--ws-panel-2);
+  border: var(--ws-border);
+  color: var(--ws-text);
+  box-shadow: var(--ws-shadow);
+  backdrop-filter: var(--ws-backdrop-blur);
+  font-size: var(--ws-font-sm);
+}
+
+} /* end @layer webstyle */

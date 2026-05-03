@@ -4,15 +4,12 @@
 // try/catch around localStorage everywhere.
 
 export const KEYS = {
-  theme: 'ariaflow.theme',
   refreshInterval: 'ariaflow.refresh_interval',
   backends: 'ariaflow.backends',
   selectedBackend: 'ariaflow.selected_backend',
 } as const;
 
 export type StorageKey = (typeof KEYS)[keyof typeof KEYS];
-
-export type Theme = 'system' | 'light' | 'dark';
 
 export function readString(key: StorageKey, fallback = ''): string {
   return (localStorage.getItem(key) ?? '').trim() || fallback;
@@ -45,15 +42,6 @@ export function readJson<T>(key: StorageKey, fallback: T): T {
 
 export function writeJson(key: StorageKey, value: unknown): void {
   localStorage.setItem(key, JSON.stringify(value));
-}
-
-export function readTheme(): Theme {
-  const v = readString(KEYS.theme, 'system');
-  return v === 'light' || v === 'dark' || v === 'system' ? v : 'system';
-}
-
-export function writeTheme(value: Theme): void {
-  writeString(KEYS.theme, value);
 }
 
 export function readRefreshInterval(fallbackMs = 10000): number {

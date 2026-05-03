@@ -24,10 +24,13 @@ import {
 } from './runtime';
 import {
   readRefreshInterval,
-  readTheme,
   writeRefreshInterval,
-  writeTheme,
 } from './storage';
+import { applyLook } from '@bonomani/webstyle/looks';
+import {
+  createSimpleThemeController,
+  type SimpleThemeController,
+} from '@bonomani/webstyle/simple-theme-controller';
 import {
   apiPath as composeApiPath,
   backendDisplayName as composeBackendDisplayName,
@@ -603,32 +606,18 @@ document.addEventListener('alpine:init', () => {
       document.addEventListener('click', handler);
     },
 
-    // --- theme ---
-    themeLabel: 'Theme: system',
-    applyTheme(theme) {
-      const root = document.documentElement;
-      const saved = theme || 'system';
-      const next = saved === 'system'
-        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-        : saved;
-      root.dataset.theme = next;
-      writeTheme(saved);
-      this.themeLabel = saved === 'system' ? 'Theme: system' : `Theme: ${saved}`;
-    },
+    // --- theme (delegated to @bonomani/webstyle/simple-theme-controller:
+    // look auto-detected from platform, mode = light/dark/auto, no a11y) ---
+    themeLabel: 'Theme: auto',
+    _themeController: null as SimpleThemeController | null,
     initTheme() {
-      const saved = readTheme();
-      this.applyTheme(saved);
-      const mq = window.matchMedia('(prefers-color-scheme: dark)');
-      const sync = () => {
-        if (readTheme() === 'system') this.applyTheme('system');
-      };
-      if (mq.addEventListener) mq.addEventListener('change', sync);
-      else if (mq.addListener) mq.addListener(sync);
+      this._themeController = createSimpleThemeController({ apply: applyLook });
+      this._themeController.subscribe((s) => {
+        this.themeLabel = `Theme: ${s.mode}`;
+      });
     },
     toggleTheme() {
-      const current = readTheme();
-      const next = current === 'system' ? 'dark' : current === 'dark' ? 'light' : 'system';
-      this.applyTheme(next);
+      this._themeController?.cycleMode();
     },
 
     async _initFreshness() {

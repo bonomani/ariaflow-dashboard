@@ -161,7 +161,6 @@ function localIps() {
 
 // src/ariaflow_dashboard/static/ts/storage.ts
 var KEYS = {
-  theme: "ariaflow.theme",
   refreshInterval: "ariaflow.refresh_interval",
   backends: "ariaflow.backends",
   selectedBackend: "ariaflow.selected_backend"
@@ -193,13 +192,6 @@ function readJson(key, fallback) {
 function writeJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
-function readTheme() {
-  const v = readString(KEYS.theme, "system");
-  return v === "light" || v === "dark" || v === "system" ? v : "system";
-}
-function writeTheme(value) {
-  writeString(KEYS.theme, value);
-}
 function readRefreshInterval(fallbackMs = 1e4) {
   return readNumber(KEYS.refreshInterval, fallbackMs);
 }
@@ -219,6 +211,268 @@ function readSelectedBackend() {
 }
 function writeSelectedBackend(url) {
   writeString(KEYS.selectedBackend, url);
+}
+
+// ../webstyle/src/theme/looks.ts
+var PALETTE_FOR_LOOK = {
+  aurora: "aurora",
+  fluent: "fluent",
+  liquid: "liquid-glass"
+};
+var LOOK_TOKENS = {
+  aurora: {
+    dark: {
+      "--ws-accent-rgb": "153 162 175",
+      "--ws-accent-on": "#ffffff",
+      "--ws-good-rgb": "180 239 198",
+      "--ws-warn-rgb": "251 235 157",
+      "--ws-danger-rgb": "240 186 185",
+      "--ws-info-rgb": "223 221 220",
+      "--ws-alpha-idle": "0.042",
+      "--ws-alpha-hover": "0.072",
+      "--ws-alpha-active": "0.108",
+      "--ws-alpha-inactive": "0.33",
+      "--ws-alpha-border-soft": "0.15",
+      "--ws-alpha-border-medium": "0.21",
+      "--ws-alpha-border-strong": "0.24",
+      "--ws-alpha-border-heavy": "0.3",
+      "--ws-alpha-glow": "0.21",
+      "--ws-alpha-glow-soft": "0.072",
+      "--ws-alpha-shadow": "0.21",
+      "--ws-alpha-shadow-overlay": "0.3"
+    },
+    light: {
+      "--ws-accent-rgb": "76 85 97",
+      "--ws-accent-on": "#ffffff",
+      "--ws-good-rgb": "61 112 73",
+      "--ws-warn-rgb": "148 87 57",
+      "--ws-danger-rgb": "146 63 55",
+      "--ws-info-rgb": "59 56 54",
+      "--ws-alpha-idle": "0.03",
+      "--ws-alpha-hover": "0.06",
+      "--ws-alpha-active": "0.108",
+      "--ws-alpha-inactive": "0.33",
+      "--ws-alpha-border-soft": "0.15",
+      "--ws-alpha-border-medium": "0.18",
+      "--ws-alpha-border-strong": "0.18",
+      "--ws-alpha-border-heavy": "0.3",
+      "--ws-alpha-glow": "0.21",
+      "--ws-alpha-glow-soft": "0.072",
+      "--ws-alpha-shadow": "0.048",
+      "--ws-alpha-shadow-overlay": "0.096"
+    }
+  },
+  fluent: {
+    // "fluent" mood = empty mood in MOODS: no color/alpha overrides,
+    // Aurora baseline applies. Structural overrides (radii, easing,
+    // shadows, blur) come from the :root[data-palette="fluent"] CSS rule.
+    dark: {},
+    light: {}
+  },
+  liquid: {
+    // Liquid mood = sky shifted +20° (≈ macOS systemBlue). Status
+    // colors and alphas stay at Aurora baseline.
+    dark: {
+      "--ws-accent-rgb": "123 203 255",
+      "--ws-accent-on": "#0a0a0a"
+    },
+    light: {
+      "--ws-accent-rgb": "65 102 177",
+      "--ws-accent-on": "#ffffff"
+    }
+  }
+};
+var A11Y_TOKENS = {
+  dark: {
+    "--ws-accent-rgb": "140 164 197",
+    "--ws-accent-on": "#ffffff",
+    "--ws-good-rgb": "56 255 160",
+    "--ws-warn-rgb": "255 235 0",
+    "--ws-danger-rgb": "255 160 164",
+    "--ws-info-rgb": "232 227 224",
+    "--ws-alpha-idle": "0.105",
+    "--ws-alpha-hover": "0.18",
+    "--ws-alpha-active": "0.27",
+    "--ws-alpha-inactive": "0.825",
+    "--ws-alpha-border-soft": "0.375",
+    "--ws-alpha-border-medium": "0.525",
+    "--ws-alpha-border-strong": "0.6",
+    "--ws-alpha-border-heavy": "0.75",
+    "--ws-alpha-glow": "0.525",
+    "--ws-alpha-glow-soft": "0.18",
+    "--ws-alpha-shadow": "0.525",
+    "--ws-alpha-shadow-overlay": "0.75"
+  },
+  light: {
+    "--ws-accent-rgb": "63 85 117",
+    "--ws-accent-on": "#ffffff",
+    "--ws-good-rgb": "0 71 0",
+    "--ws-warn-rgb": "180 0 0",
+    "--ws-danger-rgb": "139 0 0",
+    "--ws-info-rgb": "16 11 6",
+    "--ws-alpha-idle": "0.075",
+    "--ws-alpha-hover": "0.15",
+    "--ws-alpha-active": "0.27",
+    "--ws-alpha-inactive": "0.825",
+    "--ws-alpha-border-soft": "0.375",
+    "--ws-alpha-border-medium": "0.45",
+    "--ws-alpha-border-strong": "0.45",
+    "--ws-alpha-border-heavy": "0.75",
+    "--ws-alpha-glow": "0.525",
+    "--ws-alpha-glow-soft": "0.18",
+    "--ws-alpha-shadow": "0.12",
+    "--ws-alpha-shadow-overlay": "0.24"
+  }
+};
+function lookTokens(look = "aurora", theme = "dark", a11y = false) {
+  return a11y ? A11Y_TOKENS[theme] : LOOK_TOKENS[look][theme];
+}
+function applyLook(options = {}) {
+  const look = options.look ?? "aurora";
+  const theme = options.theme ?? "dark";
+  const a11y = options.a11y ?? false;
+  const el = options.target ?? document.documentElement;
+  const tokens = lookTokens(look, theme, a11y);
+  const prevPalette = el.dataset.palette;
+  const prevTheme = el.dataset.theme;
+  el.dataset.palette = PALETTE_FOR_LOOK[look];
+  if (theme === "light") el.dataset.theme = "light";
+  else delete el.dataset.theme;
+  for (const [k, v] of Object.entries(tokens)) {
+    el.style.setProperty(k, v);
+  }
+  return () => {
+    for (const k of Object.keys(tokens)) el.style.removeProperty(k);
+    if (prevPalette === void 0) delete el.dataset.palette;
+    else el.dataset.palette = prevPalette;
+    if (prevTheme === void 0) delete el.dataset.theme;
+    else el.dataset.theme = prevTheme;
+  };
+}
+
+// ../webstyle/src/theme/theme-controller.ts
+function detectPlatform() {
+  const nav = globalThis.navigator;
+  if (!nav) return "other";
+  const hint = nav.userAgentData?.platform?.toLowerCase();
+  const ua = (hint ?? nav.userAgent ?? "").toLowerCase();
+  if (ua.includes("win")) return "windows";
+  if (ua.includes("mac") || ua.includes("darwin")) return "macos";
+  if (ua.includes("linux")) return "linux";
+  return "other";
+}
+
+// ../webstyle/src/theme/simple-theme-controller.ts
+function simpleLookForPlatform(p = detectPlatform()) {
+  return p === "windows" ? "fluent" : "liquid";
+}
+var DEFAULT_KEY = "ws-simple-theme-v1";
+function createSimpleThemeController(options) {
+  const apply = options.apply;
+  const target = options.target;
+  const storageKey = options.storageKey === void 0 ? DEFAULT_KEY : options.storageKey;
+  const storage = resolveStorage(options.storage);
+  const mql = resolveMatchMedia(options.matchMedia);
+  const look = simpleLookForPlatform();
+  const persisted = loadPersisted(storage, storageKey);
+  let mode = persisted.mode ?? options.initialMode ?? "auto";
+  let cleanup = () => {
+  };
+  let destroyed = false;
+  const subscribers = /* @__PURE__ */ new Set();
+  function resolveTheme(m) {
+    if (m !== "auto") return m;
+    return mql?.matches ? "light" : "dark";
+  }
+  function snapshot() {
+    return { mode, resolved: resolveTheme(mode), look };
+  }
+  function commit() {
+    if (destroyed) return;
+    cleanup();
+    cleanup = apply({ look, theme: resolveTheme(mode), target });
+    save();
+    const s = snapshot();
+    for (const fn of subscribers) fn(s);
+  }
+  function save() {
+    if (!storage || !storageKey) return;
+    try {
+      storage.setItem(storageKey, JSON.stringify({ mode }));
+    } catch {
+    }
+  }
+  const onSystemChange = () => {
+    if (mode === "auto") commit();
+  };
+  if (mql && typeof mql.addEventListener === "function") {
+    mql.addEventListener("change", onSystemChange);
+  }
+  commit();
+  return {
+    getState: snapshot,
+    getMode: () => mode,
+    setMode(next) {
+      if (destroyed || next === mode) return;
+      mode = next;
+      commit();
+    },
+    cycleMode() {
+      const next = mode === "auto" ? "light" : mode === "light" ? "dark" : "auto";
+      this.setMode(next);
+    },
+    getLook: () => look,
+    subscribe(fn) {
+      subscribers.add(fn);
+      fn(snapshot());
+      return () => {
+        subscribers.delete(fn);
+      };
+    },
+    destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      if (mql && typeof mql.removeEventListener === "function") {
+        mql.removeEventListener("change", onSystemChange);
+      }
+      cleanup();
+      subscribers.clear();
+    }
+  };
+}
+function resolveStorage(s) {
+  if (s === null) return null;
+  if (s !== void 0) return s;
+  try {
+    const ls = globalThis.localStorage;
+    return ls ?? null;
+  } catch {
+    return null;
+  }
+}
+function resolveMatchMedia(m) {
+  if (m === null) return null;
+  const fn = m ?? globalThis.matchMedia;
+  if (typeof fn !== "function") return null;
+  try {
+    return fn("(prefers-color-scheme: light)");
+  } catch {
+    return null;
+  }
+}
+function loadPersisted(storage, key) {
+  if (!storage || !key) return {};
+  try {
+    const raw = storage.getItem(key);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (parsed.mode === "light" || parsed.mode === "dark" || parsed.mode === "auto") {
+      return { mode: parsed.mode };
+    }
+    return {};
+  } catch {
+    return {};
+  }
 }
 
 // src/ariaflow_dashboard/static/ts/backend.ts
@@ -1533,30 +1787,18 @@ document.addEventListener("alpine:init", () => {
       };
       document.addEventListener("click", handler);
     },
-    // --- theme ---
-    themeLabel: "Theme: system",
-    applyTheme(theme) {
-      const root = document.documentElement;
-      const saved = theme || "system";
-      const next = saved === "system" ? window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light" : saved;
-      root.dataset.theme = next;
-      writeTheme(saved);
-      this.themeLabel = saved === "system" ? "Theme: system" : `Theme: ${saved}`;
-    },
+    // --- theme (delegated to @bonomani/webstyle/simple-theme-controller:
+    // look auto-detected from platform, mode = light/dark/auto, no a11y) ---
+    themeLabel: "Theme: auto",
+    _themeController: null,
     initTheme() {
-      const saved = readTheme();
-      this.applyTheme(saved);
-      const mq = window.matchMedia("(prefers-color-scheme: dark)");
-      const sync = () => {
-        if (readTheme() === "system") this.applyTheme("system");
-      };
-      if (mq.addEventListener) mq.addEventListener("change", sync);
-      else if (mq.addListener) mq.addListener(sync);
+      this._themeController = createSimpleThemeController({ apply: applyLook });
+      this._themeController.subscribe((s) => {
+        this.themeLabel = `Theme: ${s.mode}`;
+      });
     },
     toggleTheme() {
-      const current = readTheme();
-      const next = current === "system" ? "dark" : current === "dark" ? "light" : "system";
-      this.applyTheme(next);
+      this._themeController?.cycleMode();
     },
     async _initFreshness() {
       try {
