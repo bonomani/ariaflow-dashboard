@@ -26,11 +26,11 @@ import {
   readRefreshInterval,
   writeRefreshInterval,
 } from './storage';
-import { applyLook } from '@bonomani/webstyle/looks';
+import { applyLook } from './vendor/webstyle/looks';
 import {
   createSimpleThemeController,
   type SimpleThemeController,
-} from '@bonomani/webstyle/simple-theme-controller';
+} from './vendor/webstyle/simple-theme-controller';
 import {
   apiPath as composeApiPath,
   backendDisplayName as composeBackendDisplayName,

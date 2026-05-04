@@ -213,7 +213,7 @@ function writeSelectedBackend(url) {
   writeString(KEYS.selectedBackend, url);
 }
 
-// ../webstyle/src/theme/looks.ts
+// src/ariaflow_dashboard/static/ts/vendor/webstyle/looks.ts
 var PALETTE_FOR_LOOK = {
   aurora: "aurora",
   fluent: "fluent",
@@ -350,7 +350,7 @@ function applyLook(options = {}) {
   };
 }
 
-// ../webstyle/src/theme/theme-controller.ts
+// src/ariaflow_dashboard/static/ts/vendor/webstyle/theme-controller.ts
 function detectPlatform() {
   const nav = globalThis.navigator;
   if (!nav) return "other";
@@ -362,7 +362,7 @@ function detectPlatform() {
   return "other";
 }
 
-// ../webstyle/src/theme/simple-theme-controller.ts
+// src/ariaflow_dashboard/static/ts/vendor/webstyle/simple-theme-controller.ts
 function simpleLookForPlatform(p = detectPlatform()) {
   return p === "windows" ? "fluent" : "liquid";
 }
