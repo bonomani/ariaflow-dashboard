@@ -17,7 +17,7 @@
     "freshness:snapshot": "node scripts/freshness-snapshot.mjs"
   },
   "devDependencies": {
-    "@bonomani/webstyle": "file:../webstyle",
+    "@bonomani/webstyle": "github:bonomani/webstyle#a07b1af8b60978df1998206433585ef2b83c0976",
     "@playwright/test": "^1.48.0",
     "@types/alpinejs": "^3.13.10",
     "@types/node": "^25.6.0",
