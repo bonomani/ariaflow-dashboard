@@ -1628,9 +1628,11 @@ document.addEventListener("alpine:init", () => {
         }
       ]
     },
-    // FE-26: synthetic metadata for endpoints not in /api/_meta. The
-    // dashboard's own /api/web/log and aria2's option_tiers are not
-    // ariaflow-server endpoints, so they need local registration.
+    // FE-26: synthetic metadata for endpoints not in the backend's /api/_meta.
+    // /api/web/log lives on the dashboard server (port 8001) — declared there
+    // at /api/_meta and mirrored here so the FreshnessRouter (which only
+    // queries the selected backend) still routes it. Keep the two declarations
+    // in sync with _DASHBOARD_META in webapp.py.
     LOCAL_METAS: [
       { method: "GET", path: "/api/web/log", freshness: "warm", ttl_s: 30 },
       { method: "GET", path: "/api/aria2/option_tiers", freshness: "cold" }

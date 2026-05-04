@@ -24,6 +24,24 @@ _CONTENT_TYPES: dict[str, str] = {
 DEFAULT_BACKEND_URL = "http://127.0.0.1:8000"
 
 
+# Dashboard-side endpoint freshness contract. Mirrors the backend's BG-31
+# pattern (packages/api/src/freshness.ts) but scoped to the two endpoints the
+# dashboard server owns. Surfaced at GET /api/_meta and stamped into each
+# response under `meta`.
+_DASHBOARD_META: list[dict] = [
+    {"method": "GET", "path": "/api/_meta",     "freshness": "bootstrap"},
+    {"method": "GET", "path": "/api/discovery", "freshness": "warm", "ttl_s": 30},
+    {"method": "GET", "path": "/api/web/log",   "freshness": "warm", "ttl_s": 30},
+]
+
+
+def _meta_for(path: str) -> dict:
+    for m in _DASHBOARD_META:
+        if m["path"] == path:
+            return {k: v for k, v in m.items() if k not in ("method", "path")}
+    return {"freshness": "bootstrap"}
+
+
 def _read_index_html(backend_url: str | None = None) -> str:
     from . import __version__
     text = _DIST_INDEX.read_text(encoding="utf-8")
@@ -78,7 +96,7 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
                     raise FileNotFoundError
                 data = file_path.read_bytes()
             except (FileNotFoundError, OSError):
-                self._send_json({"error": "not_found"}, status=404)
+                self._send_json({"ok": False, "error": "not_found"}, status=404)
                 return
             suffix = file_path.suffix.lower()
             ct = _CONTENT_TYPES.get(suffix, mimetypes.guess_type(str(file_path))[0] or "application/octet-stream")
@@ -88,9 +106,13 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
             return
+        if path == "/api/_meta":
+            self._send_json({"ok": True, "endpoints": _DASHBOARD_META, "meta": _meta_for("/api/_meta")})
+            return
         if path == "/api/discovery":
             result = discover_http_services()
-            self._send_json(result)
+            payload = {"ok": True, **result, "meta": _meta_for("/api/discovery")}
+            self._send_json(payload)
             items = result.get("items")
             item_list = items if isinstance(items, list) else []
             urls = [str(i.get("url", "")) for i in item_list if isinstance(i, dict)]
@@ -103,9 +125,14 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
         if path == "/api/web/log":
             qs = parse_qs(parsed.query)
             limit = min(int(qs.get("limit", ["200"])[0]), 500)
-            self._send_json({"items": load_action_log(limit), "source": "ariaflow-dashboard"})
+            self._send_json({
+                "ok": True,
+                "items": load_action_log(limit),
+                "source": "ariaflow-dashboard",
+                "meta": _meta_for("/api/web/log"),
+            })
             return
-        self._send_json({"error": "not_found"}, status=404)
+        self._send_json({"ok": False, "error": "not_found"}, status=404)
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A003
         return

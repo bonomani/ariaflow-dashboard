@@ -98,7 +98,29 @@ class TestRoutes:
     def test_api_discovery_endpoint(self, web_server: str) -> None:
         resp = urllib.request.urlopen(f"{web_server}/api/discovery", timeout=5)
         assert resp.status == 200
-        assert isinstance(json.loads(resp.read().decode()), dict)
+        body = json.loads(resp.read().decode())
+        assert body.get("ok") is True
+        assert isinstance(body.get("meta"), dict)
+        assert body["meta"].get("freshness") == "warm"
+
+    def test_api_web_log_endpoint(self, web_server: str) -> None:
+        resp = urllib.request.urlopen(f"{web_server}/api/web/log?limit=5", timeout=5)
+        assert resp.status == 200
+        body = json.loads(resp.read().decode())
+        assert body.get("ok") is True
+        assert isinstance(body.get("items"), list)
+        assert body.get("source") == "ariaflow-dashboard"
+        assert body["meta"].get("freshness") == "warm"
+
+    def test_api_meta_endpoint(self, web_server: str) -> None:
+        resp = urllib.request.urlopen(f"{web_server}/api/_meta", timeout=5)
+        assert resp.status == 200
+        body = json.loads(resp.read().decode())
+        assert body.get("ok") is True
+        endpoints = body.get("endpoints")
+        assert isinstance(endpoints, list)
+        paths = {e.get("path") for e in endpoints}
+        assert {"/api/_meta", "/api/discovery", "/api/web/log"} <= paths
 
 
 # ---------------------------------------------------------------------------
