@@ -11,7 +11,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import sync_playwright
+# Playwright is only needed by the browser-driven tests in
+# tests/test_frontend.py. Importing it eagerly forces every pytest
+# invocation (including the `[dev]`-only live-contract gate in CI) to
+# install the playwright wheel + chromium, which is a substantial cost
+# for the non-browser path. Defer to fixture call sites instead.
+try:
+    from playwright.sync_api import sync_playwright  # type: ignore[import-untyped]
+except ModuleNotFoundError:
+    sync_playwright = None  # type: ignore[assignment]
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -570,6 +578,8 @@ def stop_server(
 
 @pytest.fixture(scope="session")
 def playwright_instance():
+    if sync_playwright is None:
+        pytest.skip("playwright not installed; install with .[test-browser]")
     pw = sync_playwright().start()
     yield pw
     pw.stop()
