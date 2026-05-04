@@ -177,6 +177,45 @@ test('FE-31: /api/web/log is fetched same-origin, not via the backend', async ({
   expect(backendOrigin, 'backend should not be hit for /api/web/log').toEqual([]);
 });
 
+test('FE-22: discoverBackends falls back to /api/peers when mDNS empty', async ({ page }) => {
+  await setupBackend(page);
+  // Force mDNS browse to return nothing.
+  await page.unroute('**/api/discovery*').catch(() => undefined);
+  await page.route('**/api/discovery*', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, available: true, items: [], reason: 'no-services' }),
+    }),
+  );
+  // /api/peers on the BACKEND mock returns one peer.
+  let peersCalls = 0;
+  await page.route(`${BACKEND}/api/peers*`, (route) => {
+    peersCalls += 1;
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        peers: [
+          { instance: 'peer-mac', host: 'peer-mac.local', port: 8000, base_url: 'http://peer-mac.local:8000', status: 'resolved' },
+        ],
+        meta: { freshness: 'warm', ttl_s: 30 },
+      }),
+    });
+  });
+  await page.goto('/');
+  // discoverBackends fires ~2s after init().
+  await page.waitForTimeout(2800);
+
+  expect(peersCalls, 'expected /api/peers fetch as mDNS fallback').toBeGreaterThan(0);
+  const discoveryText = await page.evaluate(() => {
+    const el = document.querySelector('[x-data]') as HTMLElement & { _x_dataStack?: Array<Record<string, unknown>> };
+    const ctx = el?._x_dataStack?.[0] as { discoveryText?: string; backendsDiscovered?: boolean } | undefined;
+    return { text: ctx?.discoveryText, found: ctx?.backendsDiscovered };
+  });
+  expect(discoveryText.found).toBe(true);
+  expect(discoveryText.text).toContain('peers');
+});
+
 test('lifecycle tab paints rows from /api/lifecycle', async ({ page }) => {
   await setupBackend(page);
   await page.goto('/lifecycle');

@@ -1,28 +1,11 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (2)
+## Open (1)
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 
 SSE stream at `/api/events` is outside the contract layer. Add an
 event-stream test strategy only if SSE payload drift causes a regression.
-
-### FE-22: Fallback to `/api/peers` when local mDNS unavailable
-
-When the dashboard runs in environments without mDNS (WSL NAT, containers,
-VMs), `discoverBackends()` gets no results from local browse. The backend's
-`/api/peers` endpoint can provide peer info as a fallback.
-
-BG-15 resolved 2026-04-30 (TS port `discovery/parse.ts` uses the canonical
-`_ariaflow-server._tcp` service type), so this is no longer blocked — only
-unimplemented. `discoverBackends()` (`app.ts:764`) calls `/api/discovery`
-on the dashboard server and stops there; no `/api/peers` merge.
-
-Once picked up, the frontend should:
-1. Try local mDNS browse first (current behavior).
-2. If local browse returns nothing (`bonjourState === 'broken'`), fall
-   back to `GET /api/peers` on the current backend and merge results
-   into `mergeDiscoveredBackends()`.
 
 ---
 
@@ -32,6 +15,7 @@ _End of open gaps._
 
 | ID | Summary | Date |
 |----|---------|------|
+| FE-22 | `discoverBackends()` (`app.ts:764`) now falls back to `GET /api/peers` on the current backend when the local mDNS browse returns zero items (WSL NAT / containers / VMs without mDNS). Peer rows map to discovery-item shape (`url` ← `base_url || http://host:port`, `name` ← `instance \|\| host`, `role: 'backend'`, `source: 'peers'`) and merge through the existing `mergeDiscoveredBackends()` path. `discoveryText` reflects the source ("…via /api/peers fallback" when only the fallback fired). New e2e regression test asserts the fallback fires + populates state when discovery is empty | 2026-05-04 |
 | FE-27 | Negative-snapshot tests added in `static/ts/status_legacy_keys.test.ts`. Four assertions scan `static/ts/*.ts` source for forbidden patterns: top-level `data.dispatch_paused` reads (canonical: `state.dispatch_paused`), `state.paused` (BG-33), `summary.stopped` (BG-33), and `.filtered` reads on a status payload (BG-35). Verified live 2026-05-04 against running backend: `/api/status` has `dispatch_paused` only on `state` and no `filtered` key anywhere — BG-35's effect shipped, even though the backend agent's Resolved table doesn't list it explicitly | 2026-05-04 |
 | FE-24 | Per-endpoint freshness routing + Dev-tab map shipped end-to-end. `FreshnessRouter` (`static/ts/freshness.ts`) consumes BG-31's `/api/_meta`, dispatches per class (live/warm/swr/cold/on-action/bootstrap/derived), ref-counts subscribers, and exposes `status()` for the Dev tab Freshness map (HTML rendered in `_fragments/tab_dev.html`, columns: Endpoint / Class / TTL / Subscribers / Host visibility / Last fetch / Active). Visibility wiring (`wireHostVisibility` in `freshness-bootstrap.ts`) hooks `document.visibilitychange` + host postMessage. `npm run freshness:snapshot` (`scripts/freshness-snapshot.mjs`) writes a build-time markdown audit. Followups (FE-26 TAB_SUBS migration, FE-31 host-aware fetcher) closed the original LOCAL_METAS sync hazards | 2026-05-04 |
 | FE-31 | FreshnessRouter is now host-aware. `EndpointMeta.host: 'backend' \| 'dashboard'` plumbed through `runFetch` → `RouterAdapters.fetchJson(method, path, params, host)`. `bootstrapFreshnessRouter` takes optional `dashboardMetaUrl` and fetches both `/api/_meta` documents, tagging each endpoint with its origin. The app-level fetcher branches on `host`: `'dashboard'` fetches same-origin (port 8001), `'backend'` (default) routes via `apiPath()` to the selected backend. `LOCAL_METAS` shrinks to just `/api/aria2/option_tiers`. New e2e test asserts `/api/web/log` is fetched same-origin and never reaches the backend mock | 2026-05-04 |

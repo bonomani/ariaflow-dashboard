@@ -1950,23 +1950,43 @@ document.addEventListener("alpine:init", () => {
       this.deferRefresh(0);
     },
     async discoverBackends() {
+      let bonjourItems = [];
       try {
         const r = await this._fetch("/api/discovery");
         const data = await r.json();
-        const items = Array.isArray(data?.items) ? data.items : [];
+        bonjourItems = Array.isArray(data?.items) ? data.items : [];
         if (data?.available === false) {
           this.bonjourState = "unavailable";
-        } else if (items.length === 0) {
+        } else if (bonjourItems.length === 0) {
           this.bonjourState = "broken";
         } else {
           this.bonjourState = "ok";
         }
-        this.mergeDiscoveredBackends(items);
-        this.backendsDiscovered = items.length > 0;
-        this.discoveryText = this.backendsDiscovered ? `Discovered ${items.length} backend service(s)` : "No Bonjour backends discovered";
+        this.mergeDiscoveredBackends(bonjourItems);
       } catch (e) {
         this.bonjourState = "broken";
       }
+      let peerItems = [];
+      if (bonjourItems.length === 0 && this.backendReachable) {
+        try {
+          const r = await this._fetch(this.apiPath("/api/peers"));
+          const data = await r.json();
+          const peers = Array.isArray(data?.peers) ? data.peers : [];
+          peerItems = peers.filter((p) => p && (p.base_url || p.host && p.port)).map((p) => ({
+            url: p.base_url || `http://${p.host}:${p.port}`,
+            name: p.instance || p.host || "",
+            host: p.host || "",
+            ip: "",
+            role: "backend",
+            source: "peers"
+          }));
+          if (peerItems.length > 0) this.mergeDiscoveredBackends(peerItems);
+        } catch (e) {
+        }
+      }
+      const total = bonjourItems.length + peerItems.length;
+      this.backendsDiscovered = total > 0;
+      this.discoveryText = total > 0 ? `Discovered ${total} backend service(s)${peerItems.length && !bonjourItems.length ? " via /api/peers fallback" : ""}` : "No Bonjour backends discovered";
     },
     get bonjourBadgeText() {
       return { pending: "mDNS \u2026", ok: "mDNS \u2713", broken: "mDNS \u2717", "unavailable": "mDNS N/A" }[this.bonjourState] || "mDNS";

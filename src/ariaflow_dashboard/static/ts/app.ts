@@ -762,25 +762,53 @@ document.addEventListener('alpine:init', () => {
       this.deferRefresh(0);
     },
     async discoverBackends() {
+      let bonjourItems: unknown[] = [];
       try {
         const r = await this._fetch('/api/discovery');
         const data = await r.json();
-        const items = Array.isArray(data?.items) ? data.items : [];
+        bonjourItems = Array.isArray(data?.items) ? data.items : [];
         if (data?.available === false) {
           this.bonjourState = 'unavailable';
-        } else if (items.length === 0) {
+        } else if (bonjourItems.length === 0) {
           this.bonjourState = 'broken';
         } else {
           this.bonjourState = 'ok';
         }
-        this.mergeDiscoveredBackends(items);
-        this.backendsDiscovered = items.length > 0;
-        this.discoveryText = this.backendsDiscovered
-          ? `Discovered ${items.length} backend service(s)`
-          : 'No Bonjour backends discovered';
+        this.mergeDiscoveredBackends(bonjourItems);
       } catch (e) {
         this.bonjourState = 'broken';
       }
+
+      // FE-22: when local mDNS browse returns nothing (WSL NAT, containers,
+      // VMs without mDNS), fall back to /api/peers on the current backend
+      // and merge those into the same discovered-backends list.
+      let peerItems: unknown[] = [];
+      if (bonjourItems.length === 0 && this.backendReachable) {
+        try {
+          const r = await this._fetch(this.apiPath('/api/peers'));
+          const data = await r.json();
+          const peers = Array.isArray(data?.peers) ? data.peers : [];
+          peerItems = peers
+            .filter((p: { status?: string; base_url?: string; host?: string; port?: number }) => p && (p.base_url || (p.host && p.port)))
+            .map((p: { instance?: string; host?: string; port?: number; base_url?: string; status?: string }) => ({
+              url: p.base_url || `http://${p.host}:${p.port}`,
+              name: p.instance || p.host || '',
+              host: p.host || '',
+              ip: '',
+              role: 'backend',
+              source: 'peers',
+            }));
+          if (peerItems.length > 0) this.mergeDiscoveredBackends(peerItems);
+        } catch (e) {
+          // Backend unreachable or /api/peers absent — keep mDNS-only state.
+        }
+      }
+
+      const total = bonjourItems.length + peerItems.length;
+      this.backendsDiscovered = total > 0;
+      this.discoveryText = total > 0
+        ? `Discovered ${total} backend service(s)${peerItems.length && !bonjourItems.length ? ' via /api/peers fallback' : ''}`
+        : 'No Bonjour backends discovered';
     },
     get bonjourBadgeText() {
       return ({ pending: 'mDNS …', ok: 'mDNS ✓', broken: 'mDNS ✗', 'unavailable': 'mDNS N/A' })[this.bonjourState] || 'mDNS';
