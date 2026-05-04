@@ -35,9 +35,7 @@ test('diffItemStatuses fires "error" on transition to error', () => {
 });
 
 test('diffItemStatuses treats error status', () => {
-  const items: NotifiableItem[] = [
-    { id: 'a', status: 'error', url: 'http://x/foo.zip' },
-  ];
+  const items: NotifiableItem[] = [{ id: 'a', status: 'error', url: 'http://x/foo.zip' }];
   const r = diffItemStatuses({ a: 'active' }, items);
   assert.equal(r.notifications[0]!.kind, 'error');
 });

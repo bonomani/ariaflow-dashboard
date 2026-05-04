@@ -153,10 +153,6 @@ export function nextReconnectDelayMs(attempts: number, opts: BackoffOptions = {}
 // to detect "TCP open, no data" zombie connections that EventSource
 // won't surface on its own.
 
-export function isStreamStale(
-  lastActivityAt: number,
-  now: number,
-  timeoutMs = 60_000,
-): boolean {
+export function isStreamStale(lastActivityAt: number, now: number, timeoutMs = 60_000): boolean {
   return now - lastActivityAt > timeoutMs;
 }

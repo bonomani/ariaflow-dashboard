@@ -16,7 +16,12 @@ const sample: ActionLogEntry[] = [
   { action: 'remove', target: 'queue', session_id: 's2', timestamp: 5 },
 ];
 
-const ALL: { actionFilter: string; targetFilter: string; sessionFilter: string; currentSessionId: string | null } = {
+const ALL: {
+  actionFilter: string;
+  targetFilter: string;
+  sessionFilter: string;
+  currentSessionId: string | null;
+} = {
   actionFilter: 'all',
   targetFilter: 'all',
   sessionFilter: 'all',

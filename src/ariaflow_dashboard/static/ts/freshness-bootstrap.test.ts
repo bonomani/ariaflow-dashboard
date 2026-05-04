@@ -33,7 +33,10 @@ test('bootstrap returns router with registered endpoints', async () => {
     }),
   );
   assert.ok(r);
-  const endpoints = r!.status().map((s) => s.endpoint).sort();
+  const endpoints = r!
+    .status()
+    .map((s) => s.endpoint)
+    .sort();
   assert.deepEqual(endpoints, ['GET /api/lifecycle', 'GET /api/status']);
 });
 

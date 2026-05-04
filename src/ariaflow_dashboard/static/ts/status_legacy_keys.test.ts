@@ -42,7 +42,11 @@ test('FE-27: no top-level data.dispatch_paused reads (canonical: state.dispatch_
       }
     }
   }
-  assert.equal(offenders.length, 0, `top-level dispatch_paused reads found:\n  ${offenders.join('\n  ')}`);
+  assert.equal(
+    offenders.length,
+    0,
+    `top-level dispatch_paused reads found:\n  ${offenders.join('\n  ')}`,
+  );
 });
 
 test('FE-27: no state.paused reads (BG-33 removed; canonical: state.dispatch_paused)', () => {
@@ -61,7 +65,11 @@ test('FE-27: no summary.stopped reads (BG-33 removed; canonical: summary.removed
     const re = /\bsummary\??\.stopped\b/g;
     if (re.test(text)) offenders.push(name);
   }
-  assert.equal(offenders.length, 0, `legacy summary.stopped reads found in: ${offenders.join(', ')}`);
+  assert.equal(
+    offenders.length,
+    0,
+    `legacy summary.stopped reads found in: ${offenders.join(', ')}`,
+  );
 });
 
 test('FE-27: no filtered key reads on /api/status payload (BG-35 dropped)', () => {

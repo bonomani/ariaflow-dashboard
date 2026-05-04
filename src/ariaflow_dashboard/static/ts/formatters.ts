@@ -83,9 +83,7 @@ export function timestampLabel(value: string | number | Date | null | undefined)
 export function badgeClass(status: string | null | undefined): string {
   if (['converged', 'ok', 'complete'].includes(status as string)) return 'badge good';
   if (['error', 'missing', 'removed'].includes(status as string)) return 'badge bad';
-  if (
-    ['paused', 'queued', 'waiting', 'unchanged', 'skipped'].includes(status as string)
-  ) {
+  if (['paused', 'queued', 'waiting', 'unchanged', 'skipped'].includes(status as string)) {
     return 'badge warn';
   }
   return 'badge';

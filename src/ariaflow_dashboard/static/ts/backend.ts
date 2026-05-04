@@ -11,12 +11,7 @@
 
 import { joinUrl } from './api';
 import { dashboardHostname, dashboardHostnameLower } from './runtime';
-import {
-  readBackends,
-  readSelectedBackend,
-  writeBackends,
-  writeSelectedBackend,
-} from './storage';
+import { readBackends, readSelectedBackend, writeBackends, writeSelectedBackend } from './storage';
 
 export interface BackendMeta {
   name: string;

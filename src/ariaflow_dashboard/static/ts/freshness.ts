@@ -54,7 +54,12 @@ export interface RouterAdapters {
    *  `params` is the current subscriber-supplied query string, if any.
    *  `host` selects the origin (FE-31): 'backend' (default) routes
    *  through apiPath(); 'dashboard' fetches same-origin (port 8001). */
-  fetchJson: (method: string, path: string, params?: QueryParams, host?: EndpointHost) => Promise<unknown>;
+  fetchJson: (
+    method: string,
+    path: string,
+    params?: QueryParams,
+    host?: EndpointHost,
+  ) => Promise<unknown>;
   /** Returns current monotonic time in ms. Override in tests. */
   now: () => number;
   /** Schedule a callback after `ms`. Returns a token cancellable via clearTimer. */
@@ -328,9 +333,10 @@ export class FreshnessRouter {
       case 'warm':
       case 'swr': {
         const ttl = ep.meta.ttl_s ?? 30;
-        const due = ep.lastFetchAt == null
-          ? 0
-          : Math.max(0, ep.lastFetchAt + ttl * 1000 - this.adapters.now());
+        const due =
+          ep.lastFetchAt == null
+            ? 0
+            : Math.max(0, ep.lastFetchAt + ttl * 1000 - this.adapters.now());
         if (ep.timer != null) this.adapters.clearTimer(ep.timer);
         ep.timer = this.adapters.setTimer(() => {
           ep.timer = null;
@@ -387,7 +393,11 @@ export class FreshnessRouter {
     }
   }
 
-  private log(endpoint: EndpointKey, event: RouterLogEntry['event'], detail?: Record<string, unknown>): void {
+  private log(
+    endpoint: EndpointKey,
+    event: RouterLogEntry['event'],
+    detail?: Record<string, unknown>,
+  ): void {
     if (!this.adapters.log) return;
     const entry: RouterLogEntry = { at: this.adapters.now(), endpoint, event };
     if (detail !== undefined) entry.detail = detail;

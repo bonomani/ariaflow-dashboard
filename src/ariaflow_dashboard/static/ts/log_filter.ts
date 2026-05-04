@@ -42,9 +42,7 @@ function passesSession(
 
 function shouldCollapse(prev: ActionLogEntry, entry: ActionLogEntry): boolean {
   return (
-    prev.action === 'poll' &&
-    entry.action === 'poll' &&
-    prev.detail?.gid === entry.detail?.gid
+    prev.action === 'poll' && entry.action === 'poll' && prev.detail?.gid === entry.detail?.gid
   );
 }
 

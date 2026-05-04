@@ -48,8 +48,7 @@ test('joinUrl strips trailing slashes from base', () => {
 });
 
 test('getJson resolves with parsed body on 2xx', async () => {
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ ok: true, n: 42 }), { status: 200 });
+  globalThis.fetch = async () => new Response(JSON.stringify({ ok: true, n: 42 }), { status: 200 });
   const body = await getJson<{ ok: boolean; n: number }>('/api/x');
   assert.equal(body.ok, true);
   assert.equal(body.n, 42);

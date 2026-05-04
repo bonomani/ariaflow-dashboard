@@ -9,10 +9,12 @@ interface FakeClock {
   nextId: number;
 }
 
-function makeAdapters(opts: {
-  responses?: Record<string, unknown>;
-  failOn?: Set<string>;
-} = {}): { adapters: RouterAdapters; fakeClock: FakeClock; fetchLog: string[]; routerLog: unknown[] } {
+function makeAdapters(
+  opts: {
+    responses?: Record<string, unknown>;
+    failOn?: Set<string>;
+  } = {},
+): { adapters: RouterAdapters; fakeClock: FakeClock; fetchLog: string[]; routerLog: unknown[] } {
   const fakeClock: FakeClock = { now: 1_000_000, timers: new Map(), nextId: 1 };
   const fetchLog: string[] = [];
   const routerLog: unknown[] = [];
@@ -286,7 +288,10 @@ test('runFetch dedupes overlapping requests', async () => {
     now: () => 0,
     setTimer: () => 0,
     clearTimer: () => {},
-    fetchJson: () => new Promise((res) => { resolveFetch = res; }),
+    fetchJson: () =>
+      new Promise((res) => {
+        resolveFetch = res;
+      }),
   };
   const r = new FreshnessRouter(adapters);
   r.registerMeta(META_BANDWIDTH);
@@ -303,7 +308,9 @@ test('runFetch dedupes overlapping requests', async () => {
 // ---------- onUpdate notify hook (FE-26 prerequisite) ----------
 
 test('onUpdate fires after each successful fetch', async () => {
-  const { adapters, fakeClock } = makeAdapters({ responses: { 'GET /api/lifecycle': { ok: true, n: 1 } } });
+  const { adapters, fakeClock } = makeAdapters({
+    responses: { 'GET /api/lifecycle': { ok: true, n: 1 } },
+  });
   const r = new FreshnessRouter(adapters);
   r.registerMeta(META_LIFECYCLE);
   const seen: unknown[] = [];
@@ -314,7 +321,9 @@ test('onUpdate fires after each successful fetch', async () => {
 });
 
 test('onUpdate fires synchronously on subscribe when value already cached', async () => {
-  const { adapters, fakeClock } = makeAdapters({ responses: { 'GET /api/lifecycle': { ok: true, n: 2 } } });
+  const { adapters, fakeClock } = makeAdapters({
+    responses: { 'GET /api/lifecycle': { ok: true, n: 2 } },
+  });
   const r = new FreshnessRouter(adapters);
   r.registerMeta(META_LIFECYCLE);
   r.subscribe('GET', '/api/lifecycle', 'a', { visible: true });
@@ -326,7 +335,9 @@ test('onUpdate fires synchronously on subscribe when value already cached', asyn
 });
 
 test('unsubscribe stops further onUpdate calls', async () => {
-  const { adapters, fakeClock } = makeAdapters({ responses: { 'GET /api/lifecycle': { ok: true } } });
+  const { adapters, fakeClock } = makeAdapters({
+    responses: { 'GET /api/lifecycle': { ok: true } },
+  });
   const r = new FreshnessRouter(adapters);
   r.registerMeta(META_LIFECYCLE);
   let count = 0;
@@ -346,13 +357,25 @@ test('subscribe with params: passes them to fetchJson and refetches on change', 
   const calls: Array<{ path: string; params?: Record<string, string | number> }> = [];
   const adapters: RouterAdapters = {
     now: () => fakeClock.now,
-    setTimer: (cb, ms) => { const id = fakeClock.nextId++; fakeClock.timers.set(id, { fireAt: fakeClock.now + ms, cb }); return id; },
-    clearTimer: (token) => { fakeClock.timers.delete(token as number); },
-    fetchJson: async (_method, path, params) => { calls.push({ path, params }); return { ok: true }; },
+    setTimer: (cb, ms) => {
+      const id = fakeClock.nextId++;
+      fakeClock.timers.set(id, { fireAt: fakeClock.now + ms, cb });
+      return id;
+    },
+    clearTimer: (token) => {
+      fakeClock.timers.delete(token as number);
+    },
+    fetchJson: async (_method, path, params) => {
+      calls.push({ path, params });
+      return { ok: true };
+    },
   };
   const r = new FreshnessRouter(adapters);
   r.registerMeta({ method: 'GET', path: '/api/downloads/archive', freshness: 'swr', ttl_s: 60 });
-  r.subscribe('GET', '/api/downloads/archive', 'archive', { visible: true, params: { limit: 100 } });
+  r.subscribe('GET', '/api/downloads/archive', 'archive', {
+    visible: true,
+    params: { limit: 100 },
+  });
   advance(fakeClock, 0);
   await tick();
   assert.equal(calls.length, 1);
@@ -360,13 +383,19 @@ test('subscribe with params: passes them to fetchJson and refetches on change', 
 
   // Same params → no new fetch on resubscribe
   r.unsubscribe('GET', '/api/downloads/archive', 'archive');
-  r.subscribe('GET', '/api/downloads/archive', 'archive', { visible: true, params: { limit: 100 } });
+  r.subscribe('GET', '/api/downloads/archive', 'archive', {
+    visible: true,
+    params: { limit: 100 },
+  });
   await tick();
   assert.equal(calls.length, 1, 'unchanged params should reuse cache');
 
   // Changed params → cache invalidated, refetch
   r.unsubscribe('GET', '/api/downloads/archive', 'archive');
-  r.subscribe('GET', '/api/downloads/archive', 'archive', { visible: true, params: { limit: 200 } });
+  r.subscribe('GET', '/api/downloads/archive', 'archive', {
+    visible: true,
+    params: { limit: 200 },
+  });
   advance(fakeClock, 0);
   await tick();
   assert.equal(calls.length, 2);
@@ -374,12 +403,24 @@ test('subscribe with params: passes them to fetchJson and refetches on change', 
 });
 
 test('onUpdate exception is isolated — other subscribers still fire', async () => {
-  const { adapters, fakeClock } = makeAdapters({ responses: { 'GET /api/lifecycle': { ok: true } } });
+  const { adapters, fakeClock } = makeAdapters({
+    responses: { 'GET /api/lifecycle': { ok: true } },
+  });
   const r = new FreshnessRouter(adapters);
   r.registerMeta(META_LIFECYCLE);
   let bGotIt = false;
-  r.subscribe('GET', '/api/lifecycle', 'a', { visible: true, onUpdate: () => { throw new Error('boom'); } });
-  r.subscribe('GET', '/api/lifecycle', 'b', { visible: true, onUpdate: () => { bGotIt = true; } });
+  r.subscribe('GET', '/api/lifecycle', 'a', {
+    visible: true,
+    onUpdate: () => {
+      throw new Error('boom');
+    },
+  });
+  r.subscribe('GET', '/api/lifecycle', 'b', {
+    visible: true,
+    onUpdate: () => {
+      bGotIt = true;
+    },
+  });
   advance(fakeClock, 0);
   await tick();
   assert.equal(bGotIt, true);

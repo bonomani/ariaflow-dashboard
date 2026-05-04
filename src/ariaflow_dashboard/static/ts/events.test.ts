@@ -24,9 +24,7 @@ test('parseStateChangedEvent returns invalid on malformed JSON', () => {
 });
 
 test('parseStateChangedEvent returns full when items[] is present', () => {
-  const r = parseStateChangedEvent(
-    JSON.stringify({ items: [], _rev: 'r1', ok: true }),
-  );
+  const r = parseStateChangedEvent(JSON.stringify({ items: [], _rev: 'r1', ok: true }));
   assert.equal(r.kind, 'full');
   if (r.kind === 'full') {
     assert.equal(r.data._rev, 'r1');
@@ -98,10 +96,7 @@ test('shouldShowOfflineStatus shows after 3+ failures', () => {
 test('buildStatusUrl returns the base when no filters apply', () => {
   assert.equal(buildStatusUrl('/api/status'), '/api/status');
   assert.equal(buildStatusUrl('/api/status', { queueFilter: 'all' }), '/api/status');
-  assert.equal(
-    buildStatusUrl('/api/status', { sessionFilter: 'historical' }),
-    '/api/status',
-  );
+  assert.equal(buildStatusUrl('/api/status', { sessionFilter: 'historical' }), '/api/status');
 });
 
 test('buildStatusUrl maps display filters to backend status names', () => {
@@ -130,10 +125,7 @@ test('buildStatusUrl combines status + session=current', () => {
 });
 
 test('buildStatusUrl url-encodes filter values', () => {
-  assert.equal(
-    buildStatusUrl('/api/status', { queueFilter: 'a b' }),
-    '/api/status?status=a%20b',
-  );
+  assert.equal(buildStatusUrl('/api/status', { queueFilter: 'a b' }), '/api/status?status=a%20b');
 });
 
 // ---------- nextReconnectDelayMs ----------

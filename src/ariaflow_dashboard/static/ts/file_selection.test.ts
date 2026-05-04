@@ -57,10 +57,7 @@ test('selectedFileIndexes returns numeric indexes of selected files only', () =>
 });
 
 test('selectedFileIndexes skips entries without a numeric index', () => {
-  const files: NormalizedFile[] = [
-    { selected: true },
-    { index: 5, selected: true },
-  ];
+  const files: NormalizedFile[] = [{ selected: true }, { index: 5, selected: true }];
   assert.deepEqual(selectedFileIndexes(files), [5]);
 });
 

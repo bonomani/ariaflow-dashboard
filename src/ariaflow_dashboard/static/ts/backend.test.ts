@@ -62,7 +62,11 @@ test('loadBackendState falls back to default when selected is unknown', () => {
 });
 
 test('saveBackendState writes back cleaned list and reconciled selected', () => {
-  const s = saveBackendState([' http://h2:8000 ', '', DEFAULT, 'http://h2:8000'], 'http://h2:8000', DEFAULT);
+  const s = saveBackendState(
+    [' http://h2:8000 ', '', DEFAULT, 'http://h2:8000'],
+    'http://h2:8000',
+    DEFAULT,
+  );
   assert.deepEqual(s.backends, ['http://h2:8000']);
   assert.equal(s.selected, 'http://h2:8000');
   assert.deepEqual(JSON.parse(localStorage.getItem('ariaflow.backends')!), ['http://h2:8000']);
@@ -219,10 +223,7 @@ test('backendDisplayName uses Bonjour name (with disambiguator stripped)', () =>
 });
 
 test('backendDisplayName falls back to host:port when no metadata', () => {
-  assert.equal(
-    backendDisplayName('http://h3:9000', {}, DEFAULT, '192.168.1.10'),
-    'h3:9000',
-  );
+  assert.equal(backendDisplayName('http://h3:9000', {}, DEFAULT, '192.168.1.10'), 'h3:9000');
 });
 
 test("backendDisplayName returns '-' for an empty URL", () => {
