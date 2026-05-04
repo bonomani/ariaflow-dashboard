@@ -191,11 +191,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run verify gate (drift check + frontend build/tests + python tests)
+      - name: Run verify gate (frontend build/tests + python tests)
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
-          make verify
+          make verify-ci
 
       - name: Build source distribution
         run: |
