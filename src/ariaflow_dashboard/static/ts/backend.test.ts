@@ -2,7 +2,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  apiPath,
+  backendPath,
   backendDisplayName,
   isSelfService,
   loadBackendState,
@@ -230,9 +230,9 @@ test("backendDisplayName returns '-' for an empty URL", () => {
   assert.equal(backendDisplayName('', {}, DEFAULT, '192.168.1.10'), '-');
 });
 
-// ---------- apiPath ----------
+// ---------- backendPath ----------
 
-test('apiPath joins backend URL with path, stripping trailing slashes', () => {
-  assert.equal(apiPath('http://h:8000', '/api/x'), 'http://h:8000/api/x');
-  assert.equal(apiPath('http://h:8000///', '/api/x'), 'http://h:8000/api/x');
+test('backendPath joins backend URL with path, stripping trailing slashes', () => {
+  assert.equal(backendPath('http://h:8000', '/api/x'), 'http://h:8000/api/x');
+  assert.equal(backendPath('http://h:8000///', '/api/x'), 'http://h:8000/api/x');
 });

@@ -27,7 +27,7 @@ interface MetaResponse {
 }
 
 export interface BootstrapAdapters extends RouterAdapters {
-  /** apiPath('/api/_meta') style — handles backend prefix / origin. */
+  /** backendPath('/api/_meta') style — handles backend prefix / origin. */
   metaUrl: () => string;
   /** Same-origin '/api/_meta' on the dashboard server (FE-31). Optional;
    *  if omitted, dashboard endpoints (e.g. /api/web/log) must come from

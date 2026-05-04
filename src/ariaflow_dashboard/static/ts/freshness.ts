@@ -35,7 +35,7 @@ export interface EndpointMeta {
   revalidate_on?: string[];
   transport?: 'sse';
   transport_topics?: string[];
-  /** Origin to fetch from. 'backend' (default) goes through apiPath() to the
+  /** Origin to fetch from. 'backend' (default) goes through backendPath() to the
    *  selected ariaflow-server. 'dashboard' goes same-origin to the dashboard
    *  server (port 8001). FE-31. */
   host?: EndpointHost;
@@ -53,7 +53,7 @@ export interface RouterAdapters {
   /** Performs a one-shot fetch. Resolves with parsed JSON or rejects.
    *  `params` is the current subscriber-supplied query string, if any.
    *  `host` selects the origin (FE-31): 'backend' (default) routes
-   *  through apiPath(); 'dashboard' fetches same-origin (port 8001). */
+   *  through backendPath(); 'dashboard' fetches same-origin (port 8001). */
   fetchJson: (
     method: string,
     path: string,

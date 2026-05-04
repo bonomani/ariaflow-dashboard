@@ -215,6 +215,10 @@ export function backendDisplayName(
   return addr;
 }
 
-export function apiPath(backend: string, path: string): string {
+/** Compose a request URL against the *backend* origin. Use this for
+ *  endpoints served by ariaflow-server (port 8000 by default). For
+ *  dashboard-served endpoints (port 8001 / same-origin), use the
+ *  literal path directly — `this._fetch('/api/discovery')` etc. */
+export function backendPath(backend: string, path: string): string {
   return joinUrl(backend, path);
 }

@@ -34,7 +34,7 @@ import {
   type SimpleThemeController,
 } from './vendor/webstyle/simple-theme-controller';
 import {
-  apiPath as composeApiPath,
+  backendPath as composeBackendPath,
   backendDisplayName as composeBackendDisplayName,
   loadBackendState as loadBackendStateFromStorage,
   mergeDiscoveredItems,
@@ -632,15 +632,15 @@ document.addEventListener('alpine:init', () => {
     async _initFreshness() {
       try {
         const router = await bootstrapFreshnessRouter({
-          metaUrl: () => this.apiPath('/api/_meta'),
+          metaUrl: () => this.backendPath('/api/_meta'),
           dashboardMetaUrl: () => '/api/_meta',
           now: () => Date.now(),
           setTimer: (cb, ms) => setTimeout(cb, ms),
           clearTimer: (token) => clearTimeout(token),
           fetchJson: async (method, path, params, host) => {
             // FE-31: dashboard-served endpoints fetch same-origin; backend-
-            // served endpoints route via apiPath() to the selected backend.
-            let url = host === 'dashboard' ? path : this.apiPath(path);
+            // served endpoints route via backendPath() to the selected backend.
+            let url = host === 'dashboard' ? path : this.backendPath(path);
             if (params) {
               const qs = new URLSearchParams();
               for (const [k, v] of Object.entries(params)) qs.set(k, String(v));
@@ -730,8 +730,8 @@ document.addEventListener('alpine:init', () => {
         runtimeLocalMainIp(),
       );
     },
-    apiPath(path) {
-      return composeApiPath(
+    backendPath(path) {
+      return composeBackendPath(
         this.loadBackendState().selected || this.DEFAULT_BACKEND_URL,
         path,
       );
@@ -785,7 +785,7 @@ document.addEventListener('alpine:init', () => {
       let peerItems: unknown[] = [];
       if (bonjourItems.length === 0 && this.backendReachable) {
         try {
-          const r = await this._fetch(this.apiPath('/api/peers'));
+          const r = await this._fetch(this.backendPath('/api/peers'));
           const data = await r.json();
           const peers = Array.isArray(data?.peers) ? data.peers : [];
           peerItems = peers
@@ -928,7 +928,7 @@ document.addEventListener('alpine:init', () => {
     // --- SSE ---
     _initSSE() {
       if (this._sse) { this._sse.close(); this._sse = null; }
-      const url = this.apiPath('/api/events');
+      const url = this.backendPath('/api/events');
       let es;
       try { es = new EventSource(url); } catch (e) { return; }
       this._sse = es;
@@ -980,7 +980,7 @@ document.addEventListener('alpine:init', () => {
           this._sseFallbackTimer = null;
           if (this._sseConnected) return;
           try {
-            const r = await this._fetch(this.apiPath('/api/health'), {}, 3000);
+            const r = await this._fetch(this.backendPath('/api/health'), {}, 3000);
             if (r.ok && !this.refreshTimer && this.refreshInterval > 0) {
               this.refreshTimer = setInterval(() => this.refresh(), this.refreshInterval);
             }
@@ -1044,7 +1044,7 @@ document.addEventListener('alpine:init', () => {
     _consecutiveFailures: 0,
     _statusETag: null,
     _statusUrl() {
-      return buildStatusUrl(this.apiPath('/api/status'), {
+      return buildStatusUrl(this.backendPath('/api/status'), {
         queueFilter: this.queueFilter,
         sessionFilter: this.sessionFilter,
       });
@@ -1131,7 +1131,7 @@ document.addEventListener('alpine:init', () => {
         this.resultText = `Invalid JSON: ${e.message}`;
         return;
       }
-      const r = await this._fetch(this.apiPath('/api/declaration'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parsed) });
+      const r = await this._fetch(this.backendPath('/api/declaration'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(parsed) });
       const data = await r.json();
       this.lastDeclaration = data.declaration || data;
       this.resultText = 'Declaration saved';
@@ -1167,7 +1167,7 @@ document.addEventListener('alpine:init', () => {
         this._prefQueue = [];
         const patch = {};
         for (const c of changes) patch[c.name] = c.value;
-        const r = await this._fetch(this.apiPath('/api/declaration/preferences'), {
+        const r = await this._fetch(this.backendPath('/api/declaration/preferences'), {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch),
         });
         const data = await r.json();
@@ -1215,7 +1215,7 @@ document.addEventListener('alpine:init', () => {
         return item;
       });
       const payload = { items };
-      const r = await this._fetch(this.apiPath('/api/downloads'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const r = await this._fetch(this.backendPath('/api/downloads'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await r.json();
       if (!r.ok || data.ok === false) {
         this.resultText = data.message || 'Add request failed';
@@ -1261,7 +1261,7 @@ document.addEventListener('alpine:init', () => {
         ? { auto_preflight_on_run: this.autoPreflightEnabled }
         : {};
       try {
-        const r = await this._fetch(this.apiPath(endpoint), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const r = await this._fetch(this.backendPath(endpoint), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const data = await r.json();
         if (!r.ok || data.ok === false) {
           this.resultText = data.message || `Scheduler ${action} failed`;
@@ -1288,7 +1288,7 @@ document.addEventListener('alpine:init', () => {
     async pauseDownloads() {
       this.resultText = '';
       try {
-        const r = await postEmpty(this.apiPath(urlScheduler('pause')));
+        const r = await postEmpty(this.backendPath(urlScheduler('pause')));
         const data = await r.json();
         this.resultText = data.paused
           ? 'Downloads paused'
@@ -1302,7 +1302,7 @@ document.addEventListener('alpine:init', () => {
     async resumeDownloads() {
       this.resultText = '';
       try {
-        const r = await postEmpty(this.apiPath(urlScheduler('resume')));
+        const r = await postEmpty(this.backendPath(urlScheduler('resume')));
         const data = await r.json();
         this.resultText = data.resumed
           ? 'Downloads resumed'
@@ -1326,7 +1326,7 @@ document.addEventListener('alpine:init', () => {
       }
       let r, data;
       try {
-        r = await postEmpty(this.apiPath(urlItemAction(itemId, action)));
+        r = await postEmpty(this.backendPath(urlItemAction(itemId, action)));
         data = await r.json();
       } catch (e) {
         this.resultText = `${action} failed: ${e.message}`;
@@ -1348,7 +1348,7 @@ document.addEventListener('alpine:init', () => {
       this.fileSelectionItemId = itemId;
       this.fileSelectionLoading = true;
       try {
-        const r = await this._fetch(this.apiPath(urlItemFiles(itemId)));
+        const r = await this._fetch(this.backendPath(urlItemFiles(itemId)));
         const data = await r.json();
         this.fileSelectionFiles = normalizeFiles(data.files);
       } catch (e) {
@@ -1358,7 +1358,7 @@ document.addEventListener('alpine:init', () => {
     },
     async saveFileSelection() {
       const selected = selectedFileIndexes(this.fileSelectionFiles);
-      const r = await this._fetch(this.apiPath(urlItemFiles(this.fileSelectionItemId)), {
+      const r = await this._fetch(this.backendPath(urlItemFiles(this.fileSelectionItemId)), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ select: selected }),
       });
@@ -1381,7 +1381,7 @@ document.addEventListener('alpine:init', () => {
     async cleanup() {
       this.archiveLoading = true;
       try {
-        const r = await this._fetch(this.apiPath('/api/downloads/cleanup'), {
+        const r = await this._fetch(this.backendPath('/api/downloads/cleanup'), {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ max_done_age_days: 7, max_done_count: 100 }),
         });
@@ -1397,7 +1397,7 @@ document.addEventListener('alpine:init', () => {
       this.probeRunning = true;
       this.resultText = 'Probe running...';
       try {
-        const r = await postEmpty(this.apiPath('/api/bandwidth/probe'));
+        const r = await postEmpty(this.backendPath('/api/bandwidth/probe'));
         const data = await r.json();
         this.resultText = data.ok ? 'Probe complete' : (data.message || 'Probe finished');
         this.resultJson = JSON.stringify(data, null, 2);
@@ -1452,7 +1452,7 @@ document.addEventListener('alpine:init', () => {
     },
     async loadLifecycle() {
       try {
-        const r = await this._fetch(this.apiPath('/api/lifecycle'));
+        const r = await this._fetch(this.backendPath('/api/lifecycle'));
         this._applyLifecycle(await r.json());
       } catch (e) {
         this.lifecycleRows = [];
@@ -1483,7 +1483,7 @@ document.addEventListener('alpine:init', () => {
     },
     async lifecycleAction(target, action) {
       try {
-        const r = await postEmpty(this.apiPath(urlLifecycleAction(target, action)));
+        const r = await postEmpty(this.backendPath(urlLifecycleAction(target, action)));
         const data = await r.json();
         this.lastLifecycle = data.lifecycle || data;
         this.resultText = `${target} ${action} requested`;
@@ -1497,7 +1497,7 @@ document.addEventListener('alpine:init', () => {
     // --- log ---
     async preflightRun() {
       try {
-        const r = await postEmpty(this.apiPath(urlScheduler('preflight')));
+        const r = await postEmpty(this.backendPath(urlScheduler('preflight')));
         const data = await r.json();
         this.resultText = data.status === 'pass' ? 'Preflight passed' : 'Preflight needs attention';
         this.resultJson = JSON.stringify(data, null, 2);
@@ -1508,7 +1508,7 @@ document.addEventListener('alpine:init', () => {
     },
     async uccRun() {
       try {
-        const r = await postEmpty(this.apiPath(urlScheduler('ucc')));
+        const r = await postEmpty(this.backendPath(urlScheduler('ucc')));
         const data = await r.json();
         const outcome = data.result?.outcome || 'unknown';
         this.resultText = `UCC result: ${outcome}`;
@@ -1526,7 +1526,7 @@ document.addEventListener('alpine:init', () => {
     async refreshActionLog() {
       if (this.page !== 'log') return;
       try {
-        const r = await this._fetch(this.apiPath(`/api/log?limit=${this.logLimit}`));
+        const r = await this._fetch(this.backendPath(`/api/log?limit=${this.logLimit}`));
         const data = await r.json();
         if (data?.ok === false || data?.['ariaflow-server']?.reachable === false) {
           this.actionLogEntries = [];
@@ -1611,7 +1611,7 @@ document.addEventListener('alpine:init', () => {
       this.itemOptionsGid = gid;
       this.itemOptionsData = null;
       try {
-        const r = await this._fetch(this.apiPath(urlAria2GetOption(gid)));
+        const r = await this._fetch(this.backendPath(urlAria2GetOption(gid)));
         this.itemOptionsData = await r.json();
       } catch (e) {
         this.itemOptionsData = { error: e.message };
@@ -1626,7 +1626,7 @@ document.addEventListener('alpine:init', () => {
       this.selectedSessionId = sessionId;
       this.selectedSessionStats = null;
       try {
-        const r = await this._fetch(this.apiPath(urlSessionStats(sessionId)));
+        const r = await this._fetch(this.backendPath(urlSessionStats(sessionId)));
         this.selectedSessionStats = await r.json();
       } catch (e) {
         this.selectedSessionStats = { error: 'Failed to load stats' };
@@ -1642,13 +1642,13 @@ document.addEventListener('alpine:init', () => {
     },
     async loadAria2Options() {
       try {
-        const r = await this._fetch(this.apiPath('/api/aria2/global_option'));
+        const r = await this._fetch(this.backendPath('/api/aria2/global_option'));
         this._applyAria2GlobalOption(await r.json());
       } catch (e) {
         this.aria2Options = {};
       }
       try {
-        const r = await this._fetch(this.apiPath('/api/aria2/option_tiers'));
+        const r = await this._fetch(this.backendPath('/api/aria2/option_tiers'));
         this._applyAria2OptionTiers(await r.json());
       } catch (e) { console.warn('loadAria2Tiers:', e.message); }
     },
@@ -1683,7 +1683,7 @@ document.addEventListener('alpine:init', () => {
     },
     async _sendAria2Option(key, value) {
       try {
-        const r = await this._fetch(this.apiPath('/api/aria2/change_global_option'), {
+        const r = await this._fetch(this.backendPath('/api/aria2/change_global_option'), {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ [key]: value }),
         });
@@ -1699,7 +1699,7 @@ document.addEventListener('alpine:init', () => {
     async setItemAria2Option(gid, key, value) {
       if (!gid || !key) return;
       try {
-        const r = await this._fetch(this.apiPath('/api/aria2/change_option'), {
+        const r = await this._fetch(this.backendPath('/api/aria2/change_option'), {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ gid, [key]: String(value) }),
         });
@@ -1714,7 +1714,7 @@ document.addEventListener('alpine:init', () => {
     // --- aria2 set_limits ---
     async setAria2Limits(limits) {
       try {
-        const r = await this._fetch(this.apiPath('/api/aria2/set_limits'), {
+        const r = await this._fetch(this.backendPath('/api/aria2/set_limits'), {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(limits),
         });
@@ -1735,7 +1735,7 @@ document.addEventListener('alpine:init', () => {
     async loadTorrents() {
       this.torrentLoading = true;
       try {
-        const r = await this._fetch(this.apiPath('/api/torrents'));
+        const r = await this._fetch(this.backendPath('/api/torrents'));
         this._applyTorrents(await r.json());
       } catch (e) {
         this.torrentList = [];
@@ -1745,7 +1745,7 @@ document.addEventListener('alpine:init', () => {
     },
     async stopTorrent(infohash) {
       try {
-        const r = await postEmpty(this.apiPath(urlTorrentStop(infohash)));
+        const r = await postEmpty(this.backendPath(urlTorrentStop(infohash)));
         const data = await r.json();
         this.resultText = data.ok !== false ? `Stopped seeding ${infohash.slice(0, 8)}` : (data.message || 'Stop failed');
         await this.loadTorrents();
