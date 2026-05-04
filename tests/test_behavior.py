@@ -1,5 +1,6 @@
 """Behavioral tests: auto-refresh, persistence, error resilience, edge cases,
 responsiveness, notifications, and sparklines."""
+
 from __future__ import annotations
 
 import sys
@@ -10,7 +11,7 @@ from playwright.sync_api import Page
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from conftest import start_server, stop_server, DEFAULT_STATUS  # noqa: E402
+from conftest import start_server, stop_server  # noqa: E402
 
 pytestmark = pytest.mark.slow
 _ALPINE_EVAL = "document.querySelector('[x-data]')._x_dataStack[0]"
@@ -25,6 +26,7 @@ def _goto(page: Page, url: str) -> None:
 # Switchable backend for online/offline tests
 # ---------------------------------------------------------------------------
 
+
 class SwitchableBackend:
     def __init__(self) -> None:
         self.online = True
@@ -35,20 +37,41 @@ class SwitchableBackend:
     def status(self) -> dict:
         self.call_count += 1
         if not self.online:
-            return {"ok": False, "ariaflow": {"reachable": False, "error": "connection refused"}}
+            return {
+                "ok": False,
+                "ariaflow": {"reachable": False, "error": "connection refused"},
+            }
         return {
             "items": self.items,
             "active": self._active(),
             "state": {"running": bool(self.items), "paused": False, "session_id": "s1"},
-            "summary": {"queued": sum(1 for i in self.items if i["status"] == "queued"), "done": 0, "error": 0, "total": len(self.items)},
-            "bandwidth": {"source": "default", "downlink_mbps": 50, "cap_mbps": 40, "interface_name": "eth0"},
+            "summary": {
+                "queued": sum(1 for i in self.items if i["status"] == "queued"),
+                "done": 0,
+                "error": 0,
+                "total": len(self.items),
+            },
+            "bandwidth": {
+                "source": "default",
+                "downlink_mbps": 50,
+                "cap_mbps": 40,
+                "interface_name": "eth0",
+            },
             "ariaflow": {"reachable": True, "version": "1.0", "pid": 9999},
         }
 
     def _active(self) -> dict | None:
         for item in self.items:
             if item["status"] == "downloading":
-                return {"gid": item["gid"], "url": item["url"], "status": "active", "downloadSpeed": self.speed, "totalLength": 1000000, "completedLength": 500000, "percent": 50.0}
+                return {
+                    "gid": item["gid"],
+                    "url": item["url"],
+                    "status": "active",
+                    "downloadSpeed": self.speed,
+                    "totalLength": 1000000,
+                    "completedLength": 500000,
+                    "percent": 50.0,
+                }
         return None
 
 
@@ -80,7 +103,9 @@ def page(browser_context, web_server) -> Page:
 
 
 def refresh(page: Page) -> None:
-    page.evaluate(f"{_ALPINE_EVAL}._consecutiveFailures = 0; {_ALPINE_EVAL}.lastRev = null")
+    page.evaluate(
+        f"{_ALPINE_EVAL}._consecutiveFailures = 0; {_ALPINE_EVAL}.lastRev = null"
+    )
     page.evaluate(f"(async () => await {_ALPINE_EVAL}.refresh())()")
     page.wait_for_timeout(800)
 
@@ -115,7 +140,15 @@ class TestAutoRefresh:
         refresh(page)
         text = queue_text(page)
         assert "no " in text.lower() or "empty" in text.lower()
-        backend.items = [{"id": "r1", "url": "http://example.com/new.bin", "status": "queued", "gid": "g1", "created_at": "2026-04-02"}]
+        backend.items = [
+            {
+                "id": "r1",
+                "url": "http://example.com/new.bin",
+                "status": "queued",
+                "gid": "g1",
+                "created_at": "2026-04-02",
+            }
+        ]
         refresh(page)
         assert "new.bin" in queue_text(page)
         backend.items = []
@@ -129,7 +162,11 @@ class TestBackendTransitions:
         for _ in range(3):
             refresh(page)
         text = queue_text(page)
-        assert "offline" in text.lower() or "unavailable" in text.lower() or "unreachable" in text.lower()
+        assert (
+            "offline" in text.lower()
+            or "unavailable" in text.lower()
+            or "unreachable" in text.lower()
+        )
         backend.online = True
 
     def test_recovery_from_offline(self, page: Page, web_server: str) -> None:
@@ -137,7 +174,15 @@ class TestBackendTransitions:
         _goto(page, f"{web_server}/")
         refresh(page)
         backend.online = True
-        backend.items = [{"id": "r2", "url": "http://example.com/back.zip", "status": "queued", "gid": "g2", "created_at": "2026-04-02"}]
+        backend.items = [
+            {
+                "id": "r2",
+                "url": "http://example.com/back.zip",
+                "status": "queued",
+                "gid": "g2",
+                "created_at": "2026-04-02",
+            }
+        ]
         refresh(page)
         assert "back.zip" in queue_text(page)
         backend.items = []
@@ -164,7 +209,9 @@ class TestBackendPersistence:
         page.click('button:has-text("Add")')
         page.wait_for_timeout(500)
         _goto(page, f"{web_server}/")
-        backends = page.evaluate("JSON.parse(localStorage.getItem('ariaflow.backends') || '[]')")
+        backends = page.evaluate(
+            "JSON.parse(localStorage.getItem('ariaflow.backends') || '[]')"
+        )
         assert any("10.20.30.40" in b for b in backends)
 
 
@@ -175,7 +222,9 @@ class TestConcurrentRefreshGuard:
         _goto(page, f"{web_server}/")
         pass  # no server-side cache to bust
         backend.call_count = 0
-        page.evaluate(f"Promise.all([{_ALPINE_EVAL}.refresh(), {_ALPINE_EVAL}.refresh()])")
+        page.evaluate(
+            f"Promise.all([{_ALPINE_EVAL}.refresh(), {_ALPINE_EVAL}.refresh()])"
+        )
         page.wait_for_timeout(500)
         assert backend.call_count <= 2
 
@@ -192,7 +241,16 @@ class TestRenderingEdgeCases:
     @pytest.mark.xfail(reason="flaky: shared mock backend state across fixtures")
     def test_many_items(self, page: Page, web_server: str) -> None:
         backend.online = True
-        backend.items = [{"id": f"m{i}", "url": f"http://example.com/file-{i:03d}.bin", "status": "queued", "gid": f"g{i}", "created_at": "2026-04-02"} for i in range(50)]
+        backend.items = [
+            {
+                "id": f"m{i}",
+                "url": f"http://example.com/file-{i:03d}.bin",
+                "status": "queued",
+                "gid": f"g{i}",
+                "created_at": "2026-04-02",
+            }
+            for i in range(50)
+        ]
         _goto(page, f"{web_server}/")
         refresh(page)
         page.wait_for_timeout(1500)
@@ -216,7 +274,15 @@ class TestRenderingEdgeCases:
     @pytest.mark.xfail(reason="flaky: shared mock backend state across fixtures")
     def test_zero_speed_no_infinity(self, page: Page, web_server: str) -> None:
         backend.speed = 0
-        backend.items = [{"id": "z1", "url": "http://example.com/slow.bin", "status": "downloading", "gid": "gz", "created_at": "2026-04-02"}]
+        backend.items = [
+            {
+                "id": "z1",
+                "url": "http://example.com/slow.bin",
+                "status": "downloading",
+                "gid": "gz",
+                "created_at": "2026-04-02",
+            }
+        ]
         _goto(page, f"{web_server}/")
         refresh(page)
         text = queue_text(page)
@@ -234,14 +300,21 @@ class TestErrorResilience:
         page.click('.declaration button:has-text("Save")')
         page.wait_for_timeout(300)
         text = page.inner_text("body")
-        assert "invalid" in text.lower() or "error" in text.lower() or "json" in text.lower()
+        assert (
+            "invalid" in text.lower()
+            or "error" in text.lower()
+            or "json" in text.lower()
+        )
 
     def test_backend_timeout_ui_functional(self, page: Page, web_server: str) -> None:
         backend.online = False
         _goto(page, f"{web_server}/")
         refresh(page)
         page.click('button:has-text("Theme")')
-        assert page.evaluate("document.documentElement.dataset.theme") in ("dark", "light")
+        assert page.evaluate("document.documentElement.dataset.theme") in (
+            "dark",
+            "light",
+        )
         backend.online = True
 
 
@@ -256,13 +329,17 @@ class TestResponsiveness:
         page.set_viewport_size({"width": 768, "height": 1024})
         page.goto(f"{web_server}/")
         page.wait_for_timeout(300)
-        assert not page.evaluate("document.body.scrollWidth > document.body.clientWidth")
+        assert not page.evaluate(
+            "document.body.scrollWidth > document.body.clientWidth"
+        )
 
     def test_mobile_no_overflow(self, page: Page, web_server: str) -> None:
         page.set_viewport_size({"width": 375, "height": 667})
         page.goto(f"{web_server}/")
         page.wait_for_timeout(300)
-        assert not page.evaluate("document.body.scrollWidth > document.body.clientWidth")
+        assert not page.evaluate(
+            "document.body.scrollWidth > document.body.clientWidth"
+        )
 
 
 class TestNotificationFlow:
@@ -280,7 +357,15 @@ class TestSpeedHistory:
     @pytest.mark.xfail(reason="flaky: shared mock backend state")
     def test_sparkline_renders(self, page: Page, web_server: str) -> None:
         backend.speed = 1048576
-        backend.items = [{"id": "sp1", "url": "http://example.com/spark.bin", "status": "downloading", "gid": "gsp", "created_at": "2026-04-02"}]
+        backend.items = [
+            {
+                "id": "sp1",
+                "url": "http://example.com/spark.bin",
+                "status": "downloading",
+                "gid": "gsp",
+                "created_at": "2026-04-02",
+            }
+        ]
         _goto(page, f"{web_server}/")
         for _ in range(3):
             refresh(page)
@@ -290,7 +375,15 @@ class TestSpeedHistory:
 
     def test_sparkline_capped(self, page: Page, web_server: str) -> None:
         backend.speed = 500000
-        backend.items = [{"id": "sp2", "url": "http://example.com/cap.bin", "status": "downloading", "gid": "gsp2", "created_at": "2026-04-02"}]
+        backend.items = [
+            {
+                "id": "sp2",
+                "url": "http://example.com/cap.bin",
+                "status": "downloading",
+                "gid": "gsp2",
+                "created_at": "2026-04-02",
+            }
+        ]
         _goto(page, f"{web_server}/")
         for _ in range(35):
             pass  # no server-side cache to bust

@@ -1,4 +1,5 @@
 """Frontend structure, route, and interactive tests."""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from conftest import start_server, stop_server  # noqa: E402
 
 pytestmark = pytest.mark.slow
+
 
 def _goto(page: Page, url: str) -> None:
     """Navigate and wait for Alpine."""
@@ -47,6 +49,7 @@ def page(browser_context, web_server) -> Page:
 # ---------------------------------------------------------------------------
 # HTML structure (BeautifulSoup — no JS)
 # ---------------------------------------------------------------------------
+
 
 class TestHTMLStructure:
     @pytest.fixture(autouse=True)
@@ -88,8 +91,11 @@ class TestHTMLStructure:
 # Routes
 # ---------------------------------------------------------------------------
 
+
 class TestRoutes:
-    @pytest.mark.parametrize("path", ["/", "/bandwidth", "/lifecycle", "/options", "/log", "/dev"])
+    @pytest.mark.parametrize(
+        "path", ["/", "/bandwidth", "/lifecycle", "/options", "/log", "/dev"]
+    )
     def test_page_returns_200(self, web_server: str, path: str) -> None:
         resp = urllib.request.urlopen(f"{web_server}{path}", timeout=5)
         assert resp.status == 200
@@ -127,6 +133,7 @@ class TestRoutes:
 # Playwright interactive tests
 # ---------------------------------------------------------------------------
 
+
 def _wait_for_dashboard_items(page: Page, web_server: str) -> None:
     """Navigate to dashboard and wait for queue items to render."""
     _goto(page, f"{web_server}/")
@@ -140,7 +147,7 @@ class TestDashboardInteractive:
 
     def test_filter_chips_show_counts(self, page: Page, web_server: str) -> None:
         _wait_for_dashboard_items(page, web_server)
-        btn = page.query_selector('.filter-bar .filter-btn')
+        btn = page.query_selector(".filter-bar .filter-btn")
         assert btn is not None
         assert "5" in btn.inner_text()
 
@@ -188,7 +195,9 @@ class TestDashboardInteractive:
         assert "itemAction(" in html
         assert "Retry" in html or "retry" in html.lower()
 
-    def test_queue_speed_metric_element_exists(self, page: Page, web_server: str) -> None:
+    def test_queue_speed_metric_element_exists(
+        self, page: Page, web_server: str
+    ) -> None:
         _goto(page, f"{web_server}/")
         el = page.wait_for_selector('[x-text="transferSpeedText"]', timeout=8000)
         assert el is not None
@@ -202,7 +211,10 @@ class TestDashboardInteractive:
     def test_theme_toggle(self, page: Page, web_server: str) -> None:
         _goto(page, f"{web_server}/")
         page.click('button:has-text("Theme")')
-        assert page.evaluate("document.documentElement.dataset.theme") in ("dark", "light")
+        assert page.evaluate("document.documentElement.dataset.theme") in (
+            "dark",
+            "light",
+        )
 
 
 class TestDevPage:
@@ -216,7 +228,7 @@ class TestDevPage:
     def test_dev_nav_active(self, page: Page, web_server: str) -> None:
         _goto(page, f"{web_server}/dev")
         page.wait_for_selector("body.page-dev", timeout=8000)
-        active = page.query_selector('.nav a.active')
+        active = page.query_selector(".nav a.active")
         assert active is not None
         assert active.get_attribute("href") == "/dev"
 

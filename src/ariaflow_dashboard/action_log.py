@@ -3,6 +3,7 @@
 Same format as the backend (actions.jsonl) — append-only JSONL with
 record_action(action, target, outcome, ...) interface.
 """
+
 from __future__ import annotations
 
 import json
@@ -19,7 +20,9 @@ _lock = threading.Lock()
 
 def _log_path() -> Path:
     """Action log file path — next to the process working directory."""
-    return Path(os.environ.get("ARIAFLOW_DASHBOARD_LOG", "ariaflow-dashboard-actions.jsonl"))
+    return Path(
+        os.environ.get("ARIAFLOW_DASHBOARD_LOG", "ariaflow-dashboard-actions.jsonl")
+    )
 
 
 def _rotate() -> None:

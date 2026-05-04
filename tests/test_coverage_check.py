@@ -1,22 +1,27 @@
 """Meta-test: verify every actionable element in the UI has a corresponding test."""
+
 from __future__ import annotations
 
 import re
 import sys
 from pathlib import Path
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-STATIC_DIR = Path(__file__).resolve().parents[1] / "src" / "ariaflow_dashboard" / "static"
+STATIC_DIR = (
+    Path(__file__).resolve().parents[1] / "src" / "ariaflow_dashboard" / "static"
+)
 TEST_DIR = Path(__file__).resolve().parent
-UCC_DECLARATIONS = Path(__file__).resolve().parents[1] / "docs" / "ucc-declarations.yaml"
+UCC_DECLARATIONS = (
+    Path(__file__).resolve().parents[1] / "docs" / "ucc-declarations.yaml"
+)
 
 
 def _load_ucc_declarations() -> dict:
     """Load the canonical UCC declaration artifact (BGS-Verified evidence)."""
     import yaml
+
     return yaml.safe_load(UCC_DECLARATIONS.read_text(encoding="utf-8"))
 
 
@@ -26,7 +31,7 @@ _UCC = _load_ucc_declarations()
 ACTION_RE = re.compile(r'@(?:click|change|input)(?:\.[a-z0-9.]+)?="([^"(]+)\(')
 
 # Normalize dynamic template expressions to base function name
-TEMPLATE_RE = re.compile(r'\$\{[^}]+\}')
+TEMPLATE_RE = re.compile(r"\$\{[^}]+\}")
 
 
 def _extract_actions() -> set[str]:
@@ -56,7 +61,9 @@ def _extract_tested_functions() -> set[str]:
         for fn in re.findall(r'(?:onclick|@click)\*?="([a-zA-Z_]\w*)', content):
             tested.add(fn)
         # @change, @input, onchange*= and oninput*= selectors
-        for fn in re.findall(r'(?:on(?:change|input)|@(?:change|input))\*?="([a-zA-Z_]\w*)', content):
+        for fn in re.findall(
+            r'(?:on(?:change|input)|@(?:change|input))\*?="([a-zA-Z_]\w*)', content
+        ):
             tested.add(fn)
         # Function names referenced directly in test names or assertions
         for fn in re.findall(r'["\']([a-zA-Z_]\w+)["\']', content):
@@ -85,7 +92,7 @@ class TestActionableCoverage:
                 untested.append(action)
 
         assert untested == [], (
-            f"The following actionable functions have no test coverage:\n"
+            "The following actionable functions have no test coverage:\n"
             + "\n".join(f"  - {fn}()" for fn in untested)
             + "\n\nAdd the function to COVERAGE_MAP with the test that covers it."
         )
@@ -95,7 +102,7 @@ class TestActionableCoverage:
         actions = _extract_actions()
         stale = [fn for fn in COVERAGE_MAP if fn not in actions]
         assert stale == [], (
-            f"COVERAGE_MAP has entries for actions that no longer exist:\n"
+            "COVERAGE_MAP has entries for actions that no longer exist:\n"
             + "\n".join(f"  - {fn}" for fn in stale)
         )
 
@@ -103,4 +110,6 @@ class TestActionableCoverage:
         """Guard against silently adding untested actions."""
         actions = _extract_actions()
         # Update this number when adding new actions
-        assert len(actions) >= 20, f"Expected at least 20 actions, found {len(actions)}: {sorted(actions)}"
+        assert len(actions) >= 20, (
+            f"Expected at least 20 actions, found {len(actions)}: {sorted(actions)}"
+        )

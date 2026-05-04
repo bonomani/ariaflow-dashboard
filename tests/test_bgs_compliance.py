@@ -5,6 +5,7 @@ project's docs/governance/BGS.md + docs/governance/bgs-decision.yaml. The valida
 configurable via the ARIAFLOW_BGS_ROOT env var (default: ../BGSPrivate
 relative to this repo root). Skipped when the validator isn't reachable.
 """
+
 from __future__ import annotations
 
 import os

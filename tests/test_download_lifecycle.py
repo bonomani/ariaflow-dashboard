@@ -1,5 +1,6 @@
 """End-to-end test: add a large download, interact with it through every
 possible action, verify the UI reflects each state change, then remove it."""
+
 from __future__ import annotations
 
 import json
@@ -30,6 +31,7 @@ def _goto(page: Page, url: str) -> None:
 # ---------------------------------------------------------------------------
 # Stateful backend simulator
 # ---------------------------------------------------------------------------
+
 
 class FakeBackend:
     """Simulates a backend whose state changes as the frontend sends actions."""
@@ -62,8 +64,9 @@ class FakeBackend:
         # Advance progress on each poll
         for item in self.items:
             if item["status"] == "downloading":
-                item["progress"] = min(item.get("progress", 0) + 52428800, 1073741824)  # +50 MiB
-        downloading = sum(1 for i in self.items if i["status"] == "downloading")
+                item["progress"] = min(
+                    item.get("progress", 0) + 52428800, 1073741824
+                )  # +50 MiB
         return {
             "items": [self._item_view(i) for i in self.items],
             "active": active,
@@ -79,7 +82,11 @@ class FakeBackend:
                 "error": sum(1 for i in self.items if i["status"] == "error"),
                 "total": len(self.items),
             },
-            "bandwidth": {"source": "networkquality", "downlink_mbps": 100, "cap_mbps": 50},
+            "bandwidth": {
+                "source": "networkquality",
+                "downlink_mbps": 100,
+                "cap_mbps": 50,
+            },
             "ariaflow": {"reachable": True, "version": "0.1.34", "pid": 9999},
             "aria2": {"enabled": True, "reachable": True, "version": "1.36.0"},
         }
@@ -127,23 +134,39 @@ class FakeBackend:
     def item_action(self, item_id: str, action: str) -> dict:
         item = self._find(item_id)
         if not item:
-            return {"ok": False, "error": "not_found", "message": f"item {item_id} not found"}
+            return {
+                "ok": False,
+                "error": "not_found",
+                "message": f"item {item_id} not found",
+            }
         if action == "pause":
             if item["status"] in ("queued", "downloading"):
                 item["status"] = "paused"
                 return {"ok": True, "item": self._item_view(item)}
-            return {"ok": False, "error": "invalid_state", "message": f"cannot pause {item['status']}"}
+            return {
+                "ok": False,
+                "error": "invalid_state",
+                "message": f"cannot pause {item['status']}",
+            }
         if action == "resume":
             if item["status"] == "paused":
                 item["status"] = "downloading" if self.running else "queued"
                 return {"ok": True, "item": self._item_view(item)}
-            return {"ok": False, "error": "invalid_state", "message": f"cannot resume {item['status']}"}
+            return {
+                "ok": False,
+                "error": "invalid_state",
+                "message": f"cannot resume {item['status']}",
+            }
         if action == "retry":
             if item["status"] in ("error", "failed"):
                 item["status"] = "queued"
                 item["progress"] = 0
                 return {"ok": True, "item": self._item_view(item)}
-            return {"ok": False, "error": "invalid_state", "message": f"cannot retry {item['status']}"}
+            return {
+                "ok": False,
+                "error": "invalid_state",
+                "message": f"cannot retry {item['status']}",
+            }
         if action == "remove":
             self.items = [i for i in self.items if i["id"] != item_id]
             return {"ok": True, "removed": True, "item": self._item_view(item)}
@@ -162,7 +185,9 @@ class FakeBackend:
         for item in self.items:
             if item["status"] == "paused":
                 item["status"] = "downloading"
-            elif item["status"] == "queued" and not any(i["status"] == "downloading" for i in self.items):
+            elif item["status"] == "queued" and not any(
+                i["status"] == "downloading" for i in self.items
+            ):
                 item["status"] = "downloading"
         return {"ok": True, "action": "resume", "result": {"started": True}}
 
@@ -197,7 +222,9 @@ class FakeBackendHandler(MockBackendHandler):
 
     # Routes handled by FakeBackend (checked before reading body)
     _FAKE_POST_ROUTES = {
-        "/api/downloads", "/api/scheduler/pause", "/api/scheduler/resume",
+        "/api/downloads",
+        "/api/scheduler/pause",
+        "/api/scheduler/resume",
     }
 
     def do_GET(self) -> None:  # noqa: N802
@@ -210,7 +237,9 @@ class FakeBackendHandler(MockBackendHandler):
     def do_POST(self) -> None:  # noqa: N802
         path = self.path.split("?")[0]
         # Check if this is a FakeBackend route or a parameterized download action
-        if path not in self._FAKE_POST_ROUTES and not (path.startswith("/api/downloads/") and path.count("/") == 4):
+        if path not in self._FAKE_POST_ROUTES and not (
+            path.startswith("/api/downloads/") and path.count("/") == 4
+        ):
             super().do_POST()
             return
         length = int(self.headers.get("Content-Length", "0"))
@@ -238,12 +267,17 @@ def web_server():
 
     # Start fake backend
     backend_port = _allocate_port()
-    backend_server = ThreadingHTTPServer(("127.0.0.1", backend_port), FakeBackendHandler)
+    backend_server = ThreadingHTTPServer(
+        ("127.0.0.1", backend_port), FakeBackendHandler
+    )
     threading.Thread(target=backend_server.serve_forever, daemon=True).start()
     backend_url = f"http://127.0.0.1:{backend_port}"
 
     # Start web server pointing to fake backend
-    p = patch("ariaflow_dashboard.webapp.discover_http_services", return_value={"available": False, "items": [], "reason": "none"})
+    p = patch(
+        "ariaflow_dashboard.webapp.discover_http_services",
+        return_value={"available": False, "items": [], "reason": "none"},
+    )
     p.start()
     web_port = _allocate_port()
     web_srv = serve(host="127.0.0.1", port=web_port, backend_url=backend_url)
@@ -266,7 +300,9 @@ def browser_context(shared_browser):
 
 def refresh_and_wait(page: Page) -> None:
     """Trigger a JS refresh and wait for the queue to update."""
-    page.evaluate(f"{_ALPINE_EVAL}._consecutiveFailures = 0; {_ALPINE_EVAL}.lastRev = null")
+    page.evaluate(
+        f"{_ALPINE_EVAL}._consecutiveFailures = 0; {_ALPINE_EVAL}.lastRev = null"
+    )
     page.evaluate(f"{_ALPINE_EVAL}.refresh()")
     page.wait_for_timeout(500)
 
@@ -289,6 +325,7 @@ def item_has_badge(page: Page, text: str) -> bool:
 # The test — runs as one ordered sequence
 # ---------------------------------------------------------------------------
 
+
 class TestDownloadLifecycle:
     """Full lifecycle: add -> start -> progress -> pause -> resume -> pause queue ->
     resume queue -> force error -> retry -> force done -> remove."""
@@ -304,7 +341,10 @@ class TestDownloadLifecycle:
     def test_02_add_large_download(self, browser_context, web_server: str) -> None:
         page = browser_context.new_page()
         _goto(page, f"{web_server}/")
-        page.fill('input[x-model="urlInput"]', "https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso")
+        page.fill(
+            'input[x-model="urlInput"]',
+            "https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso",
+        )
         page.wait_for_timeout(300)
         page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].add()")
         page.wait_for_timeout(300)
@@ -316,14 +356,22 @@ class TestDownloadLifecycle:
         assert item_has_badge(page, "queued")
         page.close()
 
-    def test_03_start_engine_begins_download(self, browser_context, web_server: str) -> None:
+    def test_03_start_engine_begins_download(
+        self, browser_context, web_server: str
+    ) -> None:
         page = browser_context.new_page()
         _goto(page, f"{web_server}/")
-        page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].toggleScheduler()")
+        page.evaluate(
+            "document.querySelector('[x-data]')._x_dataStack[0].toggleScheduler()"
+        )
         page.wait_for_timeout(300)
         refresh_and_wait(page)
         text = queue_text(page)
-        assert item_has_badge(page, "downloading") or "active" in text.lower() or "%" in text
+        assert (
+            item_has_badge(page, "downloading")
+            or "active" in text.lower()
+            or "%" in text
+        )
         page.close()
 
     def test_04_progress_advances(self, browser_context, web_server: str) -> None:
@@ -349,9 +397,13 @@ class TestDownloadLifecycle:
         page.wait_for_timeout(300)
         refresh_and_wait(page)
         assert item_has_badge(page, "paused")
-        visible_pause = page.evaluate('''Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Pause').filter(b => getComputedStyle(b).display !== 'none').length''')
+        visible_pause = page.evaluate(
+            """Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Pause').filter(b => getComputedStyle(b).display !== 'none').length"""
+        )
         assert visible_pause == 0
-        visible_resume = page.evaluate('''Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Resume').filter(b => getComputedStyle(b).display !== 'none').length''')
+        visible_resume = page.evaluate(
+            """Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Resume').filter(b => getComputedStyle(b).display !== 'none').length"""
+        )
         assert visible_resume > 0
         page.close()
 
@@ -359,12 +411,12 @@ class TestDownloadLifecycle:
         page = browser_context.new_page()
         _goto(page, f"{web_server}/")
         refresh_and_wait(page)
-        resume_btn = page.evaluate('''(() => {
+        resume_btn = page.evaluate("""(() => {
             const btns = Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Resume');
             const visible = btns.find(b => getComputedStyle(b).display !== 'none');
             if (visible) visible.click();
             return !!visible;
-        })()''')
+        })()""")
         assert resume_btn, "Resume button should exist on paused item"
         page.wait_for_timeout(300)
         refresh_and_wait(page)
@@ -402,9 +454,13 @@ class TestDownloadLifecycle:
         _goto(page, f"{web_server}/")
         refresh_and_wait(page)
         assert item_has_badge(page, "error")
-        visible_retry = page.evaluate('''Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Retry').filter(b => getComputedStyle(b).display !== 'none').length''')
+        visible_retry = page.evaluate(
+            """Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Retry').filter(b => getComputedStyle(b).display !== 'none').length"""
+        )
         assert visible_retry > 0
-        visible_pause = page.evaluate('''Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Pause').filter(b => getComputedStyle(b).display !== 'none').length''')
+        visible_pause = page.evaluate(
+            """Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Pause').filter(b => getComputedStyle(b).display !== 'none').length"""
+        )
         assert visible_pause == 0
         page.close()
 
@@ -412,11 +468,11 @@ class TestDownloadLifecycle:
         page = browser_context.new_page()
         _goto(page, f"{web_server}/")
         refresh_and_wait(page)
-        page.evaluate('''(() => {
+        page.evaluate("""(() => {
             const btns = Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Retry');
             const visible = btns.find(b => getComputedStyle(b).display !== 'none');
             if (visible) visible.click();
-        })()''')
+        })()""")
         page.wait_for_timeout(300)
         refresh_and_wait(page)
         assert item_has_badge(page, "queued") or item_has_badge(page, "downloading")
@@ -429,9 +485,15 @@ class TestDownloadLifecycle:
         _goto(page, f"{web_server}/")
         refresh_and_wait(page)
         assert item_has_badge(page, "done")
-        visible_pause = page.evaluate('''Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Pause').filter(b => getComputedStyle(b).display !== 'none').length''')
-        visible_resume = page.evaluate('''Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Resume').filter(b => getComputedStyle(b).display !== 'none').length''')
-        visible_retry = page.evaluate('''Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Retry').filter(b => getComputedStyle(b).display !== 'none').length''')
+        visible_pause = page.evaluate(
+            """Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Pause').filter(b => getComputedStyle(b).display !== 'none').length"""
+        )
+        visible_resume = page.evaluate(
+            """Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Resume').filter(b => getComputedStyle(b).display !== 'none').length"""
+        )
+        visible_retry = page.evaluate(
+            """Array.from(document.querySelectorAll('button')).filter(b => b.textContent.trim() === 'Retry').filter(b => getComputedStyle(b).display !== 'none').length"""
+        )
         assert visible_pause == 0
         assert visible_resume == 0
         assert visible_retry == 0
@@ -454,23 +516,31 @@ class TestDownloadLifecycle:
         assert "ubuntu" not in text.lower()
         page.close()
 
-    def test_13_filter_counts_reflect_empty(self, browser_context, web_server: str) -> None:
+    def test_13_filter_counts_reflect_empty(
+        self, browser_context, web_server: str
+    ) -> None:
         page = browser_context.new_page()
         _goto(page, f"{web_server}/")
         refresh_and_wait(page)
-        all_btn = page.query_selector('.filter-bar .filter-btn')
+        all_btn = page.query_selector(".filter-bar .filter-btn")
         assert all_btn is not None
         text = all_btn.inner_text()
         assert "all" in text.lower()
         page.close()
 
-    def test_14_add_multiple_and_verify_filters(self, browser_context, web_server: str) -> None:
+    def test_14_add_multiple_and_verify_filters(
+        self, browser_context, web_server: str
+    ) -> None:
         """Add 3 items, put them in different states, verify filters work."""
         page = browser_context.new_page()
         _goto(page, f"{web_server}/")
 
         # Add 3 downloads
-        for url in ["https://example.com/file-a.bin", "https://example.com/file-b.bin", "https://example.com/file-c.bin"]:
+        for url in [
+            "https://example.com/file-a.bin",
+            "https://example.com/file-b.bin",
+            "https://example.com/file-c.bin",
+        ]:
             page.fill('input[x-model="urlInput"]', url)
             page.wait_for_timeout(200)
             page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].add()")
@@ -478,7 +548,9 @@ class TestDownloadLifecycle:
         refresh_and_wait(page)
 
         items = queue_items(page)
-        assert len(items) == 3, f"Expected 3, got {len(items)}, backend has {len(backend.items)} items"
+        assert len(items) == 3, (
+            f"Expected 3, got {len(items)}, backend has {len(backend.items)} items"
+        )
 
         # Force different states
         backend.force_error("dl-003")

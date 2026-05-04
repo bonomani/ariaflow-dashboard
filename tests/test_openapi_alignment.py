@@ -9,6 +9,7 @@ match what the frontend actually consumes).
 Skipped when the backend openapi.yaml isn't available (e.g. CI without the
 sibling repo).
 """
+
 from __future__ import annotations
 
 import json

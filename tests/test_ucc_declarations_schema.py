@@ -3,6 +3,7 @@
 Catches malformed edits to the UCC declaration artifact (e.g. mistyped
 preference names, count out of sync with known_unused).
 """
+
 from __future__ import annotations
 
 import json

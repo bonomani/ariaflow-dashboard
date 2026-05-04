@@ -1,4 +1,5 @@
 """Static file serving, path traversal, and HTML validation tests."""
+
 from __future__ import annotations
 
 import sys
@@ -44,6 +45,7 @@ class TestStaticFiles:
     def test_html_injects_pid_global(self, web_server: str) -> None:
         body = urllib.request.urlopen(f"{web_server}/", timeout=5).read().decode()
         import re as _re
+
         assert _re.search(r"window\.__ARIAFLOW_DASHBOARD_PID__=\d+;", body)
 
 
@@ -71,24 +73,41 @@ class TestPathTraversal:
 
 class TestHTMLValidation:
     def test_html_is_valid_structure(self, web_server: str) -> None:
-        soup = BeautifulSoup(urllib.request.urlopen(f"{web_server}/", timeout=5).read().decode(), "html.parser")
+        soup = BeautifulSoup(
+            urllib.request.urlopen(f"{web_server}/", timeout=5).read().decode(),
+            "html.parser",
+        )
         assert soup.find("html") and soup.find("head") and soup.find("body")
         assert soup.find("title").string == "ariaflow-dashboard"
 
     def test_all_ids_are_unique(self, web_server: str) -> None:
-        soup = BeautifulSoup(urllib.request.urlopen(f"{web_server}/", timeout=5).read().decode(), "html.parser")
+        soup = BeautifulSoup(
+            urllib.request.urlopen(f"{web_server}/", timeout=5).read().decode(),
+            "html.parser",
+        )
         ids = [el.get("id") for el in soup.find_all(id=True)]
         assert [i for i in ids if ids.count(i) > 1] == []
 
     def test_all_links_have_href(self, web_server: str) -> None:
-        soup = BeautifulSoup(urllib.request.urlopen(f"{web_server}/", timeout=5).read().decode(), "html.parser")
+        soup = BeautifulSoup(
+            urllib.request.urlopen(f"{web_server}/", timeout=5).read().decode(),
+            "html.parser",
+        )
         for link in soup.find_all("a"):
             assert link.get("href"), f"Link without href: {link}"
 
     def test_css_balanced_braces(self, web_server: str) -> None:
-        css = urllib.request.urlopen(f"{web_server}/static/style.css", timeout=5).read().decode()
+        css = (
+            urllib.request.urlopen(f"{web_server}/static/style.css", timeout=5)
+            .read()
+            .decode()
+        )
         assert css.count("{") == css.count("}")
 
     def test_js_balanced_parens(self, web_server: str) -> None:
-        js = urllib.request.urlopen(f"{web_server}/static/dist/app.js", timeout=5).read().decode()
+        js = (
+            urllib.request.urlopen(f"{web_server}/static/dist/app.js", timeout=5)
+            .read()
+            .decode()
+        )
         assert js.count("(") == js.count(")")

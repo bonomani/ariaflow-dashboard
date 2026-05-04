@@ -1,18 +1,17 @@
 """Shared fixtures for all test files."""
+
 from __future__ import annotations
 
 import json
-import os
+import socket
 import sys
-import tempfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
 
 import pytest
-from playwright.sync_api import sync_playwright, Page
+from playwright.sync_api import sync_playwright
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -85,19 +84,40 @@ DEFAULT_STATUS = {
         },
     ],
     "active": {
-        "gid": "aaa111", "url": "https://example.com/big.iso", "status": "active",
-        "downloadSpeed": 1048576, "totalLength": 104857600, "completedLength": 52428800, "percent": 50.0,
+        "gid": "aaa111",
+        "url": "https://example.com/big.iso",
+        "status": "active",
+        "downloadSpeed": 1048576,
+        "totalLength": 104857600,
+        "completedLength": 52428800,
+        "percent": 50.0,
     },
     "actives": [
         {
-            "gid": "aaa111", "url": "https://example.com/big.iso", "status": "active",
-            "downloadSpeed": 1048576, "totalLength": 104857600, "completedLength": 52428800, "percent": 50.0,
+            "gid": "aaa111",
+            "url": "https://example.com/big.iso",
+            "status": "active",
+            "downloadSpeed": 1048576,
+            "totalLength": 104857600,
+            "completedLength": 52428800,
+            "percent": 50.0,
         },
     ],
     "aria2": {"enabled": True, "reachable": True, "version": "1.36.0"},
-    "state": {"running": True, "paused": False, "session_id": "sess-001", "session_started_at": "2026-04-01T10:00:00"},
+    "state": {
+        "running": True,
+        "paused": False,
+        "session_id": "sess-001",
+        "session_started_at": "2026-04-01T10:00:00",
+    },
     "summary": {"queued": 1, "done": 1, "error": 1, "total": 5},
-    "bandwidth": {"source": "networkquality", "downlink_mbps": 100, "uplink_mbps": 20, "cap_mbps": 50, "interface_name": "en0"},
+    "bandwidth": {
+        "source": "networkquality",
+        "downlink_mbps": 100,
+        "uplink_mbps": 20,
+        "cap_mbps": 50,
+        "interface_name": "en0",
+    },
     "ariaflow": {"reachable": True, "version": "0.1.34", "pid": 1234},
     "health": {
         "disk_usage_percent": 42.0,
@@ -111,32 +131,116 @@ DEFAULT_STATUS = {
     },
 }
 
-DEFAULT_DECLARATION = {"uic": {"preferences": [
-    {"name": "auto_preflight_on_run", "value": False, "options": [True, False], "rationale": "default off"},
-    {"name": "max_simultaneous_downloads", "value": 1, "options": [1], "rationale": "sequential"},
-    {"name": "duplicate_active_transfer_action", "value": "remove", "options": ["remove", "pause", "ignore"], "rationale": "default"},
-    {"name": "post_action_rule", "value": "pending", "options": ["pending"], "rationale": "default"},
-]}, "ucc": {}, "policy": {}}
+DEFAULT_DECLARATION = {
+    "uic": {
+        "preferences": [
+            {
+                "name": "auto_preflight_on_run",
+                "value": False,
+                "options": [True, False],
+                "rationale": "default off",
+            },
+            {
+                "name": "max_simultaneous_downloads",
+                "value": 1,
+                "options": [1],
+                "rationale": "sequential",
+            },
+            {
+                "name": "duplicate_active_transfer_action",
+                "value": "remove",
+                "options": ["remove", "pause", "ignore"],
+                "rationale": "default",
+            },
+            {
+                "name": "post_action_rule",
+                "value": "pending",
+                "options": ["pending"],
+                "rationale": "default",
+            },
+        ]
+    },
+    "ucc": {},
+    "policy": {},
+}
 
 DEFAULT_LIFECYCLE = {
-    "ariaflow": {"meta": {"contract": "UCC"}, "result": {"outcome": "converged", "observation": "ok", "reason": "match", "message": "installed"}},
-    "aria2": {"meta": {"contract": "UCC"}, "result": {"outcome": "converged", "observation": "ok", "reason": "match", "message": "installed"}},
-    "networkquality": {"meta": {"contract": "UCC"}, "result": {"outcome": "converged", "observation": "ok", "reason": "ready", "message": "available"}},
-    "aria2-launchd": {"meta": {"contract": "UCC"}, "result": {"outcome": "converged", "observation": "ok", "reason": "match", "message": "loaded"}},
+    "ariaflow": {
+        "meta": {"contract": "UCC"},
+        "result": {
+            "outcome": "converged",
+            "observation": "ok",
+            "reason": "match",
+            "message": "installed",
+        },
+    },
+    "aria2": {
+        "meta": {"contract": "UCC"},
+        "result": {
+            "outcome": "converged",
+            "observation": "ok",
+            "reason": "match",
+            "message": "installed",
+        },
+    },
+    "networkquality": {
+        "meta": {"contract": "UCC"},
+        "result": {
+            "outcome": "converged",
+            "observation": "ok",
+            "reason": "ready",
+            "message": "available",
+        },
+    },
+    "aria2-launchd": {
+        "meta": {"contract": "UCC"},
+        "result": {
+            "outcome": "converged",
+            "observation": "ok",
+            "reason": "match",
+            "message": "loaded",
+        },
+    },
     "session_id": "sess-001",
     "session_started_at": "2026-04-01T10:00:00",
     "session_last_seen_at": "2026-04-01T10:05:00",
 }
 
-DEFAULT_LOG = {"items": [
-    {"action": "add", "outcome": "ok", "timestamp": "2026-04-01T10:00:00", "session_id": "sess-001", "target": "queue"},
-]}
+DEFAULT_LOG = {
+    "items": [
+        {
+            "action": "add",
+            "outcome": "ok",
+            "timestamp": "2026-04-01T10:00:00",
+            "session_id": "sess-001",
+            "target": "queue",
+        },
+    ]
+}
 
-DEFAULT_PREFLIGHT = {"status": "pass", "gates": [{"name": "aria2", "satisfied": True, "class": "gate", "blocking": "hard"}], "warnings": [], "hard_failures": []}
+DEFAULT_PREFLIGHT = {
+    "status": "pass",
+    "gates": [
+        {"name": "aria2", "satisfied": True, "class": "gate", "blocking": "hard"}
+    ],
+    "warnings": [],
+    "hard_failures": [],
+}
 
-DEFAULT_SCHEDULER = {"status": "running", "running": True, "paused": False, "session_id": "sess-001"}
+DEFAULT_SCHEDULER = {
+    "status": "running",
+    "running": True,
+    "paused": False,
+    "session_id": "sess-001",
+}
 
-DEFAULT_BANDWIDTH = {"source": "networkquality", "downlink_mbps": 100, "uplink_mbps": 20, "cap_mbps": 80, "interface_name": "eth0"}
+DEFAULT_BANDWIDTH = {
+    "source": "networkquality",
+    "downlink_mbps": 100,
+    "uplink_mbps": 20,
+    "cap_mbps": 80,
+    "interface_name": "eth0",
+}
 
 DEFAULT_SESSIONS = {"sessions": []}
 
@@ -146,11 +250,24 @@ DEFAULT_TORRENTS = {"torrents": []}
 
 DEFAULT_PEERS = {"peers": []}
 
-DEFAULT_ARIA2_GET_OPTION = {"ok": True, "gid": "aaa111", "options": {"max-connection-per-server": "8"}, "error": None, "message": None}
+DEFAULT_ARIA2_GET_OPTION = {
+    "ok": True,
+    "gid": "aaa111",
+    "options": {"max-connection-per-server": "8"},
+    "error": None,
+    "message": None,
+}
 
-DEFAULT_ARIA2_GET_GLOBAL_OPTION = {"ok": True, "options": {"max-overall-download-limit": "0", "max-concurrent-downloads": "5"}}
+DEFAULT_ARIA2_GET_GLOBAL_OPTION = {
+    "ok": True,
+    "options": {"max-overall-download-limit": "0", "max-concurrent-downloads": "5"},
+}
 
-DEFAULT_ARIA2_OPTION_TIERS = {"managed": ["max-overall-download-limit"], "safe": ["max-connection-per-server", "split"], "unsafe_enabled": False}
+DEFAULT_ARIA2_OPTION_TIERS = {
+    "managed": ["max-overall-download-limit"],
+    "safe": ["max-connection-per-server", "split"],
+    "unsafe_enabled": False,
+}
 
 DEFAULT_DOWNLOADS_ARCHIVE = {"items": []}
 
@@ -165,12 +282,19 @@ DEFAULT_HEALTH = {
     "bytes_sent_total": 67890,
 }
 
-DEFAULT_BANDWIDTH_PROBE = {"ok": True, "source": "networkquality", "downlink_mbps": 100, "uplink_mbps": 20, "cap_mbps": 80}
+DEFAULT_BANDWIDTH_PROBE = {
+    "ok": True,
+    "source": "networkquality",
+    "downlink_mbps": 100,
+    "uplink_mbps": 20,
+    "cap_mbps": 80,
+}
 
 
 # ---------------------------------------------------------------------------
 # Mock backend server (simulates ariaflow backend API)
 # ---------------------------------------------------------------------------
+
 
 class MockBackendHandler(BaseHTTPRequestHandler):
     """Handles API requests that the frontend sends directly to the backend."""
@@ -197,14 +321,22 @@ class MockBackendHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self) -> None:  # noqa: N802
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, OPTIONS")
+        self.send_header(
+            "Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, OPTIONS"
+        )
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
     def do_GET(self) -> None:  # noqa: N802
         path = self.path.split("?")[0]
         if path == "/api" or path == "/api/":
-            self._send({"name": "ariaflow", "version": "0.1.48", "endpoints": {"GET": [], "POST": []}})
+            self._send(
+                {
+                    "name": "ariaflow",
+                    "version": "0.1.48",
+                    "endpoints": {"GET": [], "POST": []},
+                }
+            )
         elif path == "/api/status":
             sd = type(self).status_data
             data = sd() if callable(sd) else sd
@@ -256,7 +388,13 @@ class MockBackendHandler(BaseHTTPRequestHandler):
 
         if path == "/api/downloads":
             items = payload.get("items", [])
-            self._send({"ok": True, "count": len(items), "added": [{"url": item.get("url", "")} for item in items]})
+            self._send(
+                {
+                    "ok": True,
+                    "count": len(items),
+                    "added": [{"url": item.get("url", "")} for item in items],
+                }
+            )
         elif path == "/api/scheduler/resume":
             self._send({"ok": True, "action": "resume", "result": {"started": True}})
         elif path == "/api/scheduler/pause":
@@ -264,7 +402,12 @@ class MockBackendHandler(BaseHTTPRequestHandler):
         elif path == "/api/scheduler/preflight":
             self._send(self.preflight_data)
         elif path == "/api/scheduler/ucc":
-            self._send({"result": {"outcome": "converged", "observation": "ok"}, "meta": {"contract": "UCC", "version": "1.0"}})
+            self._send(
+                {
+                    "result": {"outcome": "converged", "observation": "ok"},
+                    "meta": {"contract": "UCC", "version": "1.0"},
+                }
+            )
         elif path.startswith("/api/lifecycle/"):
             self._send({"ok": True, "lifecycle": self.lifecycle_data})
         elif path == "/api/sessions/new":
@@ -288,7 +431,9 @@ class MockBackendHandler(BaseHTTPRequestHandler):
                 if action == "files":
                     self._send({"ok": True, "selected": payload.get("select", [])})
                 elif action in {"pause", "resume", "remove", "retry"}:
-                    self._send({"ok": True, "item": {"id": parts[3], "status": "paused"}})
+                    self._send(
+                        {"ok": True, "item": {"id": parts[3], "status": "paused"}}
+                    )
                 else:
                     self._send({"error": "not_found"}, status=404)
             else:
@@ -307,7 +452,11 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/declaration":
-            self.declaration_data = payload if isinstance(payload, dict) and payload.get("uic") else self.declaration_data
+            self.declaration_data = (
+                payload
+                if isinstance(payload, dict) and payload.get("uic")
+                else self.declaration_data
+            )
             self._send(self.declaration_data)
         else:
             self._send({"error": "not_found"}, status=404)
@@ -334,8 +483,6 @@ class MockBackendHandler(BaseHTTPRequestHandler):
 # ---------------------------------------------------------------------------
 # Port allocator (avoids conflicts between test files)
 # ---------------------------------------------------------------------------
-
-import socket
 
 _next_port = 8770
 _port_lock = threading.Lock()
@@ -364,6 +511,7 @@ def _allocate_port() -> int:
 # Server factory
 # ---------------------------------------------------------------------------
 
+
 def start_mock_backend(**overrides: object) -> tuple:
     """Start a mock backend API server. Returns (url, server)."""
     port = _allocate_port()
@@ -384,27 +532,41 @@ def start_server(port: int | None = None, **mock_kwargs: object) -> tuple:
         port = _allocate_port()
     backend_url, backend_server, handler_cls = start_mock_backend(**mock_kwargs)
     from unittest.mock import patch
-    p = patch("ariaflow_dashboard.webapp.discover_http_services", return_value={"available": False, "items": [], "reason": "none"})
+
+    p = patch(
+        "ariaflow_dashboard.webapp.discover_http_services",
+        return_value={"available": False, "items": [], "reason": "none"},
+    )
     p.start()
     web_server = serve(host="127.0.0.1", port=port, backend_url=backend_url)
     thread = threading.Thread(target=web_server.serve_forever, daemon=True)
     thread.start()
     time.sleep(0.2)
-    return f"http://127.0.0.1:{port}", backend_url, web_server, backend_server, [p], handler_cls
+    return (
+        f"http://127.0.0.1:{port}",
+        backend_url,
+        web_server,
+        backend_server,
+        [p],
+        handler_cls,
+    )
 
 
-def stop_server(web_server: object, backend_server: object, patches: list | None = None) -> None:
+def stop_server(
+    web_server: object, backend_server: object, patches: list | None = None
+) -> None:
     web_server.shutdown()
     web_server.server_close()
     backend_server.shutdown()
     backend_server.server_close()
-    for p in (patches or []):
+    for p in patches or []:
         p.stop()
 
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="session")
 def playwright_instance():

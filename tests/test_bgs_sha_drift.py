@@ -7,6 +7,7 @@ agents see the message and can bump the pin.
 
 Skipped when BGSPrivate isn't reachable.
 """
+
 from __future__ import annotations
 
 import os
@@ -19,7 +20,9 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DECISION = REPO_ROOT / "docs" / "governance" / "bgs-decision.yaml"
-BGS_ROOT = Path(os.environ.get("ARIAFLOW_BGS_ROOT", str(REPO_ROOT.parent / "BGSPrivate")))
+BGS_ROOT = Path(
+    os.environ.get("ARIAFLOW_BGS_ROOT", str(REPO_ROOT.parent / "BGSPrivate"))
+)
 
 
 def _git_short_sha(repo: Path) -> str | None:

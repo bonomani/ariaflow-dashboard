@@ -1,4 +1,5 @@
 """Screenshot tests and JS error detection on all pages."""
+
 from __future__ import annotations
 
 import sys
@@ -14,6 +15,7 @@ from conftest import start_server, stop_server  # noqa: E402
 
 pytestmark = pytest.mark.slow
 SCREENSHOT_DIR = Path(__file__).resolve().parent / "screenshots"
+
 
 def _goto(page: Page, url: str) -> None:
     page.goto(url)
@@ -43,15 +45,20 @@ def page(browser_context, web_server) -> Page:
 
 
 class TestScreenshots:
-    @pytest.mark.parametrize("path,name,expected_text", [
-        ("/", "dashboard", "ariaflow"),
-        ("/bandwidth", "bandwidth", "Bandwidth"),
-        ("/lifecycle", "lifecycle", "Service Status"),
-        ("/options", "options", "Options"),
-        ("/log", "log", "Log"),
-        ("/dev", "dev", "Developer"),
-    ])
-    def test_page_screenshot(self, page: Page, web_server: str, path: str, name: str, expected_text: str) -> None:
+    @pytest.mark.parametrize(
+        "path,name,expected_text",
+        [
+            ("/", "dashboard", "ariaflow"),
+            ("/bandwidth", "bandwidth", "Bandwidth"),
+            ("/lifecycle", "lifecycle", "Service Status"),
+            ("/options", "options", "Options"),
+            ("/log", "log", "Log"),
+            ("/dev", "dev", "Developer"),
+        ],
+    )
+    def test_page_screenshot(
+        self, page: Page, web_server: str, path: str, name: str, expected_text: str
+    ) -> None:
         _goto(page, f"{web_server}{path}")
         page.wait_for_timeout(800)
         shot = SCREENSHOT_DIR / f"{name}.png"
@@ -62,16 +69,22 @@ class TestScreenshots:
     def test_dashboard_has_queue_items(self, page: Page, web_server: str) -> None:
         _goto(page, f"{web_server}/")
         page.wait_for_selector(".item.compact:not(.add-card)", timeout=8000)
-        page.screenshot(path=str(SCREENSHOT_DIR / "dashboard_with_items.png"), full_page=True)
+        page.screenshot(
+            path=str(SCREENSHOT_DIR / "dashboard_with_items.png"), full_page=True
+        )
         assert len(page.query_selector_all(".item.compact:not(.add-card)")) >= 1
 
     def test_dark_and_light_theme(self, page: Page, web_server: str) -> None:
         _goto(page, f"{web_server}/")
-        page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].applyTheme('dark')")
+        page.evaluate(
+            "document.querySelector('[x-data]')._x_dataStack[0].applyTheme('dark')"
+        )
         page.wait_for_timeout(300)
         page.screenshot(path=str(SCREENSHOT_DIR / "theme_dark.png"))
         dark = (SCREENSHOT_DIR / "theme_dark.png").stat().st_size
-        page.evaluate("document.querySelector('[x-data]')._x_dataStack[0].applyTheme('light')")
+        page.evaluate(
+            "document.querySelector('[x-data]')._x_dataStack[0].applyTheme('light')"
+        )
         page.wait_for_timeout(300)
         page.screenshot(path=str(SCREENSHOT_DIR / "theme_light.png"))
         light = (SCREENSHOT_DIR / "theme_light.png").stat().st_size
@@ -88,7 +101,9 @@ class TestScreenshots:
 
 
 class TestNoJSErrors:
-    @pytest.mark.parametrize("path", ["/", "/bandwidth", "/lifecycle", "/options", "/log", "/dev"])
+    @pytest.mark.parametrize(
+        "path", ["/", "/bandwidth", "/lifecycle", "/options", "/log", "/dev"]
+    )
     def test_no_js_errors(self, page: Page, web_server: str, path: str) -> None:
         errors: list[str] = []
         page.on("pageerror", lambda e: errors.append(str(e)))

@@ -3,6 +3,7 @@
 Browse _ariaflow-server._tcp and register _ariaflow-dashboard._tcp on the local network.
 Uses dns-sd (macOS/Windows) or avahi-browse (Linux).
 """
+
 from __future__ import annotations
 
 import platform
@@ -50,6 +51,7 @@ def _run_timeout(cmd: list[str], timeout: float) -> str:
     """
     import threading
     import time as _time
+
     try:
         proc = subprocess.Popen(
             cmd,
@@ -114,6 +116,7 @@ def _resolve_to_ip(host: str) -> str | None:
 # Local machine identity (hostname, interfaces, primary IP)
 # ---------------------------------------------------------------------------
 
+
 def local_hostname() -> str:
     """Return the short local hostname (e.g. 'bc-mac-mini')."""
     try:
@@ -167,6 +170,7 @@ def local_identity() -> dict[str, object]:
 # ---------------------------------------------------------------------------
 # dns-sd (macOS / Windows)
 # ---------------------------------------------------------------------------
+
 
 def _dnssd_browse(timeout: float) -> list[str]:
     binary = _dns_sd_path()
@@ -230,7 +234,7 @@ def _dnssd_discover(timeout: float) -> list[dict[str, object]]:
 # avahi-browse -rpt output:
 # =;eth0;IPv4;instance name;_ariaflow-server._tcp;local;hostname.local;192.168.1.x;8080;"path=/api" "tls=0"
 _AVAHI_RESOLVE_RE = re.compile(
-    r'^=;[^;]*;[^;]*;([^;]*);_ariaflow-server\._tcp;[^;]*;([^;]*);([^;]*);(\d+);(.*)$'
+    r"^=;[^;]*;[^;]*;([^;]*);_ariaflow-server\._tcp;[^;]*;([^;]*);([^;]*);(\d+);(.*)$"
 )
 
 
@@ -241,7 +245,10 @@ def _avahi_discover(timeout: float) -> list[dict[str, object]]:
     try:
         completed = subprocess.run(
             [binary, "-rpt", _BROWSE_SERVICE_TYPE],
-            capture_output=True, text=True, timeout=timeout, check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
         )
         output = completed.stdout or ""
     except subprocess.TimeoutExpired as exc:
@@ -266,24 +273,27 @@ def _avahi_discover(timeout: float) -> list[dict[str, object]]:
         tls = txt.get("tls", "0")
         scheme = "https" if tls == "1" else "http"
         url_host = ip or host
-        items.append({
-            "name": name,
-            "host": host,
-            "ip": ip,
-            "port": port,
-            "url": f"{scheme}://{url_host}:{port}",
-            "path": path,
-            "role": txt.get("role"),
-            "product": txt.get("product"),
-            "version": txt.get("version"),
-            "txt_hostname": txt.get("hostname"),
-        })
+        items.append(
+            {
+                "name": name,
+                "host": host,
+                "ip": ip,
+                "port": port,
+                "url": f"{scheme}://{url_host}:{port}",
+                "path": path,
+                "role": txt.get("role"),
+                "product": txt.get("product"),
+                "version": txt.get("version"),
+                "txt_hostname": txt.get("hostname"),
+            }
+        )
     return items
 
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def discover_http_services(timeout: float = 3.0) -> dict[str, object]:
     """Discover ariaflow backends on the local network via mDNS."""

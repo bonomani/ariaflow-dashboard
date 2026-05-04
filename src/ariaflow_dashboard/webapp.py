@@ -29,9 +29,9 @@ DEFAULT_BACKEND_URL = "http://127.0.0.1:8000"
 # dashboard server owns. Surfaced at GET /api/_meta and stamped into each
 # response under `meta`.
 _DASHBOARD_META: list[dict] = [
-    {"method": "GET", "path": "/api/_meta",     "freshness": "bootstrap"},
+    {"method": "GET", "path": "/api/_meta", "freshness": "bootstrap"},
     {"method": "GET", "path": "/api/discovery", "freshness": "warm", "ttl_s": 30},
-    {"method": "GET", "path": "/api/web/log",   "freshness": "warm", "ttl_s": 30},
+    {"method": "GET", "path": "/api/web/log", "freshness": "warm", "ttl_s": 30},
 ]
 
 
@@ -44,6 +44,7 @@ def _meta_for(path: str) -> dict:
 
 def _read_index_html(backend_url: str | None = None) -> str:
     from . import __version__
+
     text = _DIST_INDEX.read_text(encoding="utf-8")
     identity = local_identity()
     globals_js = (
@@ -66,7 +67,6 @@ INDEX_HTML = _read_index_html()
 
 
 class AriaFlowHandler(BaseHTTPRequestHandler):
-
     def _send_json(self, payload: dict, status: int = 200) -> None:
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         self.send_response(status)
@@ -78,7 +78,16 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         path = parsed.path
-        if path in {"/", "/index.html", "/bandwidth", "/lifecycle", "/options", "/log", "/dev", "/archive"}:
+        if path in {
+            "/",
+            "/index.html",
+            "/bandwidth",
+            "/lifecycle",
+            "/options",
+            "/log",
+            "/dev",
+            "/archive",
+        }:
             body = INDEX_HTML.encode("utf-8")
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -88,7 +97,7 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
             record_action(action="serve", target="page", outcome="ok", reason=path)
             return
         if path.startswith("/static/"):
-            rel = path[len("/static/"):]
+            rel = path[len("/static/") :]
             file_path = _STATIC_DIR / rel
             try:
                 file_path = file_path.resolve()
@@ -99,7 +108,10 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "error": "not_found"}, status=404)
                 return
             suffix = file_path.suffix.lower()
-            ct = _CONTENT_TYPES.get(suffix, mimetypes.guess_type(str(file_path))[0] or "application/octet-stream")
+            ct = _CONTENT_TYPES.get(
+                suffix,
+                mimetypes.guess_type(str(file_path))[0] or "application/octet-stream",
+            )
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", ct)
             self.send_header("Content-Length", str(len(data)))
@@ -107,7 +119,13 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
             self.wfile.write(data)
             return
         if path == "/api/_meta":
-            self._send_json({"ok": True, "endpoints": _DASHBOARD_META, "meta": _meta_for("/api/_meta")})
+            self._send_json(
+                {
+                    "ok": True,
+                    "endpoints": _DASHBOARD_META,
+                    "meta": _meta_for("/api/_meta"),
+                }
+            )
             return
         if path == "/api/discovery":
             result = discover_http_services()
@@ -117,7 +135,9 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
             item_list = items if isinstance(items, list) else []
             urls = [str(i.get("url", "")) for i in item_list if isinstance(i, dict)]
             record_action(
-                action="discover", target="bonjour", outcome="ok" if result.get("available") else "skipped",
+                action="discover",
+                target="bonjour",
+                outcome="ok" if result.get("available") else "skipped",
                 reason=str(result.get("reason", "")),
                 detail={"count": len(item_list), "urls": urls},
             )
@@ -125,12 +145,14 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
         if path == "/api/web/log":
             qs = parse_qs(parsed.query)
             limit = min(int(qs.get("limit", ["200"])[0]), 500)
-            self._send_json({
-                "ok": True,
-                "items": load_action_log(limit),
-                "source": "ariaflow-dashboard",
-                "meta": _meta_for("/api/web/log"),
-            })
+            self._send_json(
+                {
+                    "ok": True,
+                    "items": load_action_log(limit),
+                    "source": "ariaflow-dashboard",
+                    "meta": _meta_for("/api/web/log"),
+                }
+            )
             return
         self._send_json({"ok": False, "error": "not_found"}, status=404)
 
@@ -138,13 +160,23 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
         return
 
 
-def serve(host: str = "127.0.0.1", port: int = 8000, backend_url: str | None = None) -> ThreadingHTTPServer:
+def serve(
+    host: str = "127.0.0.1", port: int = 8000, backend_url: str | None = None
+) -> ThreadingHTTPServer:
     global INDEX_HTML  # noqa: PLW0603
     if backend_url:
         INDEX_HTML = _read_index_html(backend_url)
     from . import __version__
+
     record_action(
-        action="start", target="server", outcome="ok",
-        detail={"host": host, "port": port, "backend_url": backend_url or DEFAULT_BACKEND_URL, "version": __version__},
+        action="start",
+        target="server",
+        outcome="ok",
+        detail={
+            "host": host,
+            "port": port,
+            "backend_url": backend_url or DEFAULT_BACKEND_URL,
+            "version": __version__,
+        },
     )
     return ThreadingHTTPServer((host, port), AriaFlowHandler)

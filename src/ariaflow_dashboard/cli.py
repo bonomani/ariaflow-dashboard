@@ -13,8 +13,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8001)
-    parser.add_argument("--backend", default=None, help="Backend URL (default: http://127.0.0.1:8000)")
-    parser.add_argument("--version", action="version", version=f"ariaflow-dashboard {__version__}")
+    parser.add_argument(
+        "--backend", default=None, help="Backend URL (default: http://127.0.0.1:8000)"
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"ariaflow-dashboard {__version__}"
+    )
     return parser
 
 

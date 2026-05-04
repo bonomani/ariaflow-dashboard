@@ -6,6 +6,7 @@ __version__ = "0.1.359"
 def _detect_install_mode() -> str:
     """Return 'git' if running from a git checkout, 'release' otherwise."""
     from pathlib import Path
+
     repo_root = Path(__file__).resolve().parent.parent.parent
     if (repo_root / ".git").exists():
         return "git"
