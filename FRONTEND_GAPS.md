@@ -1,17 +1,6 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (3)
-
-### FE-27: Snapshot test asserting unread `/api/status` payload keys are gone (paired with BG-35)
-
-After BG-35 ships, add a frontend snapshot regression test asserting
-that `dispatch_paused` (top-level) and `filtered` no longer appear in
-the `/api/status` response shape consumed by this dashboard. Mirrors
-the BG-33 negative-snapshot pattern (`state.paused`, `summary.stopped`,
-`status:"stopped"`) on the FE side so any future drift is caught
-before it lands.
-
-Blocked by: BG-35.
+## Open (2)
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 
@@ -43,6 +32,7 @@ _End of open gaps._
 
 | ID | Summary | Date |
 |----|---------|------|
+| FE-27 | Negative-snapshot tests added in `static/ts/status_legacy_keys.test.ts`. Four assertions scan `static/ts/*.ts` source for forbidden patterns: top-level `data.dispatch_paused` reads (canonical: `state.dispatch_paused`), `state.paused` (BG-33), `summary.stopped` (BG-33), and `.filtered` reads on a status payload (BG-35). Verified live 2026-05-04 against running backend: `/api/status` has `dispatch_paused` only on `state` and no `filtered` key anywhere — BG-35's effect shipped, even though the backend agent's Resolved table doesn't list it explicitly | 2026-05-04 |
 | FE-24 | Per-endpoint freshness routing + Dev-tab map shipped end-to-end. `FreshnessRouter` (`static/ts/freshness.ts`) consumes BG-31's `/api/_meta`, dispatches per class (live/warm/swr/cold/on-action/bootstrap/derived), ref-counts subscribers, and exposes `status()` for the Dev tab Freshness map (HTML rendered in `_fragments/tab_dev.html`, columns: Endpoint / Class / TTL / Subscribers / Host visibility / Last fetch / Active). Visibility wiring (`wireHostVisibility` in `freshness-bootstrap.ts`) hooks `document.visibilitychange` + host postMessage. `npm run freshness:snapshot` (`scripts/freshness-snapshot.mjs`) writes a build-time markdown audit. Followups (FE-26 TAB_SUBS migration, FE-31 host-aware fetcher) closed the original LOCAL_METAS sync hazards | 2026-05-04 |
 | FE-31 | FreshnessRouter is now host-aware. `EndpointMeta.host: 'backend' \| 'dashboard'` plumbed through `runFetch` → `RouterAdapters.fetchJson(method, path, params, host)`. `bootstrapFreshnessRouter` takes optional `dashboardMetaUrl` and fetches both `/api/_meta` documents, tagging each endpoint with its origin. The app-level fetcher branches on `host`: `'dashboard'` fetches same-origin (port 8001), `'backend'` (default) routes via `apiPath()` to the selected backend. `LOCAL_METAS` shrinks to just `/api/aria2/option_tiers`. New e2e test asserts `/api/web/log` is fetched same-origin and never reaches the backend mock | 2026-05-04 |
 | FE-32 | Playwright e2e smoke harness (`e2e/ui-smoke.spec.ts`): six tests covering header webVersion/webPid injection, dev tab Runtime/Spec version chips + drift badge, archive `'removed'` fallback, freshness map render, lifecycle row paint. `init()` now calls `loadSpecVersion()` for direct `/dev` loads. Drive-by: `canonical-routes.spec.ts` `selectedBackend` localStorage typo fixed and its `/api/_meta` mock seeded with the endpoints the test asserts (`/api/aria2/global_option`, `/api/declaration` with revalidate triggers); all 9 e2e tests now green | 2026-05-04 |
