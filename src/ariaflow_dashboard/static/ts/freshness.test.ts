@@ -356,7 +356,7 @@ test('subscribe with params: passes them to fetchJson and refetches on change', 
   advance(fakeClock, 0);
   await tick();
   assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0].params, { limit: 100 });
+  assert.deepEqual(calls[0]!.params, { limit: 100 });
 
   // Same params → no new fetch on resubscribe
   r.unsubscribe('GET', '/api/downloads/archive', 'archive');
@@ -370,7 +370,7 @@ test('subscribe with params: passes them to fetchJson and refetches on change', 
   advance(fakeClock, 0);
   await tick();
   assert.equal(calls.length, 2);
-  assert.deepEqual(calls[1].params, { limit: 200 });
+  assert.deepEqual(calls[1]!.params, { limit: 200 });
 });
 
 test('onUpdate exception is isolated — other subscribers still fire', async () => {
