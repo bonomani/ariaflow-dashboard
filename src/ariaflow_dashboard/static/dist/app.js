@@ -1041,7 +1041,7 @@ var FreshnessRouter = class {
     if (!ep) return void 0;
     if (ep.inflight) return ep.inflight;
     this.log(key, "fetch-start");
-    const promise = this.adapters.fetchJson(ep.meta.method, ep.meta.path, ep.currentParams).then((value) => {
+    const promise = this.adapters.fetchJson(ep.meta.method, ep.meta.path, ep.currentParams, ep.meta.host).then((value) => {
       ep.lastValue = value;
       ep.lastFetchAt = this.adapters.now();
       ep.inflight = null;
@@ -1081,28 +1081,41 @@ var FreshnessRouter = class {
 };
 
 // src/ariaflow_dashboard/static/ts/freshness-bootstrap.ts
-async function bootstrapFreshnessRouter(adapters) {
-  let body;
+async function fetchMeta(adapters, url, host) {
   try {
-    const raw = await adapters.fetchJson("GET", new URL(adapters.metaUrl()).pathname);
-    body = raw;
+    const raw = await adapters.fetchJson("GET", new URL(url, "http://x").pathname, void 0, host);
+    return raw;
   } catch {
     return null;
   }
-  if (!body || body.ok === false || !Array.isArray(body.endpoints)) return null;
-  const router = new FreshnessRouter(adapters);
+}
+function registerEndpoints(router, body, host) {
+  if (!body || body.ok === false || !Array.isArray(body.endpoints)) return;
   for (const m of body.endpoints) {
     if (!m.method || !m.path || !m.freshness) continue;
     const meta = {
       method: m.method,
       path: m.path,
-      freshness: m.freshness
+      freshness: m.freshness,
+      host
     };
     if (m.ttl_s !== void 0) meta.ttl_s = m.ttl_s;
     if (m.revalidate_on !== void 0) meta.revalidate_on = m.revalidate_on;
     if (m.transport !== void 0) meta.transport = m.transport;
     if (m.transport_topics !== void 0) meta.transport_topics = m.transport_topics;
     router.registerMeta(meta);
+  }
+}
+async function bootstrapFreshnessRouter(adapters) {
+  const backendBody = await fetchMeta(adapters, adapters.metaUrl(), "backend");
+  if (!backendBody || backendBody.ok === false || !Array.isArray(backendBody.endpoints)) {
+    return null;
+  }
+  const router = new FreshnessRouter(adapters);
+  registerEndpoints(router, backendBody, "backend");
+  if (adapters.dashboardMetaUrl) {
+    const dashboardBody = await fetchMeta(adapters, adapters.dashboardMetaUrl(), "dashboard");
+    registerEndpoints(router, dashboardBody, "dashboard");
   }
   return router;
 }
@@ -1629,13 +1642,11 @@ document.addEventListener("alpine:init", () => {
         }
       ]
     },
-    // FE-26: synthetic metadata for endpoints not in the backend's /api/_meta.
-    // /api/web/log lives on the dashboard server (port 8001) — declared there
-    // at /api/_meta and mirrored here so the FreshnessRouter (which only
-    // queries the selected backend) still routes it. Keep the two declarations
-    // in sync with _DASHBOARD_META in webapp.py.
+    // FE-31: dashboard-served endpoints (/api/web/log, /api/discovery)
+    // now arrive via the dashboard's /api/_meta. /api/aria2/option_tiers
+    // is the only remaining synthetic mirror — it's a backend endpoint
+    // that BG-34 didn't include in the backend /api/_meta registry.
     LOCAL_METAS: [
-      { method: "GET", path: "/api/web/log", freshness: "warm", ttl_s: 30 },
       { method: "GET", path: "/api/aria2/option_tiers", freshness: "cold" }
     ],
     _tabHidden: false,
@@ -1823,11 +1834,12 @@ document.addEventListener("alpine:init", () => {
       try {
         const router = await bootstrapFreshnessRouter({
           metaUrl: () => this.apiPath("/api/_meta"),
+          dashboardMetaUrl: () => "/api/_meta",
           now: () => Date.now(),
           setTimer: (cb, ms) => setTimeout(cb, ms),
           clearTimer: (token) => clearTimeout(token),
-          fetchJson: async (method, path, params) => {
-            let url = this.apiPath(path);
+          fetchJson: async (method, path, params, host) => {
+            let url = host === "dashboard" ? path : this.apiPath(path);
             if (params) {
               const qs = new URLSearchParams();
               for (const [k, v] of Object.entries(params)) qs.set(k, String(v));

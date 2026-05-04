@@ -25,6 +25,8 @@ export type FreshnessClass =
   | 'swr'
   | 'derived';
 
+export type EndpointHost = 'backend' | 'dashboard';
+
 export interface EndpointMeta {
   method: string;
   path: string;
@@ -33,6 +35,10 @@ export interface EndpointMeta {
   revalidate_on?: string[];
   transport?: 'sse';
   transport_topics?: string[];
+  /** Origin to fetch from. 'backend' (default) goes through apiPath() to the
+   *  selected ariaflow-server. 'dashboard' goes same-origin to the dashboard
+   *  server (port 8001). FE-31. */
+  host?: EndpointHost;
 }
 
 export type EndpointKey = string; // "GET /api/lifecycle"
@@ -45,8 +51,10 @@ export type QueryParams = Record<string, string | number>;
 
 export interface RouterAdapters {
   /** Performs a one-shot fetch. Resolves with parsed JSON or rejects.
-   *  `params` is the current subscriber-supplied query string, if any. */
-  fetchJson: (method: string, path: string, params?: QueryParams) => Promise<unknown>;
+   *  `params` is the current subscriber-supplied query string, if any.
+   *  `host` selects the origin (FE-31): 'backend' (default) routes
+   *  through apiPath(); 'dashboard' fetches same-origin (port 8001). */
+  fetchJson: (method: string, path: string, params?: QueryParams, host?: EndpointHost) => Promise<unknown>;
   /** Returns current monotonic time in ms. Override in tests. */
   now: () => number;
   /** Schedule a callback after `ms`. Returns a token cancellable via clearTimer. */
@@ -344,7 +352,7 @@ export class FreshnessRouter {
     if (ep.inflight) return ep.inflight;
     this.log(key, 'fetch-start');
     const promise = this.adapters
-      .fetchJson(ep.meta.method, ep.meta.path, ep.currentParams)
+      .fetchJson(ep.meta.method, ep.meta.path, ep.currentParams, ep.meta.host)
       .then((value) => {
         ep.lastValue = value;
         ep.lastFetchAt = this.adapters.now();

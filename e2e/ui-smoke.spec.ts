@@ -150,6 +150,33 @@ test('freshness map renders endpoints declared by /api/_meta', async ({ page }) 
   await expect(page.locator('table')).toContainText('/api/lifecycle');
 });
 
+test('FE-31: /api/web/log is fetched same-origin, not via the backend', async ({ page }) => {
+  // Two interceptors recording where /api/web/log requests land:
+  // - same-origin (dashboard server, port 8770 per playwright config)
+  // - backend mock (localhost:9999)
+  // Only the same-origin counter should increment.
+  const sameOrigin: string[] = [];
+  const backendOrigin: string[] = [];
+  await setupBackend(page);
+  await page.route('http://127.0.0.1:8770/api/web/log*', (route, request) => {
+    sameOrigin.push(request.url());
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, items: [], source: 'ariaflow-dashboard', meta: { freshness: 'warm', ttl_s: 30 } }),
+    });
+  });
+  await page.route(`${BACKEND}/api/web/log*`, (route, request) => {
+    backendOrigin.push(request.url());
+    return route.fulfill({ status: 404, contentType: 'application/json', body: '{"ok":false}' });
+  });
+  // Visit the Log tab so the router subscribes to /api/web/log.
+  await page.goto('/log');
+  await page.waitForTimeout(400);
+
+  expect(sameOrigin.length, `expected at least one same-origin /api/web/log fetch; got ${sameOrigin.length}`).toBeGreaterThan(0);
+  expect(backendOrigin, 'backend should not be hit for /api/web/log').toEqual([]);
+});
+
 test('lifecycle tab paints rows from /api/lifecycle', async ({ page }) => {
   await setupBackend(page);
   await page.goto('/lifecycle');

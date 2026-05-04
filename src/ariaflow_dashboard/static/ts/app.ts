@@ -460,13 +460,11 @@ document.addEventListener('alpine:init', () => {
         },
       ],
     },
-    // FE-26: synthetic metadata for endpoints not in the backend's /api/_meta.
-    // /api/web/log lives on the dashboard server (port 8001) — declared there
-    // at /api/_meta and mirrored here so the FreshnessRouter (which only
-    // queries the selected backend) still routes it. Keep the two declarations
-    // in sync with _DASHBOARD_META in webapp.py.
+    // FE-31: dashboard-served endpoints (/api/web/log, /api/discovery)
+    // now arrive via the dashboard's /api/_meta. /api/aria2/option_tiers
+    // is the only remaining synthetic mirror — it's a backend endpoint
+    // that BG-34 didn't include in the backend /api/_meta registry.
     LOCAL_METAS: [
-      { method: 'GET', path: '/api/web/log',            freshness: 'warm', ttl_s: 30 },
       { method: 'GET', path: '/api/aria2/option_tiers', freshness: 'cold' },
     ],
     _tabHidden: false,
@@ -635,11 +633,14 @@ document.addEventListener('alpine:init', () => {
       try {
         const router = await bootstrapFreshnessRouter({
           metaUrl: () => this.apiPath('/api/_meta'),
+          dashboardMetaUrl: () => '/api/_meta',
           now: () => Date.now(),
           setTimer: (cb, ms) => setTimeout(cb, ms),
           clearTimer: (token) => clearTimeout(token),
-          fetchJson: async (method, path, params) => {
-            let url = this.apiPath(path);
+          fetchJson: async (method, path, params, host) => {
+            // FE-31: dashboard-served endpoints fetch same-origin; backend-
+            // served endpoints route via apiPath() to the selected backend.
+            let url = host === 'dashboard' ? path : this.apiPath(path);
             if (params) {
               const qs = new URLSearchParams();
               for (const [k, v] of Object.entries(params)) qs.set(k, String(v));

@@ -7,6 +7,7 @@
 
 import {
   FreshnessRouter,
+  type EndpointHost,
   type EndpointMeta,
   type RouterAdapters,
   type FreshnessClass,
@@ -28,33 +29,59 @@ interface MetaResponse {
 export interface BootstrapAdapters extends RouterAdapters {
   /** apiPath('/api/_meta') style — handles backend prefix / origin. */
   metaUrl: () => string;
+  /** Same-origin '/api/_meta' on the dashboard server (FE-31). Optional;
+   *  if omitted, dashboard endpoints (e.g. /api/web/log) must come from
+   *  app-level synthetic registration. */
+  dashboardMetaUrl?: () => string;
 }
 
-export async function bootstrapFreshnessRouter(
+async function fetchMeta(
   adapters: BootstrapAdapters,
-): Promise<FreshnessRouter | null> {
-  let body: MetaResponse;
+  url: string,
+  host: EndpointHost,
+): Promise<MetaResponse | null> {
   try {
-    const raw = await adapters.fetchJson('GET', new URL(adapters.metaUrl()).pathname);
-    body = raw as MetaResponse;
+    const raw = await adapters.fetchJson('GET', new URL(url, 'http://x').pathname, undefined, host);
+    return raw as MetaResponse;
   } catch {
     return null;
   }
-  if (!body || body.ok === false || !Array.isArray(body.endpoints)) return null;
+}
 
-  const router = new FreshnessRouter(adapters);
+function registerEndpoints(
+  router: FreshnessRouter,
+  body: MetaResponse | null,
+  host: EndpointHost,
+): void {
+  if (!body || body.ok === false || !Array.isArray(body.endpoints)) return;
   for (const m of body.endpoints) {
     if (!m.method || !m.path || !m.freshness) continue;
     const meta: EndpointMeta = {
       method: m.method,
       path: m.path,
       freshness: m.freshness,
+      host,
     };
     if (m.ttl_s !== undefined) meta.ttl_s = m.ttl_s;
     if (m.revalidate_on !== undefined) meta.revalidate_on = m.revalidate_on;
     if (m.transport !== undefined) meta.transport = m.transport;
     if (m.transport_topics !== undefined) meta.transport_topics = m.transport_topics;
     router.registerMeta(meta);
+  }
+}
+
+export async function bootstrapFreshnessRouter(
+  adapters: BootstrapAdapters,
+): Promise<FreshnessRouter | null> {
+  const backendBody = await fetchMeta(adapters, adapters.metaUrl(), 'backend');
+  if (!backendBody || backendBody.ok === false || !Array.isArray(backendBody.endpoints)) {
+    return null;
+  }
+  const router = new FreshnessRouter(adapters);
+  registerEndpoints(router, backendBody, 'backend');
+  if (adapters.dashboardMetaUrl) {
+    const dashboardBody = await fetchMeta(adapters, adapters.dashboardMetaUrl(), 'dashboard');
+    registerEndpoints(router, dashboardBody, 'dashboard');
   }
   return router;
 }
