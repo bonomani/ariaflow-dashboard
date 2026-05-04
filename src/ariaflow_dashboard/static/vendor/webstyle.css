@@ -256,8 +256,11 @@
 }
 
 /* ── Light theme overrides ─────────────────────────────────
-   Add data-theme="light" on <html> to switch. */
-:root[data-theme="light"] {
+   Set data-theme="light" on <html> to switch globally, or on any
+   `.ws-app` wrapper for scoped adoption. The bare attribute
+   selector cascades token overrides into whichever subtree it sits
+   on — closest match wins. */
+[data-theme="light"] {
   color-scheme: light;
   /* Default light = Aurora Vivid light. The compositions in :root above
      auto-update once we redefine the triplets — they read variables. */
@@ -319,18 +322,18 @@
    ============================================================ */
 
 /* ── Aurora Vivid — explicit alias of the default palette ──── */
-:root[data-palette="aurora-vivid"] {
+[data-palette="aurora-vivid"] {
   /* Same as :root above. Declared here so consumers can write the
      attribute explicitly without losing the default values. */
 }
-:root[data-palette="aurora-vivid"][data-theme="light"] {
-  /* Same as :root[data-theme="light"]. */
+[data-palette="aurora-vivid"][data-theme="light"] {
+  /* Same as [data-theme="light"]. */
 }
 
 /* ── Nord Aurora — Nord palette (Arctic Ice Studio) ──────────
    Sober, scientific, low-saturation. Ideal for observability
    dashboards and admin tools — long screen-time without fatigue. */
-:root[data-palette="nord-aurora"] {
+[data-palette="nord-aurora"] {
   /* DARK — Nord palette by Arctic Ice Studio */
   --ws-accent-rgb: 136 192 208;        /* frost #2 */
   --ws-accent-2-rgb: 143 188 187;      /* frost #1 */
@@ -363,7 +366,7 @@
   --ws-shadow-overlay: 0 24px 64px rgb(var(--ws-shadow-rgb) / var(--ws-alpha-shadow-overlay));
 }
 
-:root[data-palette="nord-aurora"][data-theme="light"] {
+[data-palette="nord-aurora"][data-theme="light"] {
   color-scheme: light;
   /* LIGHT — same Nord hues, lower-lightness for AA contrast on white */
   --ws-accent-rgb: 94 129 172;          /* frost #4 darkened */
@@ -407,7 +410,7 @@
    ring, near-flat fills, Mica-like material via tinted panel.
    Colors (accent + status) inherit from the Aurora palette so
    pairing look=fluent + accent=sky/blue/etc. is fully orthogonal. */
-:root[data-palette="fluent"] {
+[data-palette="fluent"] {
   --ws-radius-control: 4px;
   --ws-radius-surface: 8px;
 
@@ -427,7 +430,7 @@
 /* ── Liquid Glass — STRUCTURE only (macOS Tahoe inspiration) ─────
    Not affiliated with Apple. Generous radii, heavy backdrop blur,
    halo focus ring, richer gradients. Colors inherit from Aurora. */
-:root[data-palette="liquid-glass"] {
+[data-palette="liquid-glass"] {
   --ws-radius-control: 10px;
   --ws-radius-surface: 20px;
 
