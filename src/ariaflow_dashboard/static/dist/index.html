@@ -108,6 +108,33 @@
     </div>
     <div class="grid">
       <!-- DASHBOARD -->
+      <!-- Add panel — own surface, separate from the queue list -->
+      <div class="span-12" x-show="page === 'dashboard'">
+        <div class="panel">
+          <div class="gap-sm mb-sm">
+            <input x-model="urlInput" placeholder="Paste URL to download" @keydown.enter="add()" class="input-md">
+            <button x-show="urlInput.trim()" @click="add()">Add</button>
+          </div>
+          <details>
+            <summary class="text-muted text-sm cursor-pointer">Advanced</summary>
+            <div class="gap-sm-grid mt-sm">
+              <input x-model="addOutput" placeholder="Output filename (optional)" class="input-md">
+              <input x-model="addPriority" type="number" placeholder="Priority" class="input-sm">
+              <textarea x-model="addMirrors" rows="2" placeholder="Mirror URLs, one per line (optional)" class="textarea-sm"></textarea>
+              <div class="gap-sm">
+                <label class="text-sm text-muted">.torrent file <input type="file" accept=".torrent" @change="handleFileUpload($event, 'torrent')"></label>
+                <label class="text-sm text-muted">.metalink file <input type="file" accept=".metalink,.meta4" @change="handleFileUpload($event, 'metalink')"></label>
+              </div>
+              <select x-model="addPostActionRule">
+                <option value="">Post-action rule (default)</option>
+                <option value="pending">pending</option>
+              </select>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <!-- Queue panel — scheduler controls, filter, items -->
       <div class="span-12" x-show="page === 'dashboard'">
         <div class="panel">
           <div class="gap-sm mb-md">
@@ -128,38 +155,6 @@
             </template>
           </div>
           <div class="list">
-            <!-- Add item card — same layout as queue items -->
-            <div class="item compact add-card">
-              <div class="item-top">
-                <div class="item-url">Add Download</div>
-                <span class="badge">new</span>
-              </div>
-              <div class="meta">
-                <span>Paste one URL per line to queue targets one after another.</span>
-              </div>
-              <div class="add-card-body">
-                <input x-model="urlInput" placeholder="Paste URL to download" @keydown.enter="add()">
-              </div>
-              <div class="action-strip mt-sm">
-                <button x-show="urlInput.trim()" @click="add()">Add</button>
-                <details>
-                  <summary class="text-muted text-sm cursor-pointer">Advanced</summary>
-                  <div class="gap-sm-grid mt-sm">
-                    <input x-model="addOutput" placeholder="Output filename (optional)" class="input-md">
-                    <input x-model="addPriority" type="number" placeholder="Priority" class="input-sm">
-                    <textarea x-model="addMirrors" rows="2" placeholder="Mirror URLs, one per line (optional)" class="textarea-sm"></textarea>
-                    <div class="gap-sm">
-                      <label class="text-sm text-muted">.torrent file <input type="file" accept=".torrent" @change="handleFileUpload($event, 'torrent')"></label>
-                      <label class="text-sm text-muted">.metalink file <input type="file" accept=".metalink,.meta4" @change="handleFileUpload($event, 'metalink')"></label>
-                    </div>
-                    <select x-model="addPostActionRule">
-                      <option value="">Post-action rule (default)</option>
-                      <option value="pending">pending</option>
-                    </select>
-                  </div>
-                </details>
-              </div>
-            </div>
             <template x-if="!backendReachable">
               <div class="item" x-text="_offlineStatusLabel()"></div>
             </template>
