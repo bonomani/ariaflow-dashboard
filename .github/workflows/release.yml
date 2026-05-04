@@ -14,7 +14,73 @@ on:
         type: string
 
 jobs:
+  live-contract:
+    # Live-backend contract check. Spins up @ariaflow/cli from npm,
+    # runs tests/test_backend_live_contract.py against it. Catches
+    # the "shipped but deploy was stale" hazard the backend agent
+    # flagged in BG-26 — the existing release flow only ran narrow
+    # unit tests + skipped make ci, so a backend regression that broke
+    # a dashboard contract could ship unnoticed.
+    if: github.event_name != 'push' || github.ref != 'refs/heads/main' || !startsWith(github.event.head_commit.message, 'Release ')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install aria2
+        run: sudo apt-get update -qq && sudo apt-get install -y aria2
+
+      - name: Install ariaflow-server CLI from npm
+        run: npm install -g @ariaflow/cli@latest
+
+      - name: Start ariaflow-server
+        run: |
+          ariaflow serve --host 127.0.0.1 --port 8000 > server.log 2>&1 &
+          echo "PID=$!" >> "$GITHUB_ENV"
+          # Wait for /api/version to respond (~10s budget).
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS http://127.0.0.1:8000/api/version >/dev/null 2>&1; then
+              echo "ariaflow-server ready"
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8000/api/version || {
+            echo "ariaflow-server failed to start; log:"
+            cat server.log
+            exit 1
+          }
+
+      - name: Install dashboard with test extras
+        run: pip install -e ".[dev]"
+
+      - name: Run live-backend contract tests
+        run: pytest -m slow tests/test_backend_live_contract.py -v
+
+      - name: Stop ariaflow-server
+        if: always()
+        run: kill "$PID" 2>/dev/null || true
+
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ariaflow-server-log
+          path: server.log
+
   build-release:
+    needs: live-contract
     if: github.event_name != 'push' || github.ref != 'refs/heads/main' || !startsWith(github.event.head_commit.message, 'Release ')
     runs-on: ubuntu-latest
     permissions:
