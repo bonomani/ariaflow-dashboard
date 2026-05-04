@@ -386,7 +386,7 @@ document.addEventListener('alpine:init', () => {
 
       this.initTheme();
       this.initNotifications();
-      if (this.page === 'dev') this.loadSpecVersion();
+      this._runTabMountHooks(this.page);
       window.addEventListener('beforeunload', () => { if (this._prefQueue.length) this._flushPrefQueue(); });
       document.addEventListener('visibilitychange', () => this._onVisibilityChange());
       window.addEventListener('popstate', () => {
@@ -467,8 +467,23 @@ document.addEventListener('alpine:init', () => {
     LOCAL_METAS: [
       { method: 'GET', path: '/api/aria2/option_tiers', freshness: 'cold' },
     ],
+    // One-shot actions to run when a tab becomes the active page (either
+    // on direct URL load via init() or via navigateTo()). For tab-driven
+    // *recurring* fetches use TAB_SUBS instead — the FreshnessRouter
+    // handles those. Mount hooks are for things like loadSpecVersion()
+    // that don't fit the subscribe model.
+    TAB_MOUNT_HOOKS: {
+      dev: [(self) => self.loadSpecVersion()],
+    },
     _tabHidden: false,
     _currentTabSubs: [],
+
+    _runTabMountHooks(target) {
+      const hooks = (this.TAB_MOUNT_HOOKS && this.TAB_MOUNT_HOOKS[target]) || [];
+      for (const fn of hooks) {
+        try { fn(this); } catch (e) { /* one bad hook shouldn't break others */ }
+      }
+    },
 
     _unsubscribeTab() {
       if (!this._freshnessRouter) { this._currentTabSubs = []; return; }
@@ -517,7 +532,7 @@ document.addEventListener('alpine:init', () => {
       const urlMap = { dashboard: '/', bandwidth: '/bandwidth', lifecycle: '/lifecycle', options: '/options', log: '/log', dev: '/dev', archive: '/archive' };
       history.pushState(null, '', urlMap[target] || '/');
       this._refreshTabOnly(target);
-      if (target === 'dev') this.loadSpecVersion();
+      this._runTabMountHooks(target);
     },
     _onVisibilityChange() {
       const hidden = document.visibilityState === 'hidden';
