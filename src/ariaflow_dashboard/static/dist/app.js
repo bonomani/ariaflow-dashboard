@@ -1207,10 +1207,10 @@ function lifecycleDetailLines(record) {
 function isDiagnosticReason(reason) {
   return !["match", "ready", "ok", "healthy"].includes(reason);
 }
-function lifecycleActionsFor(name, record, legacyActions = []) {
+function lifecycleActionsFor(name, record) {
   const result = record?.result;
   if (!result) return [];
-  const target = legacyTargetFor(name, legacyActions);
+  const target = backendTargetFor(name);
   if (!target) return [];
   const { installed, current, running } = result;
   if (installed === null && current === null) {
@@ -1229,8 +1229,7 @@ function lifecycleActionsFor(name, record, legacyActions = []) {
   }
   return [{ target, action: "uninstall", label: "Remove" }];
 }
-function legacyTargetFor(name, legacyActions) {
-  if (legacyActions.length > 0 && legacyActions[0].target) return legacyActions[0].target;
+function backendTargetFor(name) {
   if (name === "ariaflow-server") return "ariaflow-server";
   if (name === "aria2") return "aria2";
   if (isLaunchdLike(name)) return "aria2-launchd";
@@ -2639,30 +2638,18 @@ document.addEventListener("alpine:init", () => {
         this.lifecycleRows = [];
         return;
       }
-      const ariaflowLegacy = [
-        { target: "ariaflow-server", action: "install", label: "Install / Update" },
-        { target: "ariaflow-server", action: "uninstall", label: "Remove" }
-      ];
-      const launchdLegacy = [
-        { target: "aria2-launchd", action: "install", label: "Load" },
-        { target: "aria2-launchd", action: "uninstall", label: "Unload" }
-      ];
       this.lifecycleRows = [
         {
           name: "ariaflow-server",
           record: data["ariaflow-server"],
-          actions: lifecycleActionsFor("ariaflow-server", data["ariaflow-server"], ariaflowLegacy)
+          actions: lifecycleActionsFor("ariaflow-server", data["ariaflow-server"])
         },
-        { name: "aria2", record: data.aria2, actions: lifecycleActionsFor("aria2", data.aria2, []) },
+        { name: "aria2", record: data.aria2, actions: lifecycleActionsFor("aria2", data.aria2) },
         { name: "networkquality", record: data.networkquality, actions: [] },
         {
           name: "aria2 auto-start (advanced)",
           record: data["aria2-launchd"],
-          actions: lifecycleActionsFor(
-            "aria2 auto-start (advanced)",
-            data["aria2-launchd"],
-            launchdLegacy
-          )
+          actions: lifecycleActionsFor("aria2 auto-start (advanced)", data["aria2-launchd"])
         }
       ];
       this._lifecycleSession = data?.session_id ? data : null;

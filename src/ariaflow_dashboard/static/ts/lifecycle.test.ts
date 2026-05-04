@@ -212,27 +212,18 @@ test('lifecycleDetailLines returns [] for missing record', () => {
 
 // ---------- lifecycleActionsFor ----------
 
-const LEGACY_ARIAFLOW = [
-  { target: 'ariaflow-server', action: 'install', label: 'Install / Update' },
-  { target: 'ariaflow-server', action: 'uninstall', label: 'Remove' },
-];
-
 test('lifecycleActionsFor not-installed → only Install', () => {
-  const r = lifecycleActionsFor(
-    'ariaflow-server',
-    { result: { installed: false, current: null, running: null } },
-    LEGACY_ARIAFLOW,
-  );
+  const r = lifecycleActionsFor('ariaflow-server', {
+    result: { installed: false, current: null, running: null },
+  });
   assert.equal(r.length, 1);
   assert.equal(r[0]!.label, 'Install');
 });
 
 test('lifecycleActionsFor outdated → Update + Remove', () => {
-  const r = lifecycleActionsFor(
-    'ariaflow-server',
-    { result: { installed: true, current: false, running: null } },
-    LEGACY_ARIAFLOW,
-  );
+  const r = lifecycleActionsFor('ariaflow-server', {
+    result: { installed: true, current: false, running: null },
+  });
   assert.deepEqual(
     r.map((a) => a.label),
     ['Update', 'Remove'],
@@ -240,11 +231,9 @@ test('lifecycleActionsFor outdated → Update + Remove', () => {
 });
 
 test('lifecycleActionsFor running·current → Remove only', () => {
-  const r = lifecycleActionsFor(
-    'ariaflow-server',
-    { result: { installed: true, current: true, running: true } },
-    LEGACY_ARIAFLOW,
-  );
+  const r = lifecycleActionsFor('ariaflow-server', {
+    result: { installed: true, current: true, running: true },
+  });
   assert.deepEqual(
     r.map((a) => a.label),
     ['Remove'],
@@ -252,14 +241,9 @@ test('lifecycleActionsFor running·current → Remove only', () => {
 });
 
 test('lifecycleActionsFor pure registration (launchd) loaded → Unload only', () => {
-  const r = lifecycleActionsFor(
-    'aria2 auto-start (advanced)',
-    { result: { installed: null, current: null, running: true } },
-    [
-      { target: 'aria2-launchd', action: 'install', label: 'Load' },
-      { target: 'aria2-launchd', action: 'uninstall', label: 'Unload' },
-    ],
-  );
+  const r = lifecycleActionsFor('aria2 auto-start (advanced)', {
+    result: { installed: null, current: null, running: true },
+  });
   assert.deepEqual(
     r.map((a) => a.label),
     ['Unload'],
@@ -267,14 +251,9 @@ test('lifecycleActionsFor pure registration (launchd) loaded → Unload only', (
 });
 
 test('lifecycleActionsFor pure registration (launchd) not loaded → Load only', () => {
-  const r = lifecycleActionsFor(
-    'aria2 auto-start (advanced)',
-    { result: { installed: null, current: null, running: false } },
-    [
-      { target: 'aria2-launchd', action: 'install', label: 'Load' },
-      { target: 'aria2-launchd', action: 'uninstall', label: 'Unload' },
-    ],
-  );
+  const r = lifecycleActionsFor('aria2 auto-start (advanced)', {
+    result: { installed: null, current: null, running: false },
+  });
   assert.deepEqual(
     r.map((a) => a.label),
     ['Load'],

@@ -118,12 +118,11 @@ export interface LifecycleAction {
 export function lifecycleActionsFor(
   name: string,
   record: LifecycleRecord | null | undefined,
-  legacyActions: readonly LifecycleAction[] = [],
 ): LifecycleAction[] {
   const result = record?.result;
   if (!result) return [];
 
-  const target = legacyTargetFor(name, legacyActions);
+  const target = backendTargetFor(name);
   if (!target) return [];
 
   const { installed, current, running } = result;
@@ -151,9 +150,10 @@ export function lifecycleActionsFor(
   return [{ target, action: 'uninstall', label: 'Remove' }];
 }
 
-function legacyTargetFor(name: string, legacyActions: readonly LifecycleAction[]): string | null {
-  if (legacyActions.length > 0 && legacyActions[0]!.target) return legacyActions[0]!.target;
-  // Fallback heuristic.
+// Map a component's row name to the backend's target identifier used
+// in /api/lifecycle/:target/:action. Friendly labels like
+// "aria2 auto-start (advanced)" map to the canonical "aria2-launchd".
+function backendTargetFor(name: string): string | null {
   if (name === 'ariaflow-server') return 'ariaflow-server';
   if (name === 'aria2') return 'aria2';
   if (isLaunchdLike(name)) return 'aria2-launchd';
