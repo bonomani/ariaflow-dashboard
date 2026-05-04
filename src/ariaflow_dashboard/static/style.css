@@ -306,6 +306,14 @@ a.btn-link.secondary { background: var(--ws-btn-inactive-bg); color: var(--ws-te
 .queue-item-header { display: flex; align-items: center; gap: var(--ws-gap-sm); }
 .queue-item-detail { font-size: var(--ws-font-sm); color: var(--ws-muted); margin-top: var(--ws-gap-sm); }
 
+/* --- chip-details: a <details> whose <summary> is a chip ---
+   Used by the consolidated health chip in the header. Removes the
+   default disclosure triangle and lets the summary inherit .chip
+   styling via `class="chip ..."` on the <summary>. */
+.chip-details { display: inline-block; }
+.chip-details > summary { list-style: none; cursor: pointer; }
+.chip-details > summary::-webkit-details-marker { display: none; }
+
 /* --- debug / declaration --- */
 .declaration { display: grid; gap: var(--ws-gap-md); }
 details.debug { margin-top: var(--ws-gap-md); border-top: 1px solid var(--ws-line); padding-top: var(--ws-gap-md); }
