@@ -2101,8 +2101,7 @@ document.addEventListener("alpine:init", () => {
         const detail = /timed out/i.test(item.rpc_error_message || "") ? "rpc timeout" : "rpc issue";
         return limit > 0 ? `${ns} \xB7 ${detail} ${item.rpc_failures}/${limit}` : `${ns} \xB7 ${detail}`;
       }
-      const ls = this.itemLiveStatus(item);
-      return ls ? `${ns} \xB7 aria2:${ls}` : ns;
+      return ns;
     },
     itemAllowedActions(item) {
       return item.allowed_actions || [];

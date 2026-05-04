@@ -911,8 +911,7 @@ document.addEventListener('alpine:init', () => {
         const detail = /timed out/i.test(item.rpc_error_message || '') ? 'rpc timeout' : 'rpc issue';
         return limit > 0 ? `${ns} · ${detail} ${item.rpc_failures}/${limit}` : `${ns} · ${detail}`;
       }
-      const ls = this.itemLiveStatus(item);
-      return ls ? `${ns} · aria2:${ls}` : ns;
+      return ns;
     },
     itemAllowedActions(item) { return item.allowed_actions || []; },
     itemCanPause(item) { const aa = this.itemAllowedActions(item); return aa.length ? aa.includes('pause') : this.itemNormalizedStatus(item) === 'active'; },

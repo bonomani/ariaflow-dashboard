@@ -177,9 +177,6 @@
                   <span x-show="itemPriority(item) != null" class="badge" x-text="'P' + itemPriority(item)"></span>
                 </div>
                 <div class="meta">
-                  <template x-if="itemLiveStatus(item)">
-                    <span :class="badgeClass(itemLiveStatus(item))" x-text="'aria2: ' + itemLiveStatus(item)"></span>
-                  </template>
                   <span x-show="itemDisplayUrl(item)" :title="itemDisplayUrl(item)" x-text="itemDisplayUrl(item)"></span>
                   <span x-show="itemDetail(item)" x-text="itemDetail(item)"></span>
                 </div>
@@ -197,7 +194,6 @@
                       <span x-show="itemShowPausedAt(item)" x-text="'Paused ' + relativeTime(item.paused_at)"></span>
                       <span x-show="item.rpc_error_message" class="text-muted" x-text="item.rpc_error_message"></span>
                       <span x-show="item.error_message" x-text="(item.error_code ? '[' + item.error_code + '] ' : '') + (item.error_message || '')"></span>
-                      <span x-show="item.live_status && item.live_status !== itemNormalizedStatus(item)" class="text-muted" x-text="'live: ' + item.live_status"></span>
                       <span x-show="item.distribute_status" class="text-muted" x-text="'seed: ' + item.distribute_status + (item.distribute_infohash ? ' ' + item.distribute_infohash.slice(0, 8) : '')"></span>
                     </div>
                     <div x-html="itemSparklineSvg(item)"></div>
