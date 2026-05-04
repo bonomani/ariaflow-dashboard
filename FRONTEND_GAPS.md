@@ -1,6 +1,45 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (4)
+## Open (5)
+
+### FE-31: FreshnessRouter routes dashboard-served paths to the wrong origin
+
+`apiPath()` in `backend.ts:223` always composes against the selected
+backend (`http://127.0.0.1:8000`), so every fetch the FreshnessRouter
+makes via its `fetchJson` adapter (`app.ts:641`) targets the backend —
+including `/api/web/log`, which only exists on the dashboard server
+(port 8001). Confirmed live 2026-05-04:
+
+- `GET http://127.0.0.1:8000/api/web/log` → 404 (backend has no such route)
+- `GET http://127.0.0.1:8001/api/web/log` → 200 (dashboard server)
+
+The Log tab's Action history / Web Server Log panels still render
+because `loadWebLog()` is invoked through a different code path that
+silently swallows the failure; the freshness contract is just wrong.
+
+Same flaw will block plan #5 (consuming the dashboard's new
+`/api/_meta` from the router): once dashboard endpoints are
+declared in a meta document, the router needs to know each
+endpoint is dashboard-served (same-origin) vs backend-served
+(via apiPath).
+
+**Fix sketch** (~+120 / −30 across 5 files):
+1. `EndpointMeta` gains a `host: 'backend' | 'dashboard'` field
+   (default `'backend'` for back-compat).
+2. `RouterAdapters` exposes `originFor(host) => string` (or a
+   host-aware `fetchJson(method, path, params, host)`); the router
+   composes URLs from that.
+3. `bootstrapFreshnessRouter` fetches both metas (backend + dashboard
+   `/api/_meta`), tags each endpoint with its origin.
+4. `LOCAL_METAS` shrinks to just `/api/aria2/option_tiers`
+   (the only remaining synthetic backend mirror).
+5. `freshness.test.ts` + `freshness-bootstrap.test.ts` updates;
+   pre-existing TS2532 errors at `freshness.test.ts:359,373` get
+   resolved while we're in there.
+
+No backend dependency. Best approached with e2e regression coverage
+in place first (see FE-32 once filed) so the router refactor doesn't
+ship blind.
 
 ### FE-27: Snapshot test asserting unread `/api/status` payload keys are gone (paired with BG-35)
 

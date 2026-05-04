@@ -386,6 +386,7 @@ document.addEventListener('alpine:init', () => {
 
       this.initTheme();
       this.initNotifications();
+      if (this.page === 'dev') this.loadSpecVersion();
       window.addEventListener('beforeunload', () => { if (this._prefQueue.length) this._flushPrefQueue(); });
       document.addEventListener('visibilitychange', () => this._onVisibilityChange());
       window.addEventListener('popstate', () => {

@@ -1563,6 +1563,7 @@ document.addEventListener("alpine:init", () => {
       this.page = path === "/bandwidth" ? "bandwidth" : path === "/lifecycle" ? "lifecycle" : path === "/options" ? "options" : path === "/log" ? "log" : path === "/dev" ? "dev" : path === "/archive" ? "archive" : "dashboard";
       this.initTheme();
       this.initNotifications();
+      if (this.page === "dev") this.loadSpecVersion();
       window.addEventListener("beforeunload", () => {
         if (this._prefQueue.length) this._flushPrefQueue();
       });

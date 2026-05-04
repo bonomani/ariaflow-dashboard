@@ -23,7 +23,7 @@ async function setupBackend(page: import('@playwright/test').Page, recorded: Rec
   // intercept. We respond with stub JSON to keep the page alive.
   await page.addInitScript((url: string) => {
     localStorage.setItem('ariaflow.backends', JSON.stringify([url]));
-    localStorage.setItem('ariaflow.selectedBackend', url);
+    localStorage.setItem('ariaflow.selected_backend', url);
   }, BACKEND);
 
   await page.route(`${BACKEND}/api/**`, (route: Route, request: Request) => {
