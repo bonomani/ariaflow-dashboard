@@ -93,13 +93,14 @@ async function setupBackend(page: import('@playwright/test').Page, opts: Backend
 test('header injects webVersion and webPid from window globals', async ({ page }) => {
   await setupBackend(page);
   await page.goto('/');
-  // The chips live inside <details>System info</details> — open it first.
+  // The chip lives inside <details>System info</details> — open it first.
   await page.locator('summary', { hasText: 'System info' }).first().click();
 
-  const versionChip = page.locator('.chip', { hasText: 'Ariaflow-dashboard' });
-  await expect(versionChip).toContainText(/v\d+\.\d+\.\d+/);
-  const pidChip = page.locator('.chip', { hasText: 'Web PID' });
-  await expect(pidChip).toContainText(/\d+/);
+  // Plan A consolidation: version + pid live in one chip ("Ariaflow-dashboard
+  // vX.Y.Z · pid N"), not two separate chips.
+  const chip = page.locator('.chip', { hasText: 'Ariaflow-dashboard' });
+  await expect(chip).toContainText(/v\d+\.\d+\.\d+/);
+  await expect(chip).toContainText(/pid\s+\d+/);
 });
 
 test('dev tab shows runtime + spec version chips when they match', async ({ page }) => {

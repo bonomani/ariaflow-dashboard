@@ -5,6 +5,8 @@
             <h2>Options</h2>
             <div class="hint">UIC declaration preferences</div>
           </div>
+
+          <h3 class="text-sm text-muted mt-md mb-sm">Scheduler</h3>
           <div class="list">
             <div class="item">
               <div class="item-top">
@@ -22,13 +24,10 @@
               </div>
               <div class="meta"><span>Placeholder policy used after a download finishes.</span></div>
             </div>
-            <div class="item">
-              <div class="item-top">
-                <div class="item-url">aria2 unsafe mode</div>
-                <label><input type="checkbox" :checked="aria2UnsafeEnabled" @change="setAria2UnsafeOptions($el.checked)"> Enable</label>
-              </div>
-              <div class="meta"><span>Allow setting any aria2 option via API. Bypasses the safe subset.</span></div>
-            </div>
+          </div>
+
+          <h3 class="text-sm text-muted mt-md mb-sm">Retries</h3>
+          <div class="list">
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Max retries</div>
@@ -54,6 +53,10 @@
                 <label><input type="number" min="0" max="60" :value="aria2RetryWait" @input="setRetryPref('aria2_retry_wait', $el.value)" class="input-sm"> <span>sec</span></label>
               </div>
             </div>
+          </div>
+
+          <h3 class="text-sm text-muted mt-md mb-sm">Distribute</h3>
+          <div class="list">
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Distribute downloads</div>
@@ -84,6 +87,17 @@
                 <div class="item-url">Tracker URL</div>
                 <label><input type="text" :value="internalTrackerUrl" @input="setDistributePref('internal_tracker_url', $el.value)" class="input-md"></label>
               </div>
+            </div>
+          </div>
+
+          <h3 class="text-sm text-muted mt-md mb-sm">aria2</h3>
+          <div class="list">
+            <div class="item">
+              <div class="item-top">
+                <div class="item-url">aria2 unsafe mode</div>
+                <label><input type="checkbox" :checked="aria2UnsafeEnabled" @change="setAria2UnsafeOptions($el.checked)"> Enable</label>
+              </div>
+              <div class="meta"><span>Allow setting any aria2 option via API. Bypasses the safe subset.</span></div>
             </div>
           </div>
         </div>
