@@ -59,7 +59,7 @@
                   <template x-if="itemModeBadge(item)">
                     <span class="badge" x-text="itemModeBadge(item)"></span>
                   </template>
-                  <span x-show="itemPriority(item) != null" class="badge" x-text="'P' + itemPriority(item)"></span>
+                  <span x-show="itemPriority(item) > 0" class="badge" x-text="'P' + itemPriority(item)"></span>
                 </div>
                 <div class="meta">
                   <span x-show="itemDisplayUrl(item)" :title="itemDisplayUrl(item)" x-text="itemDisplayUrl(item)"></span>
