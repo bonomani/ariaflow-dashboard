@@ -156,9 +156,13 @@
             <h2>Active Seeds</h2>
             <button @click="loadTorrents()">Refresh</button>
           </div>
-          <div x-show="torrentLoading" class="text-muted text-sm">Loading…</div>
-          <div x-show="!torrentLoading && torrentList.length === 0" class="text-muted text-sm">No active seeds.</div>
-          <div class="list" x-show="!torrentLoading && torrentList.length > 0">
+          <div class="list">
+            <template x-if="torrentLoading">
+              <div class="item">Loading…</div>
+            </template>
+            <template x-if="!torrentLoading && torrentList.length === 0">
+              <div class="item">No active seeds.</div>
+            </template>
             <template x-for="t in torrentList" :key="t.infohash">
               <div class="item compact">
                 <div class="item-top">
@@ -186,7 +190,7 @@
           </div>
           <div class="list">
             <template x-if="peerList.length === 0">
-              <div class="text-muted text-sm">No peers discovered yet. Click Refresh to retry.</div>
+              <div class="item">No discovered peers.</div>
             </template>
             <template x-for="peer in peerList" :key="peer.instance || peer.host">
               <div class="item compact">

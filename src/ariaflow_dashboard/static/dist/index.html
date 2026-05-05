@@ -552,9 +552,13 @@
             <h2>Active Seeds</h2>
             <button @click="loadTorrents()">Refresh</button>
           </div>
-          <div x-show="torrentLoading" class="text-muted text-sm">Loading…</div>
-          <div x-show="!torrentLoading && torrentList.length === 0" class="text-muted text-sm">No active seeds.</div>
-          <div class="list" x-show="!torrentLoading && torrentList.length > 0">
+          <div class="list">
+            <template x-if="torrentLoading">
+              <div class="item">Loading…</div>
+            </template>
+            <template x-if="!torrentLoading && torrentList.length === 0">
+              <div class="item">No active seeds.</div>
+            </template>
             <template x-for="t in torrentList" :key="t.infohash">
               <div class="item compact">
                 <div class="item-top">
@@ -582,7 +586,7 @@
           </div>
           <div class="list">
             <template x-if="peerList.length === 0">
-              <div class="text-muted text-sm">No peers discovered yet. Click Refresh to retry.</div>
+              <div class="item">No discovered peers.</div>
             </template>
             <template x-for="peer in peerList" :key="peer.instance || peer.host">
               <div class="item compact">
@@ -727,7 +731,7 @@
           </div>
           <div class="list">
             <template x-if="filteredActionLog.length === 0">
-              <div class="item">No action log yet.</div>
+              <div class="item">No action log entries.</div>
             </template>
             <template x-for="entry in filteredActionLog" :key="entry.timestamp + (entry.action || '') + (entry.target || '')">
               <div class="item">
@@ -768,7 +772,9 @@
                 </template>
               </div>
             </template>
-            <div x-show="!sessionHistory.length" class="text-muted">No session history available</div>
+            <template x-if="!sessionHistory.length">
+              <div class="item">No session history.</div>
+            </template>
           </div>
         </div>
       </div>
@@ -781,7 +787,7 @@
           </div>
           <div class="list">
             <template x-if="webLogEntries.length === 0">
-              <div class="text-muted text-sm">No web server log entries.</div>
+              <div class="item">No web server log entries.</div>
             </template>
             <template x-for="entry in webLogEntries" :key="entry.timestamp + (entry.action || '')">
               <div class="item">
