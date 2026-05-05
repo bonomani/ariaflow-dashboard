@@ -1473,15 +1473,9 @@ document.addEventListener("alpine:init", () => {
       });
       return counts;
     },
-    // BG-40: backend ships state.scheduler_status (5-state enum) and
-    // state.wait_reason. Fall back to inferred values for backends
-    // older than v0.1.252 that don't ship the new fields.
+    // BG-40: state.scheduler_status is the source of truth (5-state enum).
     get schedulerBadgeText() {
-      const s = this.state?.scheduler_status;
-      if (s) return s;
-      if (!this.state?.running) return "stopped";
-      if (this.state?.dispatch_paused) return "paused";
-      return this.currentTransfer ? "running" : "idle";
+      return this.state?.scheduler_status || "stopped";
     },
     get schedulerBadgeClass() {
       switch (this.schedulerBadgeText) {
@@ -2045,11 +2039,6 @@ document.addEventListener("alpine:init", () => {
     badgeClass,
     sessionLabel,
     sessionIdShort,
-    schedulerStateLabel(state, reachable = true) {
-      if (!reachable) return "offline";
-      if (state?.stop_requested) return "stopping";
-      return state?.running ? "running" : "idle";
-    },
     syncSchedulerResultText() {
       const staleSchedulerMessages = /* @__PURE__ */ new Set([
         "Pause requested",
