@@ -1517,7 +1517,7 @@ document.addEventListener("alpine:init", () => {
     },
     get lastErrorText() {
       if (!this.backendReachable) return this.lastStatus?.["ariaflow-server"]?.error || "connection refused";
-      return this.state.last_error || this.lastStatus?.bandwidth?.reason || "none";
+      return this.state.last_error || "none";
     },
     // Consolidated health surface (#3). Single chip in the header lists
     // a count + opens a panel detailing each issue. Replaces the
