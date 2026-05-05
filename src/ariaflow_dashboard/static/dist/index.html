@@ -84,7 +84,7 @@
         <div class="chips mt-sm">
           <div class="chip">Session <strong x-text="sessionIdText + (sessionStartedText !== '-' ? ' · ' + sessionStartedText : '')">-</strong></div>
           <div class="chip">Cap <strong x-text="downloadCapText">-</strong></div>
-          <div class="chip" :class="{ 'badge warn': !diskOk }">Disk <strong x-text="diskUsageText">-</strong></div>
+          <div class="chip" :class="{ 'badge warn': !diskOk }" x-show="diskUsageText !== '-'">Disk <strong x-text="diskUsageText">-</strong></div>
         </div>
         <!-- L3: dashboard identity + interfaces (collapsible) -->
         <details class="mt-sm">
@@ -184,15 +184,18 @@
                 </div>
                 <template x-if="itemShowTransferPanel(item)">
                   <div>
-                    <div class="meter"><div :style="'width:' + Math.round(Number(itemProgress(item) || 0)) + '%'"></div></div>
-                    <div class="statusline">
-                      <span x-text="Math.round(Number(itemProgress(item) || 0)) + '% done' + (itemEta(item) ? ' · ETA ' + itemEta(item) : '')"></span>
-                      <span x-text="itemRateLabel(item)"></span>
+                    <!-- Meter + statusline are transfer-in-flight info — hide on complete -->
+                    <div x-show="itemNormalizedStatus(item) !== 'complete'">
+                      <div class="meter"><div :style="'width:' + Math.round(Number(itemProgress(item) || 0)) + '%'"></div></div>
+                      <div class="statusline">
+                        <span x-text="Math.round(Number(itemProgress(item) || 0)) + '% done' + (itemEta(item) ? ' · ETA ' + itemEta(item) : '')"></span>
+                        <span x-text="itemRateLabel(item)"></span>
+                      </div>
                     </div>
                     <div class="meta">
                       <span x-show="itemTotalLength(item)" x-text="'Total ' + formatBytes(itemTotalLength(item))"></span>
                       <span x-show="itemCompletedLength(item)" x-text="'Done ' + formatBytes(itemCompletedLength(item))"></span>
-                      <span x-show="item.recovered_at" x-text="'Recovered ' + (item.recovered_at || '')"></span>
+                      <span x-show="item.recovered_at" x-text="'Recovered ' + relativeTime(item.recovered_at)"></span>
                       <span x-show="itemShowPausedAt(item)" x-text="'Paused ' + relativeTime(item.paused_at)"></span>
                       <span x-show="item.rpc_error_message" class="text-muted" x-text="item.rpc_error_message"></span>
                       <span x-show="item.error_message" x-text="(item.error_code ? '[' + item.error_code + '] ' : '') + (item.error_message || '')"></span>
