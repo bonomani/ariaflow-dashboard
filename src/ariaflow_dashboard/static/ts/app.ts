@@ -295,8 +295,11 @@ document.addEventListener('alpine:init', () => {
     },
     get transferSpeedText() {
       if (!this.backendReachable) return 'offline';
-      const dl = this.currentSpeed ? this.formatRate(this.currentSpeed) : null;
-      const ul = this.currentUploadSpeed ? this.formatRate(this.currentUploadSpeed) : null;
+      // Threshold at 1 KiB/s — sub-KiB trickle formats as "0 B/s" and
+      // shows up as visual noise (↑ 0 B/s) when there's no real upload.
+      const MIN = 1024;
+      const dl = (this.currentSpeed ?? 0) >= MIN ? this.formatRate(this.currentSpeed) : null;
+      const ul = (this.currentUploadSpeed ?? 0) >= MIN ? this.formatRate(this.currentUploadSpeed) : null;
       if (dl && ul) return `↓ ${dl}  ↑ ${ul}`;
       if (dl) return `↓ ${dl}`;
       // No active transfer — fall back to the BG-40 scheduler badge

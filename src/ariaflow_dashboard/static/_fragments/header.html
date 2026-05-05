@@ -70,7 +70,12 @@
              cap is configured — preserves the at-a-glance utilization
              read without re-drawing the same value as a meter. -->
         <div class="meta hero-cap-caption" x-show="bw.cap_mbps">
-          <span>Cap utilization <strong :class="{ 'badge warn': bwOverCap }" x-text="bwUtilizationPct + '%'"></strong> · <span x-text="bwUtilizationText"></span><span x-show="bwOverCap" class="text-muted text-sm"> · over cap</span></span>
+          <span x-text="bwLiveDownMbps.toFixed(1) + ' Mbps'"></span>
+          <span class="text-muted">of</span>
+          <span x-text="bw.cap_mbps.toFixed(1) + ' Mbps cap'"></span>
+          <span class="text-muted">·</span>
+          <strong :class="{ 'badge warn': bwOverCap }" x-text="bwUtilizationPct + '%'"></strong>
+          <span x-show="bwOverCap" class="text-sm text-muted">over</span>
         </div>
       </div>
 

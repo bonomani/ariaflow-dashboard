@@ -38,6 +38,22 @@ export function renderItemSparkline(data: number[] | null | undefined): string {
  * Time labels and current-value annotations are <text> elements
  * inside the SVG so the whole thing is one node.
  */
+function smoothPath(points: Array<[number, number]>): string {
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M${points[0][0]},${points[0][1]}`;
+  let d = `M${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
+  for (let i = 1; i < points.length - 1; i++) {
+    const [px, py] = points[i];
+    const [nx, ny] = points[i + 1];
+    const mx = (px + nx) / 2;
+    const my = (py + ny) / 2;
+    d += ` Q${px.toFixed(1)},${py.toFixed(1)} ${mx.toFixed(1)},${my.toFixed(1)}`;
+  }
+  const last = points[points.length - 1];
+  d += ` L${last[0].toFixed(1)},${last[1].toFixed(1)}`;
+  return d;
+}
+
 export function renderGlobalTimeline(
   dl: number[],
   ul: number[],
@@ -50,50 +66,60 @@ export function renderGlobalTimeline(
   if (peakDl <= 0 && peakUl <= 0) return '';
   const w = 800;
   const h = 100;
-  const padTop = 8;
-  const padBottom = 18; // room for x-axis labels
-  const padRight = 4;
+  const padTop = 10;
+  const padBottom = 18;
+  const padLeft = 0;
+  const padRight = 8;
   const chartH = h - padTop - padBottom;
+  const chartW = w - padLeft - padRight;
   const capBps = capMbps > 0 ? (capMbps * 1_000_000) / 8 : 0;
-  // Y-scale max: include cap so the cap line sits inside the chart.
-  const yMax = Math.max(peakDl + peakUl, capBps, 1);
+  // Y-scale: peak of either series, with headroom and cap visible.
+  const yMaxRaw = Math.max(peakDl, peakUl, capBps);
+  const yMax = yMaxRaw * 1.1 || 1;
   const samples = dl.length;
-  const step = (w - padRight) / (samples - 1);
+  const step = chartW / (samples - 1);
+  const xOf = (i: number): number => padLeft + i * step;
   const yOf = (v: number): number => padTop + chartH - (v / yMax) * chartH;
-  // Stacked: ul rides on top of dl.
-  const dlPath = dl.map((v, i) => `${(i * step).toFixed(1)},${yOf(v).toFixed(1)}`);
-  const ulStacked = ul.length ? ul.map((v, i) => yOf((dl[i] ?? 0) + v)) : [];
-  // Build closed polygons for fill (start and end at baseline).
+
+  const dlPts: Array<[number, number]> = dl.map((v, i) => [xOf(i), yOf(v)]);
+  const ulPts: Array<[number, number]> = ul.length ? ul.map((v, i) => [xOf(i), yOf(v)]) : [];
+  const dlLine = smoothPath(dlPts);
   const baseline = yOf(0);
-  const dlPoly = `0,${baseline} ${dlPath.join(' ')} ${((samples - 1) * step).toFixed(1)},${baseline}`;
-  // Closed polygon: lower edge (dl line) forward, upper edge (dl+ul) backward.
-  const ulPoly = ulStacked.length
-    ? `${dl.map((v, i) => `${(i * step).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ')} ${ulStacked.map((y, i) => `${(i * step).toFixed(1)},${y.toFixed(1)}`).reverse().join(' ')}`
-    : '';
+  const dlArea = `${dlLine} L${xOf(samples - 1).toFixed(1)},${baseline.toFixed(1)} L${xOf(0).toFixed(1)},${baseline.toFixed(1)} Z`;
+  const ulLine = ulPts.length && peakUl > 0 ? smoothPath(ulPts) : '';
+
   const capY = capBps > 0 ? yOf(capBps) : null;
-  // X-axis time labels: 5 ticks, oldest → now. Total window ≈
-  // (samples - 1) * refreshInterval.
-  const totalSecs = ((samples - 1) * refreshIntervalMs) / 1000;
-  // Fewer ticks for short windows so integer-second labels stay
-  // evenly spaced (4 subdivisions of 6s = uneven 1.5s gaps).
-  const tickFracs = totalSecs < 12 ? [0, 0.5, 1] : [0, 0.25, 0.5, 0.75, 1];
-  const ticks = tickFracs.map((frac) => {
-    const x = frac * (w - padRight);
-    const secsAgo = (1 - frac) * totalSecs;
-    const label = frac === 1
-      ? 'now'
-      : `-${totalSecs < 10 ? secsAgo.toFixed(1) : Math.round(secsAgo)}s`;
-    return `<text x="${x.toFixed(1)}" y="${(h - 4).toFixed(1)}" fill="var(--ws-muted)" font-size="10" text-anchor="${frac === 0 ? 'start' : frac === 1 ? 'end' : 'middle'}">${label}</text>`;
-  }).join('');
   const capLabel = capBps > 0 && capY != null
-    ? `<text x="4" y="${(capY - 2).toFixed(1)}" fill="var(--ws-muted)" font-size="10">cap ${capMbps} Mbps</text>`
+    ? `<text x="${(w - padRight).toFixed(1)}" y="${(capY - 3).toFixed(1)}" fill="var(--ws-muted)" font-size="10" text-anchor="end">cap ${capMbps} Mbps</text>`
     : '';
-  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="display:block;width:100%;height:${h}px;">
-    <polygon points="${dlPoly}" fill="var(--ws-accent)" fill-opacity="0.35" stroke="var(--ws-accent)" stroke-width="1.2"/>
-    ${ulPoly ? `<polygon points="${ulPoly}" fill="var(--ws-accent-2)" fill-opacity="0.35" stroke="var(--ws-accent-2)" stroke-width="1"/>` : ''}
-    ${capY != null ? `<line x1="0" x2="${w - padRight}" y1="${capY.toFixed(1)}" y2="${capY.toFixed(1)}" stroke="var(--ws-muted)" stroke-width="1" stroke-dasharray="4,3"/>` : ''}
+
+  // Endpoint dot at the latest dl sample for the "now" anchor.
+  const lastX = xOf(samples - 1);
+  const lastY = yOf(dl[samples - 1]);
+
+  // Time ticks: just start and end. Mid is implicit.
+  const totalSecs = ((samples - 1) * refreshIntervalMs) / 1000;
+  const startLabel = `-${totalSecs < 10 ? totalSecs.toFixed(1) : Math.round(totalSecs)}s`;
+
+  // Subtle baseline rule.
+  const baseRule = `<line x1="${padLeft}" x2="${(w - padRight).toFixed(1)}" y1="${baseline.toFixed(1)}" y2="${baseline.toFixed(1)}" stroke="var(--ws-muted)" stroke-opacity="0.25" stroke-width="1"/>`;
+
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="display:block;width:100%;height:${h}px;overflow:visible;">
+    <defs>
+      <linearGradient id="aft-dl-grad" x1="0" x2="0" y1="0" y2="1">
+        <stop offset="0%" stop-color="var(--ws-accent)" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="var(--ws-accent)" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    ${baseRule}
+    ${capY != null ? `<line x1="${padLeft}" x2="${(w - padRight).toFixed(1)}" y1="${capY.toFixed(1)}" y2="${capY.toFixed(1)}" stroke="var(--ws-muted)" stroke-width="1" stroke-dasharray="4,3"/>` : ''}
     ${capLabel}
-    ${ticks}
+    <path d="${dlArea}" fill="url(#aft-dl-grad)" stroke="none"/>
+    <path d="${dlLine}" fill="none" stroke="var(--ws-accent)" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round"/>
+    ${ulLine ? `<path d="${ulLine}" fill="none" stroke="var(--ws-accent-2)" stroke-width="1.25" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="3,2"/>` : ''}
+    <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="3" fill="var(--ws-accent)"/>
+    <text x="${padLeft}" y="${(h - 4).toFixed(1)}" fill="var(--ws-muted)" font-size="10" text-anchor="start">${startLabel}</text>
+    <text x="${(w - padRight).toFixed(1)}" y="${(h - 4).toFixed(1)}" fill="var(--ws-muted)" font-size="10" text-anchor="end">now</text>
   </svg>`;
 }
 
