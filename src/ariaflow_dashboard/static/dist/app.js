@@ -99,15 +99,16 @@ function renderItemSparkline(data) {
   </svg>`;
 }
 function smoothPath(points) {
-  if (points.length === 0) return "";
-  if (points.length === 1) return `M${points[0][0]},${points[0][1]}`;
-  let d = `M${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
+  const first = points[0];
+  if (!first) return "";
+  if (points.length === 1) return `M${first[0]},${first[1]}`;
+  let d = `M${first[0].toFixed(1)},${first[1].toFixed(1)}`;
   for (let i = 1; i < points.length - 1; i++) {
-    const [px, py] = points[i];
-    const [nx, ny] = points[i + 1];
-    const mx = (px + nx) / 2;
-    const my = (py + ny) / 2;
-    d += ` Q${px.toFixed(1)},${py.toFixed(1)} ${mx.toFixed(1)},${my.toFixed(1)}`;
+    const cur = points[i];
+    const next = points[i + 1];
+    const mx = (cur[0] + next[0]) / 2;
+    const my = (cur[1] + next[1]) / 2;
+    d += ` Q${cur[0].toFixed(1)},${cur[1].toFixed(1)} ${mx.toFixed(1)},${my.toFixed(1)}`;
   }
   const last = points[points.length - 1];
   d += ` L${last[0].toFixed(1)},${last[1].toFixed(1)}`;
@@ -142,7 +143,7 @@ function renderGlobalTimeline(dl, ul, capMbps = 0, refreshIntervalMs = 1e4) {
   const capY = capBps > 0 ? yOf(capBps) : null;
   const capLabel = capBps > 0 && capY != null ? `<text x="${(w - padRight).toFixed(1)}" y="${(capY - 3).toFixed(1)}" fill="var(--ws-muted)" font-size="10" text-anchor="end">cap ${capMbps} Mbps</text>` : "";
   const lastX = xOf(samples - 1);
-  const lastY = yOf(dl[samples - 1]);
+  const lastY = yOf(dl[samples - 1] ?? 0);
   const totalSecs = (samples - 1) * refreshIntervalMs / 1e3;
   const startLabel = `-${totalSecs < 10 ? totalSecs.toFixed(1) : Math.round(totalSecs)}s`;
   const baseRule = `<line x1="${padLeft}" x2="${(w - padRight).toFixed(1)}" y1="${baseline.toFixed(1)}" y2="${baseline.toFixed(1)}" stroke="var(--ws-muted)" stroke-opacity="0.25" stroke-width="1"/>`;

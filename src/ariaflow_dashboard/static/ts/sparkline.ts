@@ -39,17 +39,18 @@ export function renderItemSparkline(data: number[] | null | undefined): string {
  * inside the SVG so the whole thing is one node.
  */
 function smoothPath(points: Array<[number, number]>): string {
-  if (points.length === 0) return '';
-  if (points.length === 1) return `M${points[0][0]},${points[0][1]}`;
-  let d = `M${points[0][0].toFixed(1)},${points[0][1].toFixed(1)}`;
+  const first = points[0];
+  if (!first) return '';
+  if (points.length === 1) return `M${first[0]},${first[1]}`;
+  let d = `M${first[0].toFixed(1)},${first[1].toFixed(1)}`;
   for (let i = 1; i < points.length - 1; i++) {
-    const [px, py] = points[i];
-    const [nx, ny] = points[i + 1];
-    const mx = (px + nx) / 2;
-    const my = (py + ny) / 2;
-    d += ` Q${px.toFixed(1)},${py.toFixed(1)} ${mx.toFixed(1)},${my.toFixed(1)}`;
+    const cur = points[i]!;
+    const next = points[i + 1]!;
+    const mx = (cur[0] + next[0]) / 2;
+    const my = (cur[1] + next[1]) / 2;
+    d += ` Q${cur[0].toFixed(1)},${cur[1].toFixed(1)} ${mx.toFixed(1)},${my.toFixed(1)}`;
   }
-  const last = points[points.length - 1];
+  const last = points[points.length - 1]!;
   d += ` L${last[0].toFixed(1)},${last[1].toFixed(1)}`;
   return d;
 }
@@ -95,7 +96,7 @@ export function renderGlobalTimeline(
 
   // Endpoint dot at the latest dl sample for the "now" anchor.
   const lastX = xOf(samples - 1);
-  const lastY = yOf(dl[samples - 1]);
+  const lastY = yOf(dl[samples - 1] ?? 0);
 
   // Time ticks: just start and end. Mid is implicit.
   const totalSecs = ((samples - 1) * refreshIntervalMs) / 1000;
