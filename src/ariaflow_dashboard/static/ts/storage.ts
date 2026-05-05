@@ -15,7 +15,7 @@ export function readString(key: StorageKey, fallback = ''): string {
   return (localStorage.getItem(key) ?? '').trim() || fallback;
 }
 
-export function writeString(key: StorageKey, value: string): void {
+function writeString(key: StorageKey, value: string): void {
   localStorage.setItem(key, value);
 }
 
@@ -26,7 +26,7 @@ export function readNumber(key: StorageKey, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-export function writeNumber(key: StorageKey, value: number): void {
+function writeNumber(key: StorageKey, value: number): void {
   localStorage.setItem(key, String(value));
 }
 
@@ -40,7 +40,7 @@ export function readJson<T>(key: StorageKey, fallback: T): T {
   }
 }
 
-export function writeJson(key: StorageKey, value: unknown): void {
+function writeJson(key: StorageKey, value: unknown): void {
   localStorage.setItem(key, JSON.stringify(value));
 }
 

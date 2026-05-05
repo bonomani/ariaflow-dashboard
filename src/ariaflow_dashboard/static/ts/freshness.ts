@@ -43,7 +43,7 @@ export interface EndpointMeta {
 
 export type EndpointKey = string; // "GET /api/lifecycle"
 
-export function endpointKey(method: string, path: string): EndpointKey {
+function endpointKey(method: string, path: string): EndpointKey {
   return `${method.toUpperCase()} ${path}`;
 }
 

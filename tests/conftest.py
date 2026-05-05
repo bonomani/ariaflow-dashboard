@@ -11,6 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
+
 # Playwright is only needed by the browser-driven tests in
 # tests/test_frontend.py. Importing it eagerly forces every pytest
 # invocation (including the `[dev]`-only live-contract gate in CI) to
@@ -29,13 +30,15 @@ except ModuleNotFoundError:
 # collection, so test files are never imported in the first place.
 collect_ignore_glob: list[str] = []
 if sync_playwright is None:
-    collect_ignore_glob.extend([
-        "test_behavior.py",
-        "test_buttons.py",
-        "test_download_lifecycle.py",
-        "test_frontend.py",
-        "test_screenshots.py",
-    ])
+    collect_ignore_glob.extend(
+        [
+            "test_behavior.py",
+            "test_buttons.py",
+            "test_download_lifecycle.py",
+            "test_frontend.py",
+            "test_screenshots.py",
+        ]
+    )
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 

@@ -1604,23 +1604,6 @@ document.addEventListener("alpine:init", () => {
       const cap = this.bw.up_cap_mbps || this._reserveResultMbps(this.bw.uplink_mbps, this.bwUpFreePercent, this.bwUpFreeAbsolute);
       return this._bwOne(cap);
     },
-    get bwDownBadgeText() {
-      return this._fmtMbps(this.bw.downlink_mbps) + " Mbps";
-    },
-    get bwUpBadgeText() {
-      return this._fmtMbps(this.bw.uplink_mbps) + " Mbps";
-    },
-    get bwDownCapText() {
-      return this._fmtMbps(this.bw.down_cap_mbps || this.bw.cap_mbps) + " Mbps";
-    },
-    get bwUpCapText() {
-      return this._fmtMbps(this.bw.up_cap_mbps) + " Mbps";
-    },
-    get bwCurrentLimitText() {
-      if (!this.backendReachable) return "-";
-      const limit = this.bw.current_limit;
-      return limit ? this.formatBytes(limit) + "/s" : "-";
-    },
     // Live cap-utilization: most recent sparkline sample (bytes/sec)
     // converted to Mbps and divided by the active cap.
     get bwLiveDownMbps() {

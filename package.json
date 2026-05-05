@@ -20,10 +20,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.48.0",
-    "@types/alpinejs": "^3.13.10",
     "@types/node": "^25.6.0",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
     "esbuild": "^0.24.0",
     "eslint": "^9.0.0",
     "prettier": "^3.3.0",

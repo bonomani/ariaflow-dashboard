@@ -45,7 +45,9 @@ class TestStaticFiles:
         # Match any semver-shaped version, not a hardcoded 0.x prefix —
         # otherwise the test passes silently on corrupt strings and
         # would fail on a legitimate 1.0.0 bump.
-        assert _re.search(r'window\.__ARIAFLOW_DASHBOARD_VERSION__="\d+\.\d+\.\d+', body)
+        assert _re.search(
+            r'window\.__ARIAFLOW_DASHBOARD_VERSION__="\d+\.\d+\.\d+', body
+        )
 
     def test_html_injects_pid_global(self, web_server: str) -> None:
         body = urllib.request.urlopen(f"{web_server}/", timeout=5).read().decode()
@@ -130,7 +132,9 @@ class TestBootstrap:
         from ariaflow_dashboard import webapp
 
         # Point _DIST_INDEX at a path that doesn't exist.
-        monkeypatch.setattr(webapp, "_DIST_INDEX", Path("/tmp/_nonexistent_dist_index.html"))
+        monkeypatch.setattr(
+            webapp, "_DIST_INDEX", Path("/tmp/_nonexistent_dist_index.html")
+        )
         with pytest.raises(FileNotFoundError) as exc_info:
             webapp.serve(host="127.0.0.1", port=0)  # port=0 = OS-assigned, never bound
         assert "npm run build" in str(exc_info.value)
@@ -140,16 +144,26 @@ class TestBootstrap:
         negative-slice fallback that would return all-but-first-N entries."""
         import json
 
-        body = urllib.request.urlopen(f"{web_server}/api/web/log?limit=-5", timeout=5).read().decode()
+        body = (
+            urllib.request.urlopen(f"{web_server}/api/web/log?limit=-5", timeout=5)
+            .read()
+            .decode()
+        )
         data = json.loads(body)
         assert data.get("ok") is True
         assert isinstance(data.get("items"), list)
         assert len(data["items"]) <= 1
 
-    def test_log_limit_invalid_string_falls_back_to_default(self, web_server: str) -> None:
+    def test_log_limit_invalid_string_falls_back_to_default(
+        self, web_server: str
+    ) -> None:
         """A non-integer limit shouldn't raise — falls back to the default."""
         import json
 
-        body = urllib.request.urlopen(f"{web_server}/api/web/log?limit=abc", timeout=5).read().decode()
+        body = (
+            urllib.request.urlopen(f"{web_server}/api/web/log?limit=abc", timeout=5)
+            .read()
+            .decode()
+        )
         data = json.loads(body)
         assert data.get("ok") is True

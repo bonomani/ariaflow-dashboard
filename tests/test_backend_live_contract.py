@@ -69,7 +69,9 @@ class TestVersionContract:
         runtime_v = runtime["version"]
         spec_text = _get_text("/api/openapi.yaml")
         assert spec_text, "/api/openapi.yaml unreachable"
-        m = re.search(r"^\s{0,4}version:\s*['\"]?([^'\"\s]+)['\"]?\s*$", spec_text, re.MULTILINE)
+        m = re.search(
+            r"^\s{0,4}version:\s*['\"]?([^'\"\s]+)['\"]?\s*$", spec_text, re.MULTILINE
+        )
         assert m, "no info.version line in openapi.yaml"
         assert m.group(1) == runtime_v, (
             f"BG-37 drift: openapi.yaml info.version={m.group(1)!r} but /api/version={runtime_v!r}"
@@ -96,7 +98,9 @@ class TestMetaContract:
             "/api/aria2/global_option",
         }
         missing = required - paths
-        assert not missing, f"BG-31 / BG-34: /api/_meta missing endpoints: {sorted(missing)}"
+        assert not missing, (
+            f"BG-31 / BG-34: /api/_meta missing endpoints: {sorted(missing)}"
+        )
 
     def test_bg31_meta_class_validators(self, live_backend: str) -> None:
         meta = _get_json("/api/_meta")
@@ -106,7 +110,9 @@ class TestMetaContract:
             if cls in {"warm", "swr"}:
                 assert "ttl_s" in ep, f"{ep['path']} declares {cls} without ttl_s"
             if cls == "on-action":
-                assert ep.get("revalidate_on"), f"{ep['path']} on-action without revalidate_on"
+                assert ep.get("revalidate_on"), (
+                    f"{ep['path']} on-action without revalidate_on"
+                )
             if cls == "live":
                 assert ep.get("transport"), f"{ep['path']} live without transport"
 
@@ -122,8 +128,12 @@ class TestStatusContract:
             # check is on a top-level / state key literal. Walk the parsed object.
             pass
         parsed = json.loads(body)
-        assert "paused" not in parsed.get("state", {}), "BG-33: state.paused must not exist"
-        assert "stopped" not in parsed.get("summary", {}), "BG-33: summary.stopped must not exist"
+        assert "paused" not in parsed.get("state", {}), (
+            "BG-33: state.paused must not exist"
+        )
+        assert "stopped" not in parsed.get("summary", {}), (
+            "BG-33: summary.stopped must not exist"
+        )
         assert "filtered" not in parsed, "BG-35: top-level filtered must not exist"
 
     def test_bg30_canonical_keys_present(self, live_backend: str) -> None:
