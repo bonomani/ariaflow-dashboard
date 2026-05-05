@@ -15,7 +15,7 @@ import {
   badgeClass,
   sessionLabel,
 } from './formatters';
-import { renderItemSparkline, renderGlobalSparkline } from './sparkline';
+import { renderItemSparkline, renderGlobalSparkline, renderGlobalTimeline } from './sparkline';
 import { apiFetch, postEmpty } from './api';
 import {
   backendUrl as runtimeBackendUrl,
@@ -792,6 +792,14 @@ document.addEventListener('alpine:init', () => {
       this.globalUploadHistory = next.upload;
     },
     get globalSparklineSvg() { return renderGlobalSparkline(this.globalSpeedHistory, this.globalUploadHistory); },
+    get globalTimelineSvg() {
+      return renderGlobalTimeline(
+        this.globalSpeedHistory,
+        this.globalUploadHistory,
+        Number(this.bw?.cap_mbps) || 0,
+        Number(this.refreshInterval) || 10000,
+      );
+    },
 
     // --- notifications ---
     checkNotifications(items) {

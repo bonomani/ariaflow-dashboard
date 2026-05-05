@@ -58,14 +58,20 @@
       </div>
 
       <div class="hero-transfer">
-        <div class="stat-value" x-text="transferSpeedText">idle</div>
-        <div class="stat-sub" x-show="currentTransfer" x-text="currentTransferName"></div>
-        <div x-html="globalSparklineSvg" class="mt-sm"></div>
-      </div>
-
-      <div class="hero-cap mt-sm" x-show="bw.cap_mbps">
-        <div class="meta"><span>Cap utilization <strong x-text="bwUtilizationPct + '%'"></strong> · <span x-text="bwUtilizationText"></span></span></div>
-        <div class="meter"><div :style="'width:' + bwUtilizationPct + '%'"></div></div>
+        <div class="hero-headline">
+          <div class="stat-value" x-text="transferSpeedText">idle</div>
+          <div class="stat-sub" x-show="currentTransfer" x-text="currentTransferName"></div>
+        </div>
+        <!-- A7 timeline: stacked-area downlink/uplink with cap reference
+             line. Replaces the small sparkline + standalone cap meter —
+             cap is now an inline reference inside the chart. -->
+        <div x-html="globalTimelineSvg" class="hero-timeline mt-sm"></div>
+        <!-- Compact cap caption directly under the chart, only when a
+             cap is configured — preserves the at-a-glance utilization
+             read without re-drawing the same value as a meter. -->
+        <div class="meta hero-cap-caption" x-show="bw.cap_mbps">
+          <span>Cap utilization <strong x-text="bwUtilizationPct + '%'"></strong> · <span x-text="bwUtilizationText"></span></span>
+        </div>
       </div>
 
       <div class="hero-footer mt-md">

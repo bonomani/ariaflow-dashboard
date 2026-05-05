@@ -175,6 +175,9 @@ a.btn-link.secondary { background: var(--ws-btn-inactive-bg); color: var(--ws-te
 .hero-transfer .stat-sub { color: var(--ws-muted); font-size: var(--ws-font-md); margin-top: 2px; }
 .hero-cap .meter { margin-top: 4px; }
 .hero-footer { display: flex; flex-direction: column; gap: var(--ws-gap-sm); }
+.hero-headline { display: flex; align-items: baseline; gap: var(--ws-gap-md); flex-wrap: wrap; }
+.hero-timeline { width: 100%; }
+.hero-cap-caption { margin-top: 2px; }
 
 .row { display: flex; gap: var(--ws-gap-sm); flex-wrap: wrap; }
 .row > * { flex: 1 1 var(--row-basis); }

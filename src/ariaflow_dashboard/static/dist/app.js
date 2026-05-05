@@ -98,6 +98,44 @@ function renderItemSparkline(data) {
     <polyline points="${points}" fill="none" stroke="var(--ws-accent)" stroke-width="1.5" stroke-linejoin="round"/>
   </svg>`;
 }
+function renderGlobalTimeline(dl, ul, capMbps = 0, refreshIntervalMs = 1e4) {
+  if (dl.length < 2) return "";
+  const peakDl = Math.max(...dl);
+  const peakUl = ul.length ? Math.max(...ul) : 0;
+  if (peakDl <= 0 && peakUl <= 0) return "";
+  const w = 800;
+  const h = 100;
+  const padTop = 8;
+  const padBottom = 18;
+  const padRight = 4;
+  const chartH = h - padTop - padBottom;
+  const capBps = capMbps > 0 ? capMbps * 1e6 / 8 : 0;
+  const yMax = Math.max(peakDl + peakUl, capBps, 1);
+  const samples = dl.length;
+  const step = (w - padRight) / (samples - 1);
+  const yOf = (v) => padTop + chartH - v / yMax * chartH;
+  const dlPath = dl.map((v, i) => `${(i * step).toFixed(1)},${yOf(v).toFixed(1)}`);
+  const ulStacked = ul.length ? ul.map((v, i) => yOf((dl[i] ?? 0) + v)) : [];
+  const baseline = yOf(0);
+  const dlPoly = `0,${baseline} ${dlPath.join(" ")} ${((samples - 1) * step).toFixed(1)},${baseline}`;
+  const ulPoly = ulStacked.length ? `${dl.map((v, i) => `${(i * step).toFixed(1)},${yOf(v).toFixed(1)}`).join(" ")} ${ulStacked.map((y, i) => `${((samples - 1 - i) * step).toFixed(1)},${y.toFixed(1)}`).reverse().join(" ")}` : "";
+  const capY = capBps > 0 ? yOf(capBps) : null;
+  const totalSecs = (samples - 1) * refreshIntervalMs / 1e3;
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((frac) => {
+    const x = frac * (w - padRight);
+    const secsAgo = Math.round((1 - frac) * totalSecs);
+    const label = frac === 1 ? "now" : `-${secsAgo}s`;
+    return `<text x="${x.toFixed(1)}" y="${(h - 4).toFixed(1)}" fill="var(--ws-muted)" font-size="10" text-anchor="${frac === 0 ? "start" : frac === 1 ? "end" : "middle"}">${label}</text>`;
+  }).join("");
+  const capLabel = capBps > 0 && capY != null ? `<text x="4" y="${(capY - 2).toFixed(1)}" fill="var(--ws-muted)" font-size="10">cap ${capMbps} Mbps</text>` : "";
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="display:block;width:100%;height:${h}px;">
+    <polygon points="${dlPoly}" fill="var(--ws-accent)" fill-opacity="0.35" stroke="var(--ws-accent)" stroke-width="1.2"/>
+    ${ulPoly ? `<polygon points="${ulPoly}" fill="var(--ws-accent-2)" fill-opacity="0.35" stroke="var(--ws-accent-2)" stroke-width="1"/>` : ""}
+    ${capY != null ? `<line x1="0" x2="${w - padRight}" y1="${capY.toFixed(1)}" y2="${capY.toFixed(1)}" stroke="var(--ws-muted)" stroke-width="1" stroke-dasharray="4,3"/>` : ""}
+    ${capLabel}
+    ${ticks}
+  </svg>`;
+}
 function renderGlobalSparkline(dl, ul) {
   if (dl.length < 2) return "";
   const peakDlValue = Math.max(...dl);
@@ -2016,6 +2054,14 @@ document.addEventListener("alpine:init", () => {
     },
     get globalSparklineSvg() {
       return renderGlobalSparkline(this.globalSpeedHistory, this.globalUploadHistory);
+    },
+    get globalTimelineSvg() {
+      return renderGlobalTimeline(
+        this.globalSpeedHistory,
+        this.globalUploadHistory,
+        Number(this.bw?.cap_mbps) || 0,
+        Number(this.refreshInterval) || 1e4
+      );
     },
     // --- notifications ---
     checkNotifications(items) {
