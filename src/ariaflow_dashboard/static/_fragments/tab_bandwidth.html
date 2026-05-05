@@ -3,9 +3,33 @@
         <div class="panel">
           <div class="section-title">
             <h2>Bandwidth</h2>
-            <div class="hint">Probe, reservation policy, and download concurrency</div>
+            <div class="hint">Probe → measured result, reservation policy, download concurrency</div>
           </div>
-          <h3 class="text-sm text-muted mt-md mb-sm">Status</h3>
+          <!-- Probe (cause) above Status (effect): the section below is
+               the result of the most recent probe. Reads top-to-bottom
+               as cause → effect. -->
+          <h3 class="text-sm text-muted mt-md mb-sm">Probe</h3>
+          <div class="chips">
+            <div class="chip" x-show="bw.last_probe_at">Probed <strong x-text="bw.last_probe_at ? relativeTime(new Date(bw.last_probe_at * 1000).toISOString()) : '-'">-</strong></div>
+            <div class="chip badge warn" x-show="bwProbeStale" :title="'Auto-probe interval: ' + bwProbeInterval + 's. Last probe is overdue.'">overdue</div>
+            <div class="chip">Interface <strong x-text="bwInterfaceText">-</strong></div>
+            <div class="chip">Source <strong x-text="bwSourceText">-</strong></div>
+            <label class="chip text-muted text-sm">auto every
+              <select :value="bwProbeInterval" @change="setBandwidthPref('bandwidth_probe_interval_seconds', Number($el.value), 180)">
+                <option value="60">60s</option>
+                <option value="120">120s</option>
+                <option value="180">180s</option>
+                <option value="300">300s</option>
+              </select>
+            </label>
+            <button :class="{ secondary: probeLoading }" @click="runProbe()" :disabled="probeLoading" x-text="probeLoading ? 'Probing...' : 'Run probe'">Run probe</button>
+          </div>
+          <details class="mt-sm mb-md" x-show="bw.last_probe">
+            <summary class="text-muted text-sm cursor-pointer">Last probe payload</summary>
+            <div class="debug-box text-mono text-sm" x-text="JSON.stringify(bw.last_probe, null, 2)"></div>
+          </details>
+
+          <h3 class="text-sm text-muted mt-md mb-sm">Result</h3>
           <!-- Live measured rates -->
           <div class="chips">
             <div class="chip">Download <strong x-text="bwDownBadgeText">-</strong></div>
@@ -19,32 +43,10 @@
             <div class="chip">Limit <strong x-text="bwCurrentLimitText">-</strong></div>
           </div>
           <!-- Live cap-utilization meter — answers "am I being throttled?" at a glance -->
-          <div class="mt-sm" x-show="bw.cap_mbps">
+          <div class="mt-sm mb-md" x-show="bw.cap_mbps">
             <div class="meta"><span>Cap utilization <strong x-text="bwUtilizationPct + '%'"></strong> · <span x-text="bwUtilizationText"></span></span></div>
             <div class="meter"><div :style="'width:' + bwUtilizationPct + '%'"></div></div>
           </div>
-          <!-- Provenance + Run probe inline (probe button next to Probed timestamp) -->
-          <div class="chips mt-sm">
-            <div class="chip">Interface <strong x-text="bwInterfaceText">-</strong></div>
-            <div class="chip">Source <strong x-text="bwSourceText">-</strong></div>
-            <div class="chip" x-show="bw.last_probe_at">Probed <strong x-text="bw.last_probe_at ? relativeTime(new Date(bw.last_probe_at * 1000).toISOString()) : '-'">-</strong></div>
-            <div class="chip badge warn" x-show="bwProbeStale" :title="'Auto-probe interval: ' + bwProbeInterval + 's. Last probe is overdue.'">overdue</div>
-            <button :class="{ secondary: probeLoading }" @click="runProbe()" :disabled="probeLoading" x-text="probeLoading ? 'Probing...' : 'Run probe'">Run probe</button>
-          </div>
-          <div class="row mt-sm mb-md">
-            <label class="text-muted text-sm">Auto-probe every
-              <select :value="bwProbeInterval" @change="setBandwidthPref('bandwidth_probe_interval_seconds', Number($el.value), 180)">
-                <option value="60">60s</option>
-                <option value="120">120s</option>
-                <option value="180">180s</option>
-                <option value="300">300s</option>
-              </select>
-            </label>
-          </div>
-          <details class="mb-md" x-show="bw.last_probe">
-            <summary class="text-muted text-sm cursor-pointer">Last probe payload</summary>
-            <div class="debug-box text-mono text-sm" x-text="JSON.stringify(bw.last_probe, null, 2)"></div>
-          </details>
 
           <h3 class="text-sm text-muted mt-md mb-sm">Reserve</h3>
           <div class="list">
