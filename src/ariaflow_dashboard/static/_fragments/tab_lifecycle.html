@@ -5,6 +5,18 @@
             <h2>Components</h2>
             <div class="hint">ariaflow-server, aria2, networkquality, aria2 auto-start</div>
           </div>
+          <div class="chips mb-md">
+            <div class="chip" :title="'PID ' + backendPidText">
+              ariaflow-server
+              <strong x-text="backendVersionText">-</strong>
+              <span class="text-muted" x-show="backendPidText !== '-' && backendPidText !== 'unreported'" x-text="'· pid ' + backendPidText"></span>
+            </div>
+            <div class="chip" :title="'PID ' + webPidText">
+              ariaflow-dashboard
+              <strong x-text="webVersionText">-</strong>
+              <span class="text-muted" x-show="webPidText !== '-'" x-text="'· pid ' + webPidText"></span>
+            </div>
+          </div>
           <div class="list">
             <template x-if="_lifecycleSession">
               <div class="item mb-md">

@@ -65,11 +65,6 @@
               </template>
             </select>
           </label>
-          <div class="chip" :title="'PID ' + backendPidText">
-            ariaflow-server
-            <strong x-text="backendVersionText">-</strong>
-            <span class="text-muted" x-show="backendPidText !== '-' && backendPidText !== 'unreported'" x-text="'· pid ' + backendPidText"></span>
-          </div>
           <details class="chip-details" :title="healthIssues.length ? 'Click for details' : ''">
             <summary :class="healthBadgeClass" x-text="healthBadgeText">Healthy</summary>
             <div class="chips mt-sm" x-show="healthIssues.length">
@@ -90,16 +85,9 @@
           <div class="meta"><span>Cap utilization <strong x-text="bwUtilizationPct + '%'"></strong> · <span x-text="bwUtilizationText"></span></span></div>
           <div class="meter"><div :style="'width:' + bwUtilizationPct + '%'"></div></div>
         </div>
-        <!-- L3: dashboard identity + interfaces (collapsible) -->
+        <!-- L3: local interfaces (collapsible) -->
         <details class="mt-sm">
-          <summary class="text-muted text-sm cursor-pointer">System info</summary>
-          <div class="chips mt-sm">
-            <div class="chip" :title="'PID ' + webPidText">
-              Ariaflow-dashboard
-              <strong x-text="webVersionText">-</strong>
-              <span class="text-muted" x-show="webPidText !== '-'" x-text="'· pid ' + webPidText"></span>
-            </div>
-          </div>
+          <summary class="text-muted text-sm cursor-pointer">Local interfaces</summary>
           <div class="chips mt-sm">
             <template x-for="ip in localIps" :key="ip">
               <div class="chip" :class="{ 'badge good': ip === localMainIp }">
@@ -364,6 +352,18 @@
           <div class="section-title">
             <h2>Components</h2>
             <div class="hint">ariaflow-server, aria2, networkquality, aria2 auto-start</div>
+          </div>
+          <div class="chips mb-md">
+            <div class="chip" :title="'PID ' + backendPidText">
+              ariaflow-server
+              <strong x-text="backendVersionText">-</strong>
+              <span class="text-muted" x-show="backendPidText !== '-' && backendPidText !== 'unreported'" x-text="'· pid ' + backendPidText"></span>
+            </div>
+            <div class="chip" :title="'PID ' + webPidText">
+              ariaflow-dashboard
+              <strong x-text="webVersionText">-</strong>
+              <span class="text-muted" x-show="webPidText !== '-'" x-text="'· pid ' + webPidText"></span>
+            </div>
           </div>
           <div class="list">
             <template x-if="_lifecycleSession">
