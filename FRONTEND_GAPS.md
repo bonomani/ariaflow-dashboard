@@ -1,23 +1,6 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (2)
-
-### FE-36: aria2 row missing `Installed via` chip + Upgrade button
-
-**Blocked by:** BG-46
-
-The lifecycle row for aria2 now renders an `Installed via` chip
-(parallel to `Managed by`) when the backend exposes the field, but
-today only `ariaflow-server` carries `installed_via`. Same story
-for the Upgrade button — the row iterates `row.actions` from the
-backend, and there's no `aria2/update` action declared. Operators
-reading the row see "Managed by launchd" and (correctly) assume
-aria2 came from Homebrew, but neither the chip nor the upgrade
-affordance is available to confirm/act on that.
-
-When BG-46 lands the chip and (separately) the action button will
-appear automatically with no FE change — the markup is already
-conditional on the data.
+## Open (1)
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 
@@ -32,6 +15,7 @@ _End of open gaps._
 
 | ID | Summary | Date |
 |----|---------|------|
+| FE-36 | BG-46 shipped — aria2 lifecycle row now renders the `Installed via` chip (backend detects via the resolved `aria2c` path with the same heuristic as ariaflow-server) and the Upgrade button (action declared in `lifecycle.aria2.actions`, dispatches `brew upgrade aria2`; pipx/npm correctly 409 since aria2 isn't on those channels). Headline status string also includes the dual-axis suffix `(launchd · homebrew)` so the disambiguation is visible at a glance. No FE changes needed beyond the conditional markup that landed alongside the BG-46 request | 2026-05-05 |
 | FE-35 | BG-45 fully shipped — three Self-management prefs (`auto_start_aria2`, `auto_update`, `auto_update_check_hours`) now drive backend behaviour: cmdServe reconciles aria2 launchd/systemd on boot to match `auto_start_aria2`; periodic auto-update controller polls every `auto_update_check_hours` and dispatches `brew upgrade ariaflow-server` detached. FE side already in place (Options → Self-management section, persists via `setPref` → PATCH /api/declaration/preferences) — no FE change required. Optional follow-up (reconciliation badge) deferred: backend logs `auto_start_reconciled` but doesn't expose it as a wire field, so there's nothing to surface yet | 2026-05-05 |
 | FE-33 | Live-contract release gate flipped from advisory to blocking. Prerequisites closed: `beautifulsoup4`/`jsonschema`/`ruff`/`mypy` in `pyproject [dev]`; `scripts/check_bgs_drift.py` soft-fails (WARN + exit 0) when `../BGSPrivate` isn't checked out; `verify-ci` Make target removed; `release.yml` `build-release` now runs `make verify` directly with `[dev]` extras; `test_download_lifecycle.py` lazy-imports playwright so `test_api_response_shapes` can import `FakeBackend` from it under a `[dev]`-only install. Two consecutive green runs (25381355891 and the gating canary) confirmed reliability before flipping `continue-on-error: true` off and restoring `needs: live-contract` on `build-release` | 2026-05-05 |
 | FE-34 | Scheduler badge in System Health → ariaflow-server now renders `state.scheduler_status` (5-state enum from BG-40) with a wait-reason sub-label (e.g. "idle · queue empty"). New getters `schedulerBadgeText` / `schedulerBadgeClass` / `schedulerWaitReasonText` in `app.ts` map the backend enum + `state.wait_reason` to label/class; fall back to inferred values for backends older than v0.1.252 | 2026-05-05 |
