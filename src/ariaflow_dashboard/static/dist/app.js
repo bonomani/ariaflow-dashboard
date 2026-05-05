@@ -1864,12 +1864,16 @@ document.addEventListener("alpine:init", () => {
     },
     // --- theme (delegated to @bonomani/webstyle/simple-theme-controller:
     // look auto-detected from platform, mode = light/dark/auto, no a11y) ---
-    themeLabel: "Theme: auto",
+    // Cycle: auto → light → dark → auto. Label shows the *next* mode
+    // a click selects, not the current state — clearer than reporting
+    // "Theme: dark" which doesn't tell the user what clicking will do.
+    themeLabel: "Switch to light",
     _themeController: null,
     initTheme() {
+      const nextMode = { auto: "light", light: "dark", dark: "auto" };
       this._themeController = createSimpleThemeController({ apply: applyLook });
       this._themeController.subscribe((s) => {
-        this.themeLabel = `Theme: ${s.mode}`;
+        this.themeLabel = `Switch to ${nextMode[s.mode] ?? "auto"}`;
       });
     },
     toggleTheme() {
@@ -2069,11 +2073,12 @@ document.addEventListener("alpine:init", () => {
       return this.shortName(item.output || item.url || "(no url)");
     },
     itemDetail(item) {
+      const gid = item.gid ? `GID ${String(item.gid).slice(0, 8)}` : null;
       return [
         item.created_at ? `Added ${this.relativeTime(item.created_at)}` : null,
         item.completed_at ? `Done ${this.relativeTime(item.completed_at)}` : null,
         item.error_at ? `Failed ${this.relativeTime(item.error_at)}` : null,
-        item.gid ? `GID ${item.gid}` : null
+        gid
       ].filter(Boolean).join(" \xB7 ");
     },
     itemLiveStatus(item) {

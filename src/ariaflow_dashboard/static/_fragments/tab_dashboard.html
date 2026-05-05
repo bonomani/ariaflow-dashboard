@@ -76,8 +76,10 @@
                       </div>
                     </div>
                     <div class="meta">
-                      <span x-show="itemTotalLength(item)" x-text="'Total ' + formatBytes(itemTotalLength(item))"></span>
-                      <span x-show="itemCompletedLength(item)" x-text="'Done ' + formatBytes(itemCompletedLength(item))"></span>
+                      <!-- On complete: Total == Done; show "Size" once. Otherwise show both -->
+                      <span x-show="itemTotalLength(item) && itemNormalizedStatus(item) === 'complete'" x-text="'Size ' + formatBytes(itemTotalLength(item))"></span>
+                      <span x-show="itemTotalLength(item) && itemNormalizedStatus(item) !== 'complete'" x-text="'Total ' + formatBytes(itemTotalLength(item))"></span>
+                      <span x-show="itemCompletedLength(item) && itemNormalizedStatus(item) !== 'complete'" x-text="'Done ' + formatBytes(itemCompletedLength(item))"></span>
                       <span x-show="item.recovered_at" x-text="'Recovered ' + relativeTime(item.recovered_at)"></span>
                       <span x-show="itemShowPausedAt(item)" x-text="'Paused ' + relativeTime(item.paused_at)"></span>
                       <span x-show="item.rpc_error_message" class="text-muted" x-text="item.rpc_error_message"></span>
