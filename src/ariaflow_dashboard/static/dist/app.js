@@ -74,13 +74,12 @@ function badgeClass(status) {
   return "badge";
 }
 function sessionLabel(state) {
-  if (state?.session_id && !state?.session_closed_at) {
-    return `current ${String(state.session_id).slice(0, 8)}`;
-  }
-  if (state?.session_id && state?.session_closed_at) {
-    return `closed ${String(state.session_id).slice(0, 8)}`;
-  }
+  if (state?.session_id && !state?.session_closed_at) return "active";
+  if (state?.session_id && state?.session_closed_at) return "closed";
   return "-";
+}
+function sessionIdShort(state) {
+  return state?.session_id ? String(state.session_id).slice(0, 8) : "";
 }
 
 // src/ariaflow_dashboard/static/ts/sparkline.ts
@@ -2044,6 +2043,7 @@ document.addEventListener("alpine:init", () => {
     timestampLabel,
     badgeClass,
     sessionLabel,
+    sessionIdShort,
     schedulerStateLabel(state, reachable = true) {
       if (!reachable) return "offline";
       if (state?.stop_requested) return "stopping";

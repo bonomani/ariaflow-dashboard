@@ -92,7 +92,7 @@
 
       <div class="hero-footer mt-md">
         <div class="chips">
-          <a class="chip-details" href="/lifecycle" @click.prevent="navigateTo('lifecycle')" title="Open System Health">
+          <a class="chip-details" href="/lifecycle" @click.prevent="navigateTo('lifecycle')" :title="'Session ' + sessionIdShort(state) + ' · open System Health'">
             <span class="chip">Session <strong x-text="sessionIdText + (sessionStartedText !== '-' ? ' · ' + sessionStartedText : '')">-</strong></span>
           </a>
           <div class="chip" :class="{ 'badge warn': !diskOk }" x-show="diskUsageText !== '-'">Disk <strong x-text="diskUsageText">-</strong></div>

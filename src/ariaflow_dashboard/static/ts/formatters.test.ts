@@ -72,13 +72,10 @@ test('badgeClass maps status groups', () => {
 });
 
 test('sessionLabel reflects open vs closed', () => {
-  assert.equal(
-    sessionLabel({ session_id: 'abcdef1234', session_closed_at: null }),
-    'current abcdef12',
-  );
+  assert.equal(sessionLabel({ session_id: 'abcdef1234', session_closed_at: null }), 'active');
   assert.equal(
     sessionLabel({ session_id: 'abcdef1234', session_closed_at: '2026-01-01' }),
-    'closed abcdef12',
+    'closed',
   );
   assert.equal(sessionLabel(null), '-');
 });

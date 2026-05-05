@@ -14,6 +14,7 @@ import {
   timestampLabel,
   badgeClass,
   sessionLabel,
+  sessionIdShort,
 } from './formatters';
 import { renderItemSparkline, renderGlobalSparkline, renderGlobalTimeline } from './sparkline';
 import { apiFetch, postEmpty } from './api';
@@ -759,7 +760,7 @@ document.addEventListener('alpine:init', () => {
     // --- formatting ---
     // --- formatters (delegated to formatters.js) ---
     formatEta, formatBytes, formatRate, formatMbps, humanCap, shortName,
-    relativeTime, timestampLabel, badgeClass, sessionLabel,
+    relativeTime, timestampLabel, badgeClass, sessionLabel, sessionIdShort,
 
     schedulerStateLabel(state, reachable = true) {
       if (!reachable) return 'offline';

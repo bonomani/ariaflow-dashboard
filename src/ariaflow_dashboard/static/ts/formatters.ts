@@ -95,11 +95,11 @@ export interface SessionState {
 }
 
 export function sessionLabel(state: SessionState | null | undefined): string {
-  if (state?.session_id && !state?.session_closed_at) {
-    return `current ${String(state.session_id).slice(0, 8)}`;
-  }
-  if (state?.session_id && state?.session_closed_at) {
-    return `closed ${String(state.session_id).slice(0, 8)}`;
-  }
+  if (state?.session_id && !state?.session_closed_at) return 'active';
+  if (state?.session_id && state?.session_closed_at) return 'closed';
   return '-';
+}
+
+export function sessionIdShort(state: SessionState | null | undefined): string {
+  return state?.session_id ? String(state.session_id).slice(0, 8) : '';
 }
