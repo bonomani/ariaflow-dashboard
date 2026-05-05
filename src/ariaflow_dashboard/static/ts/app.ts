@@ -495,10 +495,6 @@ document.addEventListener('alpine:init', () => {
     // that BG-34 didn't include in the backend /api/_meta registry.
     LOCAL_METAS: [
       { method: 'GET', path: '/api/aria2/option_tiers', freshness: 'cold' },
-      // Backend's /api/sessions/history is a real endpoint but not yet
-      // in the backend's /api/_meta registry — register synthetically
-      // until backend declares it (see backend gap BG-39).
-      { method: 'GET', path: '/api/sessions/history', freshness: 'swr', ttl_s: 30 },
     ],
     // One-shot actions to run when a tab becomes the active page (either
     // on direct URL load via init() or via navigateTo()). For tab-driven

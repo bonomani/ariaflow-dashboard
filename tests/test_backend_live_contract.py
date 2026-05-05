@@ -193,13 +193,7 @@ class TestEnvelopeNormalization:
             "/api/log",
             "/api/sessions",
             "/api/peers",
-            pytest.param(
-                "/api/torrents",
-                marks=pytest.mark.xfail(
-                    strict=True,
-                    reason="BG-38 (to file): /api/torrents returns {torrents, count, meta} without ok:true; missed by BG-34 envelope sweep",
-                ),
-            ),
+            "/api/torrents",
             "/api/downloads",
             "/api/downloads/archive",
             "/api/aria2/global_option",
