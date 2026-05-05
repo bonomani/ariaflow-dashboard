@@ -64,3 +64,52 @@
           </div>
         </div>
       </div>
+
+      <!-- Preflight — moved from Log tab; readiness gates fit System Health
+           more cleanly than the contract-history surface. UCC stays on Log. -->
+      <div class="span-12" x-show="page === 'lifecycle'">
+        <div class="panel">
+          <div class="section-title">
+            <h2>Preflight</h2>
+            <div class="hint">Readiness gates — pass, warnings, and failures</div>
+          </div>
+          <div class="row mb-md">
+            <button :class="{ secondary: !backendReachable, loading: preflightLoading }" @click="preflightRun()" :disabled="!backendReachable || preflightLoading" x-text="preflightLoading ? 'Running…' : 'Run preflight'">Run preflight</button>
+          </div>
+          <div class="list">
+            <template x-if="!preflightData">
+              <div class="item">Run preflight to see results.</div>
+            </template>
+            <template x-if="preflightData">
+              <div>
+                <template x-for="gate in (preflightData.gates || [])" :key="gate.name">
+                  <div class="item">
+                    <div class="item-top">
+                      <div class="item-url" x-text="gate.name"></div>
+                      <span :class="gate.satisfied ? 'badge good' : 'badge bad'" x-text="gate.satisfied ? 'ready' : 'blocked'"></span>
+                    </div>
+                    <div class="meta"><span x-text="(gate.class || 'gate') + ' · ' + (gate.blocking || 'unknown')"></span></div>
+                  </div>
+                </template>
+                <template x-for="warning in (preflightData.warnings || [])" :key="warning.name">
+                  <div class="item">
+                    <div class="item-top">
+                      <div class="item-url" x-text="warning.name"></div>
+                      <span class="badge warn">warning</span>
+                    </div>
+                    <div class="meta"><span x-text="warning.message"></span></div>
+                  </div>
+                </template>
+                <template x-for="(failure, idx) in (preflightData.hard_failures || [])" :key="'hf-' + idx">
+                  <div class="item">
+                    <div class="item-top">
+                      <div class="item-url" x-text="failure"></div>
+                      <span class="badge bad">blocked</span>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
