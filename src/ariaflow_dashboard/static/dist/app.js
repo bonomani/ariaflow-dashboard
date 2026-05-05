@@ -95,7 +95,7 @@ function renderItemSparkline(data) {
   const h = 28;
   const points = sparklinePoints(data, max, w, h);
   return `<svg width="${w}" height="${h}" style="display:block;margin-top:6px;" viewBox="0 0 ${w} ${h}">
-    <polyline points="${points}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/>
+    <polyline points="${points}" fill="none" stroke="var(--ws-accent)" stroke-width="1.5" stroke-linejoin="round"/>
   </svg>`;
 }
 function renderGlobalSparkline(dl, ul) {
@@ -111,9 +111,9 @@ function renderGlobalSparkline(dl, ul) {
   const peakDl = formatRate(peakDlValue);
   const peakUl = peakUlValue > 0 ? ` \u2191 ${formatRate(peakUlValue)}` : "";
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;">
-    <polyline points="${dlPoints}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/>
-    ${ulPoints ? `<polyline points="${ulPoints}" fill="none" stroke="var(--accent-2)" stroke-width="1" stroke-linejoin="round" stroke-dasharray="3,2"/>` : ""}
-  </svg><span style="font-size:0.78rem;color:var(--muted);">peak \u2193 ${peakDl}${peakUl}</span>`;
+    <polyline points="${dlPoints}" fill="none" stroke="var(--ws-accent)" stroke-width="1.5" stroke-linejoin="round"/>
+    ${ulPoints ? `<polyline points="${ulPoints}" fill="none" stroke="var(--ws-accent-2)" stroke-width="1" stroke-linejoin="round" stroke-dasharray="3,2"/>` : ""}
+  </svg><span style="font-size:0.78rem;color:var(--ws-muted);">peak \u2193 ${peakDl}${peakUl}</span>`;
 }
 
 // src/ariaflow_dashboard/static/ts/api.ts

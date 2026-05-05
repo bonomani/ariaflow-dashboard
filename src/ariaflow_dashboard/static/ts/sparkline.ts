@@ -16,7 +16,7 @@ export function renderItemSparkline(data: number[] | null | undefined): string {
   const h = 28;
   const points = sparklinePoints(data, max, w, h);
   return `<svg width="${w}" height="${h}" style="display:block;margin-top:6px;" viewBox="0 0 ${w} ${h}">
-    <polyline points="${points}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/>
+    <polyline points="${points}" fill="none" stroke="var(--ws-accent)" stroke-width="1.5" stroke-linejoin="round"/>
   </svg>`;
 }
 
@@ -36,7 +36,7 @@ export function renderGlobalSparkline(dl: number[], ul: number[]): string {
   const peakDl = formatRate(peakDlValue);
   const peakUl = peakUlValue > 0 ? ` ↑ ${formatRate(peakUlValue)}` : '';
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;">
-    <polyline points="${dlPoints}" fill="none" stroke="var(--accent)" stroke-width="1.5" stroke-linejoin="round"/>
-    ${ulPoints ? `<polyline points="${ulPoints}" fill="none" stroke="var(--accent-2)" stroke-width="1" stroke-linejoin="round" stroke-dasharray="3,2"/>` : ''}
-  </svg><span style="font-size:0.78rem;color:var(--muted);">peak ↓ ${peakDl}${peakUl}</span>`;
+    <polyline points="${dlPoints}" fill="none" stroke="var(--ws-accent)" stroke-width="1.5" stroke-linejoin="round"/>
+    ${ulPoints ? `<polyline points="${ulPoints}" fill="none" stroke="var(--ws-accent-2)" stroke-width="1" stroke-linejoin="round" stroke-dasharray="3,2"/>` : ''}
+  </svg><span style="font-size:0.78rem;color:var(--ws-muted);">peak ↓ ${peakDl}${peakUl}</span>`;
 }
