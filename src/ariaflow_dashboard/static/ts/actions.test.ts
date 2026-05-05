@@ -27,11 +27,11 @@ test('urlTorrentStop encodes infohash', () => {
   assert.equal(urlTorrentStop('abc%def'), '/api/torrents/abc%25def/stop');
 });
 
-test('urlScheduler accepts pause / resume / preflight / ucc', () => {
+test('urlScheduler accepts pause / resume / preflight / contract', () => {
   assert.equal(urlScheduler('pause'), '/api/scheduler/pause');
   assert.equal(urlScheduler('resume'), '/api/scheduler/resume');
   assert.equal(urlScheduler('preflight'), '/api/scheduler/preflight');
-  assert.equal(urlScheduler('ucc'), '/api/scheduler/ucc');
+  assert.equal(urlScheduler('contract'), '/api/scheduler/contract');
 });
 
 test('urlAria2GetOption encodes gid', () => {

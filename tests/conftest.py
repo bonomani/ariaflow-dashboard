@@ -428,7 +428,7 @@ class MockBackendHandler(BaseHTTPRequestHandler):
             self._send({"paused": True})
         elif path == "/api/scheduler/preflight":
             self._send(self.preflight_data)
-        elif path == "/api/scheduler/ucc":
+        elif path in ("/api/scheduler/ucc", "/api/scheduler/contract"):
             self._send(
                 {
                     "result": {"outcome": "converged", "observation": "ok"},

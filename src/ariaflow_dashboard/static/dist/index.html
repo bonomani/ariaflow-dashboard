@@ -900,7 +900,7 @@
               <select x-model="actionFilter">
                 <option value="all">All</option>
                 <template x-for="a in availableActions" :key="a">
-                  <option :value="a" x-text="actionDisplay(a)"></option>
+                  <option :value="a" x-text="a"></option>
                 </template>
               </select>
             </label>
@@ -940,7 +940,7 @@
                 <div class="item-top log-row-top">
                   <span class="log-time text-muted text-mono text-sm" :title="entry.timestamp || ''" x-text="entry.timestamp ? relativeTime(entry.timestamp) : '-'"></span>
                   <span class="log-phrase">
-                    <strong x-text="(entry._source || 'server') + '.' + actionDisplay(entry.action || 'event')"></strong>
+                    <strong x-text="(entry._source || 'server') + '.' + (entry.action || 'event')"></strong>
                     <span class="text-muted" x-show="entry.target" x-text="entry.target"></span>
                     <span class="text-muted" x-show="logEntryDetail(entry)" x-text="'— ' + logEntryDetail(entry)"></span>
                   </span>

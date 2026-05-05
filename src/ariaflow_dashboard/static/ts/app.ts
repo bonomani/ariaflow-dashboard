@@ -1757,7 +1757,7 @@ get bonjourBadgeTitle() {
     async uccRun() {
       this.uccLoading = true;
       try {
-        const r = await postEmpty(this.backendPath(urlScheduler('ucc')));
+        const r = await postEmpty(this.backendPath(urlScheduler('contract')));
         const data = await r.json();
         const outcome = data.result?.outcome || 'unknown';
         this.resultText = `UCC result: ${outcome}`;
@@ -1856,14 +1856,6 @@ get bonjourBadgeTitle() {
       if (done && total) parts.push(`${done}/${total}`);
       if (speed) parts.push(speed);
       return parts.join(' · ');
-    },
-    // Display-only relabel for action verbs whose wire name is
-     // historical or technical. UCC is the wire name; operators read
-     // 'contract' more naturally. Wire (/api/scheduler/ucc, action
-     // log entries) stays unchanged.
-    actionDisplay(action) {
-      if (action === 'ucc') return 'contract';
-      return action;
     },
     // Trailing detail phrase appended to the row's "action target" line.
     // Suppress redundant detail: when the message/reason just repeats

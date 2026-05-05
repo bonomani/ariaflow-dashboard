@@ -1,16 +1,6 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (2)
-
-### FE-38: Drop `actionDisplay()` alias once backend renames `ucc` → `contract`
-
-**Blocked by:** BG-48
-
-The Log tab and activity rows now display "contract" everywhere
-the wire says `ucc` via a small alias in `actionDisplay()`. Once
-BG-48 ships the renamed `POST /api/scheduler/contract` endpoint
-and `entry.action: "contract"` log records, drop the alias and
-the call sites — the wire and UI converge on one name.
+## Open (1)
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 
@@ -25,6 +15,7 @@ _End of open gaps._
 
 | ID | Summary | Date |
 |----|---------|------|
+| FE-38 | BG-48 shipped — backend now exposes `POST /api/scheduler/contract` and the action log emits `entry.action: "contract"` for both routes (the deprecated `/ucc` alias also normalises to "contract" in logs). FE: `uccRun()` switched to `urlScheduler('contract')`, `urlScheduler` arg type updated from `'ucc'` to `'contract'`, the display-only `actionDisplay()` helper + its call sites removed. Wire and UI now share one name | 2026-05-05 |
 | FE-37 | BG-47 shipped — `deriveWaitReason()` reordered so `queue_empty` is evaluated before `bandwidth_probe_pending`. Hard blockers (`aria2_unreachable` / `preflight_blocked` / `disk_full`) still win first. Probe is a one-shot pre-loop step, not gated on queue contents — that's fine because the wait_reason now correctly defaults to `queue_empty` when there's nothing to schedule. No FE change needed: the dashboard renders whatever `state.wait_reason` reports | 2026-05-05 |
 | FE-36 | BG-46 shipped — aria2 lifecycle row now renders the `Installed via` chip (backend detects via the resolved `aria2c` path with the same heuristic as ariaflow-server) and the Upgrade button (action declared in `lifecycle.aria2.actions`, dispatches `brew upgrade aria2`; pipx/npm correctly 409 since aria2 isn't on those channels). Headline status string also includes the dual-axis suffix `(launchd · homebrew)` so the disambiguation is visible at a glance. No FE changes needed beyond the conditional markup that landed alongside the BG-46 request | 2026-05-05 |
 | FE-35 | BG-45 fully shipped — three Self-management prefs (`auto_start_aria2`, `auto_update`, `auto_update_check_hours`) now drive backend behaviour: cmdServe reconciles aria2 launchd/systemd on boot to match `auto_start_aria2`; periodic auto-update controller polls every `auto_update_check_hours` and dispatches `brew upgrade ariaflow-server` detached. FE side already in place (Options → Self-management section, persists via `setPref` → PATCH /api/declaration/preferences) — no FE change required. Optional follow-up (reconciliation badge) deferred: backend logs `auto_start_reconciled` but doesn't expose it as a wire field, so there's nothing to surface yet | 2026-05-05 |

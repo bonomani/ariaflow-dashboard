@@ -31,7 +31,7 @@ export function urlTorrentStop(infohash: string): string {
 }
 
 // /api/scheduler/{pause,resume,preflight,ucc}
-export function urlScheduler(action: SchedulerAction | 'preflight' | 'ucc'): string {
+export function urlScheduler(action: SchedulerAction | 'preflight' | 'contract'): string {
   return `/api/scheduler/${action}`;
 }
 
