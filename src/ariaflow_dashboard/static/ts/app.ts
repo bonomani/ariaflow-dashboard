@@ -128,6 +128,16 @@ document.addEventListener('alpine:init', () => {
     localMainIp: runtimeLocalMainIp(),
     webVersionText: (() => { const v = runtimeDashboardVersion(); return v ? `v${v}` : '-'; })(),
     webPidText: runtimeDashboardPid() || '-',
+    webManagedBy: null,    // /api/web/lifecycle.result.managed_by
+    webInstalledVia: null, // /api/web/lifecycle.result.installed_via
+    get webRestartSupported() {
+      // Restart works whenever we know how — even 'external' triggers
+      // a Python re-exec via os.execv, so the only blocker is null.
+      return this.webManagedBy != null;
+    },
+    get webUpdateSupported() {
+      return ['homebrew', 'pipx', 'pip'].includes(this.webInstalledVia ?? '');
+    },
     // Bonjour health: pending (initial) → ok / broken / unavailable after discovery
     bonjourState: 'pending',
     backendInput: '',
@@ -607,6 +617,7 @@ document.addEventListener('alpine:init', () => {
       ],
       lifecycle: [
         { method: 'GET', path: '/api/lifecycle', apply: (s, d) => s._applyLifecycle(d) },
+        { method: 'GET', path: '/api/web/lifecycle', apply: (s, d) => s._applyWebLifecycle(d) },
       ],
       options: [
         { method: 'GET', path: '/api/aria2/global_option', apply: (s, d) => s._applyAria2GlobalOption(d) },
@@ -1621,6 +1632,26 @@ document.addEventListener('alpine:init', () => {
         },
       ];
       this._lifecycleSession = data?.session_id ? data : null;
+    },
+    _applyWebLifecycle(data) {
+      const r = data?.result || {};
+      this.webManagedBy = r.managed_by ?? null;
+      this.webInstalledVia = r.installed_via ?? null;
+      if (r.pid) this.webPidText = String(r.pid);
+    },
+    async webLifecycleAction(action) {
+      if (!['restart', 'update'].includes(action)) return;
+      try {
+        const r = await this._fetch(`/api/web/lifecycle/ariaflow-dashboard/${action}`, { method: 'POST' });
+        const data = await r.json();
+        if (!r.ok || data.ok === false) {
+          this.resultText = data.message || `Dashboard ${action} failed: ${data.error || r.status}`;
+        } else {
+          this.resultText = `Dashboard ${action} requested — ${action === 'restart' ? 'reconnecting…' : 'update running detached'}`;
+        }
+      } catch (e) {
+        this.resultText = `Dashboard ${action} failed: ${e.message}`;
+      }
     },
     async loadLifecycle() {
       try {

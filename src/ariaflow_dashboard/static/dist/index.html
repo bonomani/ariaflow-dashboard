@@ -475,9 +475,17 @@
                 <div class="item-url">
                   ariaflow-dashboard
                   <strong class="text-muted text-sm" x-text="webVersionText">-</strong>
-                  <span class="text-muted text-sm" x-show="webPidText !== '-'" x-text="'· pid ' + webPidText"></span>
                 </div>
                 <span class="badge good">running · current</span>
+              </div>
+              <div class="chips mt-sm" x-show="webPidText !== '-' || webManagedBy || webInstalledVia">
+                <div class="chip" x-show="webPidText !== '-'">PID <strong x-text="webPidText">-</strong></div>
+                <div class="chip" x-show="webManagedBy">Managed by <strong x-text="webManagedBy || 'unknown'"></strong></div>
+                <div class="chip" x-show="webInstalledVia">Installed via <strong x-text="webInstalledVia || 'unknown'"></strong></div>
+              </div>
+              <div class="action-strip mt-sm" x-show="webManagedBy || webInstalledVia">
+                <button x-show="webRestartSupported" @click="webLifecycleAction('restart')" :title="'Restart via ' + webManagedBy">Restart</button>
+                <button x-show="webUpdateSupported" @click="webLifecycleAction('update')" :title="'Update via ' + webInstalledVia">Update</button>
               </div>
             </div>
           </div>

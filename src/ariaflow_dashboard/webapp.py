@@ -10,6 +10,12 @@ from urllib.parse import urlparse, parse_qs
 
 from .action_log import load_action_log, record_action
 from .bonjour import discover_http_services, local_identity
+from .install_self import (
+    detect_installed_via,
+    detect_managed_by,
+    dispatch_restart,
+    dispatch_update,
+)
 
 _STATIC_DIR = Path(__file__).parent / "static"
 _DIST_INDEX = _STATIC_DIR / "dist" / "index.html"
@@ -32,6 +38,7 @@ _DASHBOARD_META: list[dict] = [
     {"method": "GET", "path": "/api/_meta", "freshness": "bootstrap"},
     {"method": "GET", "path": "/api/discovery", "freshness": "warm", "ttl_s": 30},
     {"method": "GET", "path": "/api/web/log", "freshness": "warm", "ttl_s": 30},
+    {"method": "GET", "path": "/api/web/lifecycle", "freshness": "warm", "ttl_s": 60},
 ]
 
 
@@ -162,6 +169,22 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
                 detail={"count": len(item_list), "urls": urls},
             )
             return
+        if path == "/api/web/lifecycle":
+            from . import __version__
+
+            self._send_json(
+                {
+                    "ok": True,
+                    "result": {
+                        "version": __version__,
+                        "pid": os.getpid(),
+                        "managed_by": detect_managed_by(),
+                        "installed_via": detect_installed_via(),
+                    },
+                    "meta": _meta_for("/api/web/lifecycle"),
+                }
+            )
+            return
         if path == "/api/web/log":
             qs = parse_qs(parsed.query)
             try:
@@ -177,6 +200,44 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
                     "meta": _meta_for("/api/web/log"),
                 }
             )
+            return
+        self._send_json({"ok": False, "error": "not_found"}, status=404)
+
+    def do_POST(self) -> None:  # noqa: N802
+        parsed = urlparse(self.path)
+        path = parsed.path
+        # Two-part action route mirroring the backend's
+        # /api/lifecycle/:target/:action: dashboard self-management.
+        # Only the dashboard target is recognized here — aria2 / ariaflow-
+        # server lifecycle calls go to the backend at port 8000.
+        if path.startswith("/api/web/lifecycle/ariaflow-dashboard/"):
+            action = path[len("/api/web/lifecycle/ariaflow-dashboard/") :]
+            if action == "restart":
+                plan = dispatch_restart()
+            elif action == "update":
+                plan = dispatch_update()
+            else:
+                self._send_json({"ok": False, "error": "unsupported_action"}, status=400)
+                return
+            after = plan.pop("after", None)
+            status = plan.pop("status", 200)
+            record_action(
+                action="lifecycle",
+                target="ariaflow-dashboard",
+                outcome="changed" if plan.get("ok") else "failed",
+                reason=action,
+                detail={k: v for k, v in plan.items() if k != "ok"},
+            )
+            self._send_json(plan, status=status)
+            if after is not None:
+                # Run side-effect AFTER the response is fully sent —
+                # mirrors the backend's reply.then() pattern. wfile.flush()
+                # ensures the operator sees the 202 before any restart.
+                try:
+                    self.wfile.flush()
+                except OSError:
+                    pass
+                after()
             return
         self._send_json({"ok": False, "error": "not_found"}, status=404)
 

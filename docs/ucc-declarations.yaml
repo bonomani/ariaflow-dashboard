@@ -142,3 +142,4 @@ coverage_map:
   stopTorrent: "test_api_params (torrent stop)"
   runWaitReasonAction: "delegates to preflightRun / lifecycleAction / runProbe (each covered separately)"
   schedulerAction: "test_03_start_engine (start path) / toggleScheduler covers stop path indirectly"
+  webLifecycleAction: "wired to dashboard POST /api/web/lifecycle/ariaflow-dashboard/{restart,update} (BG-43 dashboard mirror) — backend test in webapp.py covers the dispatcher"
