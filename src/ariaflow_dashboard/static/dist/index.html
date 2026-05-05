@@ -111,18 +111,48 @@
           </div>
           <details>
             <summary class="text-muted text-sm cursor-pointer">Advanced</summary>
-            <div class="gap-sm-grid mt-sm">
-              <input x-model="addOutput" placeholder="Output filename (optional)" class="input-md">
-              <input x-model="addPriority" type="number" placeholder="Priority" class="input-sm">
-              <textarea x-model="addMirrors" rows="2" placeholder="Mirror URLs, one per line (optional)" class="textarea-sm"></textarea>
-              <div class="gap-sm">
-                <label class="text-sm text-muted">.torrent file <input type="file" accept=".torrent" @change="handleFileUpload($event, 'torrent')"></label>
-                <label class="text-sm text-muted">.metalink file <input type="file" accept=".metalink,.meta4" @change="handleFileUpload($event, 'metalink')"></label>
+            <div class="list mt-sm">
+              <div class="item">
+                <div class="item-top">
+                  <div class="item-url">Output filename</div>
+                  <input x-model="addOutput" placeholder="(auto-detect)" class="input-md">
+                </div>
+                <div class="meta"><span>Override the filename aria2 saves to. Leave blank to derive from the URL.</span></div>
               </div>
-              <select x-model="addPostActionRule">
-                <option value="">Post-action rule (default)</option>
-                <option value="pending">pending</option>
-              </select>
+              <div class="item">
+                <div class="item-top">
+                  <div class="item-url">Priority</div>
+                  <input x-model="addPriority" type="number" min="0" max="10" placeholder="0" class="input-sm">
+                </div>
+                <div class="meta"><span>Higher = dispatched first within the queue. Default 0.</span></div>
+              </div>
+              <div class="item">
+                <div class="item-top">
+                  <div class="item-url">Mirror URLs</div>
+                </div>
+                <textarea x-model="addMirrors" rows="2" placeholder="One URL per line" class="textarea-sm"></textarea>
+                <div class="meta"><span>Additional URLs aria2 can fall back to for the same file.</span></div>
+              </div>
+              <div class="item">
+                <div class="item-top">
+                  <div class="item-url">Torrent / Metalink file</div>
+                </div>
+                <div class="gap-sm">
+                  <label class="text-sm text-muted">.torrent <input type="file" accept=".torrent" @change="handleFileUpload($event, 'torrent')"></label>
+                  <label class="text-sm text-muted">.metalink <input type="file" accept=".metalink,.meta4" @change="handleFileUpload($event, 'metalink')"></label>
+                </div>
+                <div class="meta"><span>Use a local file instead of a URL. Pasted URL is ignored when a file is selected.</span></div>
+              </div>
+              <div class="item">
+                <div class="item-top">
+                  <div class="item-url">Post-action rule</div>
+                  <select x-model="addPostActionRule">
+                    <option value="">default</option>
+                    <option value="pending">pending</option>
+                  </select>
+                </div>
+                <div class="meta"><span>Override the post-action rule for this item only.</span></div>
+              </div>
             </div>
           </details>
         </div>
