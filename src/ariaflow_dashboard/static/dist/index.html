@@ -500,6 +500,23 @@
                         <button class="secondary" @click="runWaitReasonAction()" :disabled="!backendReachable" x-text="schedulerWaitReasonAction.label"></button>
                       </template>
                     </div>
+                    <div class="section-title mt-md">
+                      <h4 class="text-sm text-muted">Auto-update</h4>
+                      <span :class="autoUpdateEnabled ? 'badge good' : 'badge'" x-text="autoUpdateEnabled ? 'enabled' : 'disabled'"></span>
+                    </div>
+                    <div class="meta">
+                      <label :title="'Periodic upgrade check via the detected package manager (Homebrew, pipx, npm). Runs the same dispatcher as the manual Update button.'">
+                        <input type="checkbox" :checked="autoUpdateEnabled" @change="setAutoUpdate($el.checked)">
+                        Enable periodic upgrade check
+                      </label>
+                    </div>
+                    <div class="meta mt-sm" x-show="autoUpdateEnabled">
+                      <label>
+                        Check every
+                        <input type="number" min="1" max="720" :value="autoUpdateCheckHours" @input="setAutoUpdateCheckHours($el.value)" class="input-sm">
+                        hours
+                      </label>
+                    </div>
                   </div>
                 </template>
                 <template x-if="row.name !== 'ariaflow-server' && row.record?.result && (row.record.result.version || row.record.result.managed_by || row.record.result.installed_via)">
@@ -519,6 +536,12 @@
                     <div class="chips mt-sm" x-show="row.record.result.auto_start.target || row.record.result.auto_start.path">
                       <div class="chip" x-show="row.record.result.auto_start.target">Mechanism <strong x-text="row.record.result.auto_start.target"></strong></div>
                       <div class="chip text-mono text-sm" x-show="row.record.result.auto_start.path" :title="row.record.result.auto_start.path" x-text="row.record.result.auto_start.path"></div>
+                    </div>
+                    <div class="meta mt-sm">
+                      <label :title="'Backend reconciles the launchd / systemd plist on every boot to match this preference'">
+                        <input type="checkbox" :checked="autoStartAria2Enabled" @change="setAutoStartAria2($el.checked)">
+                        Keep auto-start loaded (reconcile on boot)
+                      </label>
                     </div>
                     <div class="action-strip mt-sm" x-show="row.record.result.auto_start.target">
                       <button x-show="!row.record.result.auto_start.installed" @click="lifecycleAction('aria2-launchd', 'install')" :disabled="!backendReachable">Load</button>
@@ -699,32 +722,7 @@
             </div>
           </div>
 
-          <h3 class="text-sm text-muted mt-md mb-sm">Self-management</h3>
-          <div class="list">
-            <div class="item">
-              <div class="item-top">
-                <div class="item-url">aria2 auto-start</div>
-                <label><input type="checkbox" :checked="autoStartAria2Enabled" @change="setAutoStartAria2($el.checked)"> Enable</label>
-              </div>
-              <div class="meta"><span>Backend reconciles the launchd / systemd plist on every boot to match this preference.</span></div>
-            </div>
-            <div class="item">
-              <div class="item-top">
-                <div class="item-url">Auto-update</div>
-                <label><input type="checkbox" :checked="autoUpdateEnabled" @change="setAutoUpdate($el.checked)"> Enable</label>
-              </div>
-              <div class="meta"><span>Periodic upgrade check via the detected package manager (Homebrew, pipx, npm). Runs the same dispatcher as the manual Update button.</span></div>
-            </div>
-            <div class="item" x-show="autoUpdateEnabled">
-              <div class="item-top">
-                <div class="item-url">Update check interval</div>
-                <label><input type="number" min="1" max="720" :value="autoUpdateCheckHours" @input="setAutoUpdateCheckHours($el.value)" class="input-sm"> <span>h</span></label>
-              </div>
-              <div class="meta"><span>How often the backend polls for available upgrades. Default 24 hours.</span></div>
-            </div>
-          </div>
-
-          <h3 class="text-sm text-muted mt-md mb-sm">aria2</h3>
+<h3 class="text-sm text-muted mt-md mb-sm">aria2</h3>
           <div class="list">
             <div class="item">
               <div class="item-top">
