@@ -494,7 +494,7 @@
         <div class="panel">
           <div class="section-title">
             <h2>Options</h2>
-            <div class="hint">UIC declaration preferences</div>
+            <div class="hint">Declaration preferences</div>
           </div>
 
           <h3 class="text-sm text-muted mt-md mb-sm">Scheduler</h3>
@@ -502,7 +502,7 @@
             <div class="item">
               <div class="item-top">
                 <div class="item-url">Auto preflight</div>
-                <label ><input type="checkbox" :checked="autoPreflightEnabled" @change="setAutoPreflightPreference($el.checked)">Toggle</label>
+                <label><input type="checkbox" :checked="autoPreflightEnabled" @change="setAutoPreflightPreference($el.checked)"> Enable</label>
               </div>
               <div class="meta"><span>Run preflight gate checks automatically before starting the scheduler.</span></div>
             </div>
@@ -624,12 +624,12 @@
         </div>
       </div>
 
-      <!-- Declaration — moved from Log tab; UIC declaration is config, not log data -->
+      <!-- Declaration — moved from Log tab; the declaration is config, not log data -->
       <div class="span-12" x-show="page === 'options'">
         <div class="panel declaration">
           <div class="section-title">
             <h2>Declaration</h2>
-            <div class="hint">UIC settings and policy</div>
+            <div class="hint">Raw declaration JSON</div>
           </div>
           <textarea x-model="declarationText" placeholder="Loading declaration..."></textarea>
           <div class="row">
