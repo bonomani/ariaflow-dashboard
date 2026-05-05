@@ -1857,6 +1857,14 @@ get bonjourBadgeTitle() {
       if (speed) parts.push(speed);
       return parts.join(' · ');
     },
+    // Display-only relabel for action verbs whose wire name is
+     // historical or technical. UCC is the wire name; operators read
+     // 'contract' more naturally. Wire (/api/scheduler/ucc, action
+     // log entries) stays unchanged.
+    actionDisplay(action) {
+      if (action === 'ucc') return 'contract';
+      return action;
+    },
     // Trailing detail phrase appended to the row's "action target" line.
     // Suppress redundant detail: when the message/reason just repeats
     // the outcome ("converged · queue · converged"), we don't need to

@@ -843,21 +843,21 @@
           </div>
         </div>
       </div>
-      <!-- UCC contract trace -->
+      <!-- Contract trace (wire name: UCC). -->
       <div class="span-6" x-show="page === 'log'">
         <div class="panel">
           <div class="section-title">
-            <h2>UCC</h2>
-            <div class="hint">Contract execution trace</div>
+            <h2>Contract</h2>
+            <div class="hint">Latest contract check trace</div>
           </div>
           <div class="row mb-md">
-            <button :class="{ secondary: !backendReachable, loading: uccLoading }" @click="uccRun()" :disabled="!backendReachable || uccLoading" x-text="uccLoading ? 'Running…' : 'Run UCC'">Run UCC</button>
+            <button :class="{ secondary: !backendReachable, loading: uccLoading }" @click="uccRun()" :disabled="!backendReachable || uccLoading" x-text="uccLoading ? 'Running…' : 'Run contract'">Run contract</button>
           </div>
           <div class="list">
             <template x-if="contractTraceItems">
               <div class="item">
                 <div class="item-top">
-                  <div class="item-url" x-text="(contractTraceItems.meta?.contract || 'UCC') + ' v' + (contractTraceItems.meta?.version || '-')"></div>
+                  <div class="item-url" x-text="(contractTraceItems.meta?.contract || 'contract') + ' v' + (contractTraceItems.meta?.version || '-')"></div>
                   <span :class="badgeClass(contractTraceOutcome())" x-text="contractTraceOutcome()"></span>
                 </div>
                 <div class="system-facts">
@@ -868,7 +868,7 @@
               </div>
             </template>
             <template x-if="!contractTraceItems">
-              <div class="text-muted text-sm">Run UCC to see results</div>
+              <div class="text-muted text-sm">Run a contract check to see results.</div>
             </template>
           </div>
           <details class="debug mt-md" x-show="resultJson && resultJson !== 'Idle'">
@@ -900,7 +900,7 @@
               <select x-model="actionFilter">
                 <option value="all">All</option>
                 <template x-for="a in availableActions" :key="a">
-                  <option :value="a" x-text="a"></option>
+                  <option :value="a" x-text="actionDisplay(a)"></option>
                 </template>
               </select>
             </label>
@@ -940,7 +940,7 @@
                 <div class="item-top log-row-top">
                   <span class="log-time text-muted text-mono text-sm" :title="entry.timestamp || ''" x-text="entry.timestamp ? relativeTime(entry.timestamp) : '-'"></span>
                   <span class="log-phrase">
-                    <strong x-text="(entry._source || 'server') + '.' + (entry.action || 'event')"></strong>
+                    <strong x-text="(entry._source || 'server') + '.' + actionDisplay(entry.action || 'event')"></strong>
                     <span class="text-muted" x-show="entry.target" x-text="entry.target"></span>
                     <span class="text-muted" x-show="logEntryDetail(entry)" x-text="'— ' + logEntryDetail(entry)"></span>
                   </span>
