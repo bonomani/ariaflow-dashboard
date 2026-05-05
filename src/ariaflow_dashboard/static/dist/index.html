@@ -417,6 +417,20 @@
                       <div class="chip">Received <strong x-text="lastHealth?.bytes_received_total != null ? formatBytes(lastHealth.bytes_received_total) : '-'">-</strong></div>
                       <div class="chip">Sent <strong x-text="lastHealth?.bytes_sent_total != null ? formatBytes(lastHealth.bytes_sent_total) : '-'">-</strong></div>
                     </div>
+                    <details class="mt-sm" x-show="lastHealth?.errors_recent?.length">
+                      <summary class="text-muted text-sm cursor-pointer" x-text="'Recent errors (' + (lastHealth?.errors_recent?.length ?? 0) + ')'">Recent errors</summary>
+                      <div class="list mt-sm">
+                        <template x-for="(e, idx) in (lastHealth?.errors_recent || [])" :key="idx">
+                          <div class="item compact">
+                            <div class="item-top">
+                              <span class="badge warn" x-text="e.status"></span>
+                              <span class="text-mono text-sm" x-text="(e.method || '?') + ' ' + (e.path || '')"></span>
+                              <span class="text-muted text-sm" x-text="e.at ? relativeTime(new Date(e.at * 1000).toISOString()) : ''"></span>
+                            </div>
+                          </div>
+                        </template>
+                      </div>
+                    </details>
                     <div class="section-title mt-md">
                       <h4 class="text-sm text-muted">Scheduler</h4>
                       <span :class="schedulerBadgeClass" x-text="schedulerBadgeText + (schedulerWaitReasonText ? ' · ' + schedulerWaitReasonText : '')">stopped</span>
