@@ -1534,6 +1534,57 @@ document.addEventListener("alpine:init", () => {
       const limit = this.bw.current_limit;
       return limit ? this.formatBytes(limit) + "/s" : "-";
     },
+    // Live cap-utilization: most recent sparkline sample (bytes/sec)
+    // converted to Mbps and divided by the active cap.
+    get bwLiveDownMbps() {
+      const arr = this.globalSpeedHistory || [];
+      const bps = Number(arr[arr.length - 1]) || 0;
+      return bps * 8 / 1e6;
+    },
+    get bwUtilizationPct() {
+      const cap = this.bw?.cap_mbps;
+      if (!cap || cap <= 0) return 0;
+      return Math.min(100, Math.round(this.bwLiveDownMbps / cap * 100));
+    },
+    get bwUtilizationText() {
+      const cap = this.bw?.cap_mbps;
+      if (!cap) return "";
+      return `${this.bwLiveDownMbps.toFixed(1)} / ${cap.toFixed(1)} Mbps`;
+    },
+    // Reserve preview: stricter of (% policy, absolute Mbps policy).
+    // Mirrors the backend's "stricter wins" logic so users see exactly
+    // the cap their inputs will produce.
+    _reserveResultMbps(measured, pct, abs) {
+      if (!measured) return null;
+      const fromPct = measured * (1 - pct / 100);
+      const fromAbs = measured - abs;
+      return Math.max(0, Math.min(fromPct, fromAbs));
+    },
+    get bwDownReserveResultText() {
+      const r = this._reserveResultMbps(this.bw?.downlink_mbps, this.bwDownFreePercent, this.bwDownFreeAbsolute);
+      return r == null ? "" : `cap will be ${r.toFixed(1)} Mbps`;
+    },
+    get bwUpReserveResultText() {
+      const r = this._reserveResultMbps(this.bw?.uplink_mbps, this.bwUpFreePercent, this.bwUpFreeAbsolute);
+      return r == null ? "" : `cap will be ${r.toFixed(1)} Mbps`;
+    },
+    // Probe staleness: warn when the last probe is older than 1.5x the
+    // configured auto-interval — the auto-probe is broken or paused.
+    get bwProbeStale() {
+      const last = this.bw?.last_probe_at;
+      if (!last) return false;
+      const interval = this.bwProbeInterval || 180;
+      const ageSeconds = Date.now() / 1e3 - last;
+      return ageSeconds > interval * 1.5;
+    },
+    // Concurrency hint: shows the per-download throughput trade-off.
+    get bwConcurrencyHint() {
+      const cap = this.bw?.cap_mbps;
+      const n = this.bwConcurrency || 1;
+      if (!cap) return "";
+      if (n <= 1) return `1 download at full available bandwidth (~${cap.toFixed(1)} Mbps)`;
+      return `${n} downloads, ~${(cap / n).toFixed(1)} Mbps each`;
+    },
     get bwResponsivenessText() {
       if (!this.backendReachable) return "-";
       return this.bw.responsiveness_rpm ? Math.round(this.bw.responsiveness_rpm) + " RPM" : "-";
