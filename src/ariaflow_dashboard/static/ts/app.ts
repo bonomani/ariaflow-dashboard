@@ -326,14 +326,6 @@ document.addEventListener('alpine:init', () => {
       const bw = this.lastStatus?.bandwidth;
       return bw?.cap_mbps ? this.humanCap(this.formatMbps(bw.cap_mbps)) : this.humanCap(bw?.limit || '-');
     },
-    get lastErrorText() {
-      if (!this.backendReachable) return this.lastStatus?.['ariaflow-server']?.error || 'connection refused';
-      // BG-40: bandwidth.reason ("probe overdue", "timed out") is no
-      // longer surfaced as an error — it's a wait_reason on the
-      // scheduler, not a fault. Only state.last_error (a real error
-      // stamp from the backend) qualifies.
-      return this.state.last_error || 'none';
-    },
     // Consolidated health surface (#3). Single chip in the header lists
     // a count + opens a panel detailing each issue. Replaces the
     // separate Error + mDNS L1 chips and the implicit per-tab badge
@@ -341,10 +333,8 @@ document.addEventListener('alpine:init', () => {
     get healthIssues() {
       const issues: Array<{ label: string; level: 'warn' | 'bad' }> = [];
       if (!this.backendReachable) {
-        issues.push({ label: `Backend offline: ${this.lastErrorText}`, level: 'bad' });
-      } else {
-        const err = this.lastErrorText;
-        if (err && err !== 'none') issues.push({ label: `Last error: ${err}`, level: 'warn' });
+        const reason = this.lastStatus?.['ariaflow-server']?.error || 'connection refused';
+        issues.push({ label: `Backend offline: ${reason}`, level: 'bad' });
       }
       if (this.bonjourState === 'broken') {
         issues.push({ label: 'mDNS browse failing', level: 'warn' });
