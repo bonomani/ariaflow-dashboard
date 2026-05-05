@@ -28,7 +28,7 @@ class WebSmokeTests(unittest.TestCase):
                     .decode("utf-8")
                 )
                 self.assertIn("ariaflow", page)
-                self.assertIn("Web UI", page)
+                self.assertIn("Dashboard", page)
                 bandwidth_page = (
                     urllib.request.urlopen("http://127.0.0.1:8765/bandwidth", timeout=5)
                     .read()

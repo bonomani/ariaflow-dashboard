@@ -411,7 +411,6 @@ details.debug summary::-webkit-details-marker { display: none; }
    ======================================== */
 .statusline { display: flex; justify-content: space-between; gap: var(--ws-gap-md); color: var(--ws-muted); font-size: var(--ws-font-md); margin-top: var(--ws-gap-sm); }
 .statusline strong { color: var(--ws-text); }
-.footer { color: var(--ws-muted); font-size: var(--ws-font-sm); margin-top: var(--ws-gap-sm); }
 
 /* ========================================
    8. DESIGN AXES (composable utility classes)
