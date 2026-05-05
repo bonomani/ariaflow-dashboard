@@ -12,22 +12,22 @@
 <body class="ws-app" x-data="ariaflow" :class="'page-' + page">
   <div class="wrap">
     <div class="nav">
-      <a href="/" :class="{ active: page === 'dashboard' }" @click.prevent="navigateTo('dashboard')">
+      <a href="/" aria-label="Dashboard" :class="{ active: page === 'dashboard' }" @click.prevent="navigateTo('dashboard')">
         <span>Dashboard</span>
-        <span x-show="sumQueued" class="tab-badge" x-text="sumQueued"></span>
-        <span x-show="sumError" class="tab-badge warn" x-text="sumError"></span>
+        <span x-show="sumQueued" aria-hidden="true" class="tab-badge" x-text="sumQueued"></span>
+        <span x-show="sumError" aria-hidden="true" class="tab-badge warn" x-text="sumError"></span>
       </a>
       <a href="/bandwidth" :class="{ active: page === 'bandwidth' }" @click.prevent="navigateTo('bandwidth')">Bandwidth</a>
-      <a href="/lifecycle" :class="{ active: page === 'lifecycle' }" @click.prevent="navigateTo('lifecycle')">
+      <a href="/lifecycle" aria-label="Service Status" :class="{ active: page === 'lifecycle' }" @click.prevent="navigateTo('lifecycle')">
         <span>Service Status</span>
-        <span x-show="lifecycleErrorCount" class="tab-badge warn" x-text="lifecycleErrorCount"></span>
+        <span x-show="lifecycleErrorCount" aria-hidden="true" class="tab-badge warn" x-text="lifecycleErrorCount"></span>
       </a>
       <a href="/options" :class="{ active: page === 'options' }" @click.prevent="navigateTo('options')">Options</a>
       <a href="/log" :class="{ active: page === 'log' }" @click.prevent="navigateTo('log')">Log</a>
       <a href="/dev" :class="{ active: page === 'dev' }" @click.prevent="navigateTo('dev')">Developer</a>
-      <a href="/archive" :class="{ active: page === 'archive' }" @click.prevent="navigateTo('archive')">
+      <a href="/archive" aria-label="Archive" :class="{ active: page === 'archive' }" @click.prevent="navigateTo('archive')">
         <span>Archive</span>
-        <span x-show="archiveItems.length" class="tab-badge" x-text="archiveItems.length"></span>
+        <span x-show="archiveItems.length" aria-hidden="true" class="tab-badge" x-text="archiveItems.length"></span>
       </a>
       <div class="spacer"></div>
       <label class="refresh-control" for="refresh-interval">
@@ -107,7 +107,7 @@
         </details>
         <!-- Add backend + remove current (non-default) -->
         <div class="gap-sm mt-sm">
-          <input x-model="backendInput" placeholder="Add backend URL" class="input-md" @keydown.enter="addBackend()">
+          <input type="url" x-model="backendInput" placeholder="Add backend URL" class="input-md" @keydown.enter="addBackend()">
           <button x-show="backendInput.trim()" @click="addBackend()">Add</button>
           <button x-show="selectedBackend !== DEFAULT_BACKEND_URL" class="secondary" @click="removeBackend(selectedBackend)" title="Remove current backend">Remove current</button>
         </div>
@@ -179,7 +179,7 @@
                   <span x-show="itemPriority(item) > 0" class="badge" x-text="'P' + itemPriority(item)"></span>
                 </div>
                 <div class="meta">
-                  <span x-show="itemDisplayUrl(item)" :title="itemDisplayUrl(item)" x-text="itemDisplayUrl(item)"></span>
+                  <span class="url-truncate" x-show="itemDisplayUrl(item)" :title="itemDisplayUrl(item)" x-text="itemDisplayUrl(item)"></span>
                   <span x-show="itemDetail(item)" x-text="itemDetail(item)"></span>
                 </div>
                 <template x-if="itemShowTransferPanel(item)">
@@ -304,26 +304,26 @@
                 <div class="item">
                   <div class="item-top">
                     <div class="item-url">Downlink reserve</div>
-                    <label >
-                      <input type="number" min="0" max="90" step="1" :value="bwDownFreePercent" @input="setBandwidthPref('bandwidth_down_free_percent', Number($el.value), 20)" class="input-sm">
+                    <label class="gap-sm">
+                      <input type="number" min="0" max="90" step="1" :value="bwDownFreePercent" @input="setBandwidthPref('bandwidth_down_free_percent', Number($el.value), 20)" class="input-sm" aria-label="Downlink reserve percent">
                       <span>%</span>
-                      <input type="number" min="0" step="0.5" :value="bwDownFreeAbsolute" @input="setBandwidthPref('bandwidth_down_free_absolute_mbps', Number($el.value), 0)" class="input-sm">
+                      <input type="number" min="0" step="0.5" :value="bwDownFreeAbsolute" @input="setBandwidthPref('bandwidth_down_free_absolute_mbps', Number($el.value), 0)" class="input-sm" aria-label="Downlink reserve Mbps">
                       <span>Mbps</span>
                     </label>
                   </div>
-                  <div class="meta"><span>Reserve % or absolute Mbps of downlink. Stricter wins.</span></div>
+                  <div class="meta"><span>Reserve % or absolute Mbps of downlink. Stricter wins. Max 90% — at least 10% must remain usable.</span></div>
                 </div>
                 <div class="item">
                   <div class="item-top">
                     <div class="item-url">Uplink reserve</div>
-                    <label >
-                      <input type="number" min="0" max="90" step="1" :value="bwUpFreePercent" @input="setBandwidthPref('bandwidth_up_free_percent', Number($el.value), 50)" class="input-sm">
+                    <label class="gap-sm">
+                      <input type="number" min="0" max="90" step="1" :value="bwUpFreePercent" @input="setBandwidthPref('bandwidth_up_free_percent', Number($el.value), 50)" class="input-sm" aria-label="Uplink reserve percent">
                       <span>%</span>
-                      <input type="number" min="0" step="0.5" :value="bwUpFreeAbsolute" @input="setBandwidthPref('bandwidth_up_free_absolute_mbps', Number($el.value), 0)" class="input-sm">
+                      <input type="number" min="0" step="0.5" :value="bwUpFreeAbsolute" @input="setBandwidthPref('bandwidth_up_free_absolute_mbps', Number($el.value), 0)" class="input-sm" aria-label="Uplink reserve Mbps">
                       <span>Mbps</span>
                     </label>
                   </div>
-                  <div class="meta"><span>Reserve % or absolute Mbps of uplink. Stricter wins.</span></div>
+                  <div class="meta"><span>Reserve % or absolute Mbps of uplink. Stricter wins. Max 90%.</span></div>
                 </div>
                 <div class="item">
                   <div class="item-top">
@@ -357,13 +357,6 @@
             <h2>Service Status</h2>
             <div class="hint">Component lifecycle: ariaflow, aria2, networkquality, launchd</div>
           </div>
-          <div class="item mb-md">
-            <div class="item-top">
-              <div class="item-url">Update policy</div>
-              <span class="badge">Homebrew tap</span>
-            </div>
-            <div class="meta"><span>Upgrades require Homebrew to install the new version and restart the service.</span></div>
-          </div>
           <div class="list">
             <template x-if="_lifecycleSession">
               <div class="item mb-md">
@@ -371,7 +364,7 @@
                   <div class="item-url">Run</div>
                   <span class="badge" :class="{ warn: _lifecycleSession.session_closed_at, good: !_lifecycleSession.session_closed_at }" x-text="_lifecycleSession.session_closed_at ? 'closed' : 'current'"></span>
                 </div>
-                <div class="meta"><span x-text="_lifecycleSession.session_id"></span></div>
+                <div class="meta"><span :title="_lifecycleSession.session_id" x-text="_lifecycleSession.session_id ? _lifecycleSession.session_id.slice(0, 8) : '-'"></span></div>
                 <div class="meta">
                   <span x-text="_lifecycleSession.session_started_at ? 'Started ' + relativeTime(_lifecycleSession.session_started_at) : 'Start time unknown'"></span>
                   <span x-text="_lifecycleSession.session_last_seen_at ? 'Last seen ' + relativeTime(_lifecycleSession.session_last_seen_at) : 'Last seen unknown'"></span>
@@ -395,6 +388,9 @@
                 </div>
               </div>
             </template>
+          </div>
+          <div class="text-muted text-sm mt-md">
+            Update policy: Homebrew tap. Upgrades require Homebrew to install the new version and restart the service.
           </div>
         </div>
       </div>
@@ -820,6 +816,7 @@
         <div class="panel">
           <div class="section-title">
             <h2>Server Metrics</h2>
+            <div class="hint">Cumulative since the backend's current uptime.</div>
             <button @click="refresh()">Refresh</button>
           </div>
           <div class="chips">
@@ -889,7 +886,8 @@
           <div x-show="freshnessStatus.length === 0" class="text-muted">
             Router not booted (legacy backend without <code>/api/_meta</code>, or not yet loaded).
           </div>
-          <table x-show="freshnessStatus.length > 0" class="text-sm">
+          <div style="overflow-x:auto" x-show="freshnessStatus.length > 0">
+          <table class="text-sm">
             <thead>
               <tr>
                 <th>Endpoint</th>
@@ -922,6 +920,7 @@
               </template>
             </tbody>
           </table>
+          </div>
         </div>
       </div>
       <!-- ARCHIVE -->
@@ -939,8 +938,10 @@
                   <span :class="badgeClass(item.status || 'removed')" x-text="item.status || 'removed'"></span>
                 </div>
                 <div class="meta">
+                  <span x-show="item.created_at" x-text="'Added ' + relativeTime(item.created_at)"></span>
+                  <span x-show="item.completed_at" x-text="'Done ' + relativeTime(item.completed_at)"></span>
                   <span x-show="item.removed_at || item.cancelled_at" x-text="'Removed ' + relativeTime(item.removed_at || item.cancelled_at)"></span>
-                  <span x-show="item.url" :title="item.url" x-text="item.url"></span>
+                  <span class="url-truncate" x-show="item.url" :title="item.url" x-text="item.url"></span>
                 </div>
               </div>
             </template>

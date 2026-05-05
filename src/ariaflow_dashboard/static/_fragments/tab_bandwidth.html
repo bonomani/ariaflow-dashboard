@@ -57,26 +57,26 @@
                 <div class="item">
                   <div class="item-top">
                     <div class="item-url">Downlink reserve</div>
-                    <label >
-                      <input type="number" min="0" max="90" step="1" :value="bwDownFreePercent" @input="setBandwidthPref('bandwidth_down_free_percent', Number($el.value), 20)" class="input-sm">
+                    <label class="gap-sm">
+                      <input type="number" min="0" max="90" step="1" :value="bwDownFreePercent" @input="setBandwidthPref('bandwidth_down_free_percent', Number($el.value), 20)" class="input-sm" aria-label="Downlink reserve percent">
                       <span>%</span>
-                      <input type="number" min="0" step="0.5" :value="bwDownFreeAbsolute" @input="setBandwidthPref('bandwidth_down_free_absolute_mbps', Number($el.value), 0)" class="input-sm">
+                      <input type="number" min="0" step="0.5" :value="bwDownFreeAbsolute" @input="setBandwidthPref('bandwidth_down_free_absolute_mbps', Number($el.value), 0)" class="input-sm" aria-label="Downlink reserve Mbps">
                       <span>Mbps</span>
                     </label>
                   </div>
-                  <div class="meta"><span>Reserve % or absolute Mbps of downlink. Stricter wins.</span></div>
+                  <div class="meta"><span>Reserve % or absolute Mbps of downlink. Stricter wins. Max 90% — at least 10% must remain usable.</span></div>
                 </div>
                 <div class="item">
                   <div class="item-top">
                     <div class="item-url">Uplink reserve</div>
-                    <label >
-                      <input type="number" min="0" max="90" step="1" :value="bwUpFreePercent" @input="setBandwidthPref('bandwidth_up_free_percent', Number($el.value), 50)" class="input-sm">
+                    <label class="gap-sm">
+                      <input type="number" min="0" max="90" step="1" :value="bwUpFreePercent" @input="setBandwidthPref('bandwidth_up_free_percent', Number($el.value), 50)" class="input-sm" aria-label="Uplink reserve percent">
                       <span>%</span>
-                      <input type="number" min="0" step="0.5" :value="bwUpFreeAbsolute" @input="setBandwidthPref('bandwidth_up_free_absolute_mbps', Number($el.value), 0)" class="input-sm">
+                      <input type="number" min="0" step="0.5" :value="bwUpFreeAbsolute" @input="setBandwidthPref('bandwidth_up_free_absolute_mbps', Number($el.value), 0)" class="input-sm" aria-label="Uplink reserve Mbps">
                       <span>Mbps</span>
                     </label>
                   </div>
-                  <div class="meta"><span>Reserve % or absolute Mbps of uplink. Stricter wins.</span></div>
+                  <div class="meta"><span>Reserve % or absolute Mbps of uplink. Stricter wins. Max 90%.</span></div>
                 </div>
                 <div class="item">
                   <div class="item-top">

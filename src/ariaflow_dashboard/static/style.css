@@ -306,6 +306,18 @@ a.btn-link.secondary { background: var(--ws-btn-inactive-bg); color: var(--ws-te
 .queue-item-header { display: flex; align-items: center; gap: var(--ws-gap-sm); }
 .queue-item-detail { font-size: var(--ws-font-sm); color: var(--ws-muted); margin-top: var(--ws-gap-sm); }
 
+/* --- truncate inline URLs / long single-line text ---
+   Used in queue item meta to keep huggingface-style query strings
+   from wrapping into 3+ lines. Full value is on the :title for hover. */
+.url-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  display: inline-block;
+  vertical-align: bottom;
+}
+
 /* --- chip-details: a <details> whose <summary> is a chip ---
    Used by the consolidated health chip in the header. Removes the
    default disclosure triangle and lets the summary inherit .chip

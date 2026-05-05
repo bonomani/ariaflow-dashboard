@@ -62,7 +62,7 @@
                   <span x-show="itemPriority(item) > 0" class="badge" x-text="'P' + itemPriority(item)"></span>
                 </div>
                 <div class="meta">
-                  <span x-show="itemDisplayUrl(item)" :title="itemDisplayUrl(item)" x-text="itemDisplayUrl(item)"></span>
+                  <span class="url-truncate" x-show="itemDisplayUrl(item)" :title="itemDisplayUrl(item)" x-text="itemDisplayUrl(item)"></span>
                   <span x-show="itemDetail(item)" x-text="itemDetail(item)"></span>
                 </div>
                 <template x-if="itemShowTransferPanel(item)">

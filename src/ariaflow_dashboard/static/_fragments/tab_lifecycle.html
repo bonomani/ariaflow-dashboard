@@ -5,13 +5,6 @@
             <h2>Service Status</h2>
             <div class="hint">Component lifecycle: ariaflow, aria2, networkquality, launchd</div>
           </div>
-          <div class="item mb-md">
-            <div class="item-top">
-              <div class="item-url">Update policy</div>
-              <span class="badge">Homebrew tap</span>
-            </div>
-            <div class="meta"><span>Upgrades require Homebrew to install the new version and restart the service.</span></div>
-          </div>
           <div class="list">
             <template x-if="_lifecycleSession">
               <div class="item mb-md">
@@ -19,7 +12,7 @@
                   <div class="item-url">Run</div>
                   <span class="badge" :class="{ warn: _lifecycleSession.session_closed_at, good: !_lifecycleSession.session_closed_at }" x-text="_lifecycleSession.session_closed_at ? 'closed' : 'current'"></span>
                 </div>
-                <div class="meta"><span x-text="_lifecycleSession.session_id"></span></div>
+                <div class="meta"><span :title="_lifecycleSession.session_id" x-text="_lifecycleSession.session_id ? _lifecycleSession.session_id.slice(0, 8) : '-'"></span></div>
                 <div class="meta">
                   <span x-text="_lifecycleSession.session_started_at ? 'Started ' + relativeTime(_lifecycleSession.session_started_at) : 'Start time unknown'"></span>
                   <span x-text="_lifecycleSession.session_last_seen_at ? 'Last seen ' + relativeTime(_lifecycleSession.session_last_seen_at) : 'Last seen unknown'"></span>
@@ -43,6 +36,9 @@
                 </div>
               </div>
             </template>
+          </div>
+          <div class="text-muted text-sm mt-md">
+            Update policy: Homebrew tap. Upgrades require Homebrew to install the new version and restart the service.
           </div>
         </div>
       </div>
