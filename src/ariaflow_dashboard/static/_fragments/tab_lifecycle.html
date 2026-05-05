@@ -5,39 +5,31 @@
             <h2>Components</h2>
             <div class="hint">ariaflow-server, aria2, networkquality, aria2 auto-start</div>
           </div>
-          <div class="chips mb-md">
-            <div class="chip" :title="'PID ' + backendPidText">
-              ariaflow-server
-              <strong x-text="backendVersionText">-</strong>
-              <span class="text-muted" x-show="backendPidText !== '-' && backendPidText !== 'unreported'" x-text="'· pid ' + backendPidText"></span>
-            </div>
-            <div class="chip" :title="'PID ' + webPidText">
-              ariaflow-dashboard
-              <strong x-text="webVersionText">-</strong>
-              <span class="text-muted" x-show="webPidText !== '-'" x-text="'· pid ' + webPidText"></span>
-            </div>
-          </div>
           <div class="list">
-            <template x-if="_lifecycleSession">
-              <div class="item mb-md">
-                <div class="item-top">
-                  <div class="item-url">Run</div>
-                  <span class="badge" :class="{ warn: _lifecycleSession.session_closed_at, good: !_lifecycleSession.session_closed_at }" x-text="_lifecycleSession.session_closed_at ? 'closed' : 'current'"></span>
-                </div>
-                <div class="meta"><span :title="_lifecycleSession.session_id" x-text="_lifecycleSession.session_id ? _lifecycleSession.session_id.slice(0, 8) : '-'"></span></div>
-                <div class="meta">
-                  <span x-text="_lifecycleSession.session_started_at ? 'Started ' + relativeTime(_lifecycleSession.session_started_at) : 'Start time unknown'"></span>
-                  <span x-text="_lifecycleSession.session_last_seen_at ? 'Last seen ' + relativeTime(_lifecycleSession.session_last_seen_at) : 'Last seen unknown'"></span>
-                  <span x-show="_lifecycleSession.session_closed_at" x-text="'Closed ' + (_lifecycleSession.session_closed_at ? relativeTime(_lifecycleSession.session_closed_at) : '') + (_lifecycleSession.session_closed_reason ? ' · ' + _lifecycleSession.session_closed_reason : '')"></span>
-                </div>
-              </div>
-            </template>
             <template x-for="row in lifecycleRows" :key="row.name">
               <div class="item">
                 <div class="item-top">
-                  <div class="item-url" x-text="row.name"></div>
+                  <div class="item-url">
+                    <span x-text="row.name"></span>
+                    <template x-if="row.name === 'ariaflow-server'">
+                      <span>
+                        <strong class="text-muted text-sm" x-text="backendVersionText">-</strong>
+                        <span class="text-muted text-sm" x-show="backendPidText !== '-' && backendPidText !== 'unreported'" x-text="'· pid ' + backendPidText"></span>
+                      </span>
+                    </template>
+                  </div>
                   <span :class="lifecycleBadgeClass(row.record)" x-text="lifecycleStateLabel(row.name, row.record)"></span>
                 </div>
+                <template x-if="row.name === 'ariaflow-server' && _lifecycleSession">
+                  <div>
+                    <div class="meta"><span :title="_lifecycleSession.session_id" x-text="_lifecycleSession.session_id ? 'run ' + _lifecycleSession.session_id.slice(0, 8) : '-'"></span></div>
+                    <div class="meta">
+                      <span x-text="_lifecycleSession.session_started_at ? 'Started ' + relativeTime(_lifecycleSession.session_started_at) : 'Start time unknown'"></span>
+                      <span x-text="_lifecycleSession.session_last_seen_at ? 'Last seen ' + relativeTime(_lifecycleSession.session_last_seen_at) : 'Last seen unknown'"></span>
+                      <span x-show="_lifecycleSession.session_closed_at" x-text="'Closed ' + (_lifecycleSession.session_closed_at ? relativeTime(_lifecycleSession.session_closed_at) : '') + (_lifecycleSession.session_closed_reason ? ' · ' + _lifecycleSession.session_closed_reason : '')"></span>
+                    </div>
+                  </div>
+                </template>
                 <div class="meta">
                   <span x-text="lifecycleItemLines(row.record)"></span>
                 </div>
@@ -48,6 +40,15 @@
                 </div>
               </div>
             </template>
+            <div class="item">
+              <div class="item-top">
+                <div class="item-url">
+                  ariaflow-dashboard
+                  <strong class="text-muted text-sm" x-text="webVersionText">-</strong>
+                  <span class="text-muted text-sm" x-show="webPidText !== '-'" x-text="'· pid ' + webPidText"></span>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="text-muted text-sm mt-md">
             Update policy: Homebrew tap. Upgrades require Homebrew to install the new version and restart the service.
