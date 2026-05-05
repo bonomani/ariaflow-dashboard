@@ -88,22 +88,28 @@
           </div>
           <!-- Filters: what to show. -->
           <div class="row mb-sm">
-            <select x-model="actionFilter" @change="refreshActionLog()">
-              <option value="all">All actions</option>
-              <template x-for="a in availableActions" :key="a">
-                <option :value="a" x-text="a"></option>
-              </template>
-            </select>
-            <select x-model="targetFilter" @change="refreshActionLog()">
-              <option value="all">All targets</option>
-              <template x-for="t in availableTargets" :key="t">
-                <option :value="t" x-text="t"></option>
-              </template>
-            </select>
-            <select x-model="sessionFilter" @change="refreshActionLog()">
-              <option value="all">All sessions</option>
-              <option value="current">Current run</option>
-            </select>
+            <label class="text-muted text-sm">Action
+              <select x-model="actionFilter" @change="refreshActionLog()">
+                <option value="all">All</option>
+                <template x-for="a in availableActions" :key="a">
+                  <option :value="a" x-text="a"></option>
+                </template>
+              </select>
+            </label>
+            <label class="text-muted text-sm">Target
+              <select x-model="targetFilter" @change="refreshActionLog()">
+                <option value="all">All</option>
+                <template x-for="t in availableTargets" :key="t">
+                  <option :value="t" x-text="t"></option>
+                </template>
+              </select>
+            </label>
+            <label class="text-muted text-sm">Session
+              <select x-model="sessionFilter" @change="refreshActionLog()">
+                <option value="all">All</option>
+                <option value="current">Current run</option>
+              </select>
+            </label>
           </div>
           <!-- Display preference: how many to show. -->
           <div class="row mb-md">

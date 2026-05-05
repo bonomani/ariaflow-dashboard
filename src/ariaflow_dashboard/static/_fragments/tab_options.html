@@ -178,13 +178,16 @@
         </div>
       </div>
 
-      <div class="span-12" x-show="page === 'options' && peerList.length > 0">
+      <div class="span-12" x-show="page === 'options'">
         <div class="panel">
           <div class="section-title">
             <h2>Discovered Peers</h2>
             <button @click="loadPeers()">Refresh</button>
           </div>
           <div class="list">
+            <template x-if="peerList.length === 0">
+              <div class="text-muted text-sm">No peers discovered yet. Click Refresh to retry.</div>
+            </template>
             <template x-for="peer in peerList" :key="peer.instance || peer.host">
               <div class="item compact">
                 <div class="item-top">

@@ -355,7 +355,7 @@
         <div class="panel">
           <div class="section-title">
             <h2>Service Status</h2>
-            <div class="hint">Component lifecycle: ariaflow, aria2, networkquality, launchd</div>
+            <div class="hint">Component lifecycle: ariaflow-server, aria2, networkquality, aria2 auto-start</div>
           </div>
           <div class="list">
             <template x-if="_lifecycleSession">
@@ -574,13 +574,16 @@
         </div>
       </div>
 
-      <div class="span-12" x-show="page === 'options' && peerList.length > 0">
+      <div class="span-12" x-show="page === 'options'">
         <div class="panel">
           <div class="section-title">
             <h2>Discovered Peers</h2>
             <button @click="loadPeers()">Refresh</button>
           </div>
           <div class="list">
+            <template x-if="peerList.length === 0">
+              <div class="text-muted text-sm">No peers discovered yet. Click Refresh to retry.</div>
+            </template>
             <template x-for="peer in peerList" :key="peer.instance || peer.host">
               <div class="item compact">
                 <div class="item-top">
@@ -687,22 +690,28 @@
           </div>
           <!-- Filters: what to show. -->
           <div class="row mb-sm">
-            <select x-model="actionFilter" @change="refreshActionLog()">
-              <option value="all">All actions</option>
-              <template x-for="a in availableActions" :key="a">
-                <option :value="a" x-text="a"></option>
-              </template>
-            </select>
-            <select x-model="targetFilter" @change="refreshActionLog()">
-              <option value="all">All targets</option>
-              <template x-for="t in availableTargets" :key="t">
-                <option :value="t" x-text="t"></option>
-              </template>
-            </select>
-            <select x-model="sessionFilter" @change="refreshActionLog()">
-              <option value="all">All sessions</option>
-              <option value="current">Current run</option>
-            </select>
+            <label class="text-muted text-sm">Action
+              <select x-model="actionFilter" @change="refreshActionLog()">
+                <option value="all">All</option>
+                <template x-for="a in availableActions" :key="a">
+                  <option :value="a" x-text="a"></option>
+                </template>
+              </select>
+            </label>
+            <label class="text-muted text-sm">Target
+              <select x-model="targetFilter" @change="refreshActionLog()">
+                <option value="all">All</option>
+                <template x-for="t in availableTargets" :key="t">
+                  <option :value="t" x-text="t"></option>
+                </template>
+              </select>
+            </label>
+            <label class="text-muted text-sm">Session
+              <select x-model="sessionFilter" @change="refreshActionLog()">
+                <option value="all">All</option>
+                <option value="current">Current run</option>
+              </select>
+            </label>
           </div>
           <!-- Display preference: how many to show. -->
           <div class="row mb-md">
@@ -838,7 +847,7 @@
             <div class="hint">Run the backend test suite from the dashboard</div>
           </div>
           <div class="row mb-md">
-            <button :class="{ secondary: testRunning }" @click="runTests()" :disabled="testRunning">Run tests</button>
+            <button :class="{ secondary: testRunning }" @click="runTests()" :disabled="testRunning">Run backend tests</button>
           </div>
           <div class="item" x-show="testSummaryVisible">
             <div class="item-top">
