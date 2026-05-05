@@ -1757,7 +1757,10 @@ get bonjourBadgeTitle() {
     async uccRun() {
       this.uccLoading = true;
       try {
-        const r = await postEmpty(this.backendPath(urlScheduler('contract')));
+        let r = await postEmpty(this.backendPath(urlScheduler('contract')));
+        if (r.status === 404) {
+          r = await postEmpty(this.backendPath('/api/scheduler/ucc'));
+        }
         const data = await r.json();
         const outcome = data.result?.outcome || 'unknown';
         this.resultText = `UCC result: ${outcome}`;
