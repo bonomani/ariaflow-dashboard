@@ -1,32 +1,6 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (2)
-
-### FE-35: Self-management toggles wait on backend reconciliation
-
-**Blocked by:** BG-45
-
-The Options tab now has a **Self-management** section with three
-controls:
-
-- `auto_start_aria2` — checkbox
-- `auto_update` — checkbox
-- `auto_update_check_hours` — number input (visible when
-  auto-update is enabled)
-
-All three persist into the declaration via `setPref`, just like
-every other preference. Reading them back works today.
-
-What's missing: the backend reconciliation loop (BG-45). Until it
-ships, the toggles record intent but nothing acts on it — aria2's
-launchd plist still has to be installed manually via the System
-Health Load button, and updates still only fire on manual click.
-
-When BG-45 lands, the toggles will become functional with no FE
-change. If the backend exposes a "reconciliation_state" field on
-`/api/lifecycle.aria2.result.auto_start`, surface it as a
-confirmation badge ("reconciled") next to the Load/Unload
-buttons; that's the only follow-up FE work.
+## Open (1)
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 
@@ -41,6 +15,7 @@ _End of open gaps._
 
 | ID | Summary | Date |
 |----|---------|------|
+| FE-35 | BG-45 fully shipped — three Self-management prefs (`auto_start_aria2`, `auto_update`, `auto_update_check_hours`) now drive backend behaviour: cmdServe reconciles aria2 launchd/systemd on boot to match `auto_start_aria2`; periodic auto-update controller polls every `auto_update_check_hours` and dispatches `brew upgrade ariaflow-server` detached. FE side already in place (Options → Self-management section, persists via `setPref` → PATCH /api/declaration/preferences) — no FE change required. Optional follow-up (reconciliation badge) deferred: backend logs `auto_start_reconciled` but doesn't expose it as a wire field, so there's nothing to surface yet | 2026-05-05 |
 | FE-33 | Live-contract release gate flipped from advisory to blocking. Prerequisites closed: `beautifulsoup4`/`jsonschema`/`ruff`/`mypy` in `pyproject [dev]`; `scripts/check_bgs_drift.py` soft-fails (WARN + exit 0) when `../BGSPrivate` isn't checked out; `verify-ci` Make target removed; `release.yml` `build-release` now runs `make verify` directly with `[dev]` extras; `test_download_lifecycle.py` lazy-imports playwright so `test_api_response_shapes` can import `FakeBackend` from it under a `[dev]`-only install. Two consecutive green runs (25381355891 and the gating canary) confirmed reliability before flipping `continue-on-error: true` off and restoring `needs: live-contract` on `build-release` | 2026-05-05 |
 | FE-34 | Scheduler badge in System Health → ariaflow-server now renders `state.scheduler_status` (5-state enum from BG-40) with a wait-reason sub-label (e.g. "idle · queue empty"). New getters `schedulerBadgeText` / `schedulerBadgeClass` / `schedulerWaitReasonText` in `app.ts` map the backend enum + `state.wait_reason` to label/class; fall back to inferred values for backends older than v0.1.252 | 2026-05-05 |
 | FE-22 | `discoverBackends()` (`app.ts:764`) now falls back to `GET /api/peers` on the current backend when the local mDNS browse returns zero items (WSL NAT / containers / VMs without mDNS). Peer rows map to discovery-item shape (`url` ← `base_url || http://host:port`, `name` ← `instance \|\| host`, `role: 'backend'`, `source: 'peers'`) and merge through the existing `mergeDiscoveredBackends()` path. `discoveryText` reflects the source ("…via /api/peers fallback" when only the fallback fired). New e2e regression test asserts the fallback fires + populates state when discovery is empty | 2026-05-04 |
