@@ -283,12 +283,15 @@ document.addEventListener('alpine:init', () => {
       return labels[r] || String(r).replace(/_/g, ' ');
     },
     get transferSpeedText() {
-      if (!this.backendReachable) return 'idle';
+      if (!this.backendReachable) return 'offline';
       const dl = this.currentSpeed ? this.formatRate(this.currentSpeed) : null;
       const ul = this.currentUploadSpeed ? this.formatRate(this.currentUploadSpeed) : null;
       if (dl && ul) return `↓ ${dl}  ↑ ${ul}`;
       if (dl) return `↓ ${dl}`;
-      return 'idle';
+      // No active transfer — fall back to the BG-40 scheduler badge
+      // so the hero distinguishes stopped/paused/starting/idle and
+      // surfaces the wait_reason when known.
+      return this.schedulerBadgeText + (this.schedulerWaitReasonText ? ` · ${this.schedulerWaitReasonText}` : '');
     },
     get sessionStartedText() {
       if (!this.backendReachable) return '-';

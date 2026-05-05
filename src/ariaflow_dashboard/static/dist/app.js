@@ -1468,12 +1468,12 @@ document.addEventListener("alpine:init", () => {
       return labels[r] || String(r).replace(/_/g, " ");
     },
     get transferSpeedText() {
-      if (!this.backendReachable) return "idle";
+      if (!this.backendReachable) return "offline";
       const dl = this.currentSpeed ? this.formatRate(this.currentSpeed) : null;
       const ul = this.currentUploadSpeed ? this.formatRate(this.currentUploadSpeed) : null;
       if (dl && ul) return `\u2193 ${dl}  \u2191 ${ul}`;
       if (dl) return `\u2193 ${dl}`;
-      return "idle";
+      return this.schedulerBadgeText + (this.schedulerWaitReasonText ? ` \xB7 ${this.schedulerWaitReasonText}` : "");
     },
     get sessionStartedText() {
       if (!this.backendReachable) return "-";
