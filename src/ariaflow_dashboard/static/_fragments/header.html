@@ -72,7 +72,6 @@
         <!-- L2: Session + cap + disk -->
         <div class="chips mt-sm">
           <div class="chip">Session <strong x-text="sessionIdText + (sessionStartedText !== '-' ? ' · ' + sessionStartedText : '')">-</strong></div>
-          <div class="chip">Cap <strong x-text="downloadCapText">-</strong></div>
           <div class="chip" :class="{ 'badge warn': !diskOk }" x-show="diskUsageText !== '-'">Disk <strong x-text="diskUsageText">-</strong></div>
         </div>
         <!-- Cap utilization meter — visible from any tab -->
