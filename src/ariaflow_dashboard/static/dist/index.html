@@ -734,8 +734,8 @@
         </div>
       </div>
 
-      <!-- Preflight: gates / warnings / failures -->
-<div class="span-6" x-show="page === 'log'">
+      <!-- Activity: merged backend + dashboard event log -->
+      <div class="span-6" x-show="page === 'log'">
         <div class="panel">
           <div class="section-title">
             <h2>Activity</h2>
@@ -797,7 +797,7 @@
                   <span :class="badgeClass(entry.outcome || entry.status || 'unknown')" x-text="entry.outcome || entry.status || 'unknown'"></span>
                   <span x-show="entry.observation && entry.observation !== 'ok'" class="badge warn" x-text="entry.observation"></span>
                 </div>
-                <div class="meta"><span x-text="(entry.action === 'poll' ? 'Historical event' : 'Historical record') + ' · ' + logEntryLines(entry)"></span></div>
+                <div class="meta"><span x-text="logEntryLines(entry)"></span></div>
               </div>
             </template>
           </div>
