@@ -1795,10 +1795,10 @@ get bonjourBadgeTitle() {
       this.webLogEntries = data?.items || [];
     },
     get availableActions() {
-      return distinctActions(this.actionLogEntries);
+      return distinctActions(this.mergedActivity);
     },
     get availableTargets() {
-      return distinctTargets(this.actionLogEntries);
+      return distinctTargets(this.mergedActivity);
     },
     // Activity panel: backend's /api/log + dashboard's /api/web/log
     // merged into one chronological timeline. Each row carries _source
