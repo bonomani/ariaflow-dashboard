@@ -342,6 +342,17 @@ document.addEventListener('alpine:init', () => {
       const m = Math.floor((s % 3600) / 60);
       return h > 0 ? `${h}h ${m}m` : `${m}m`;
     },
+    // True when the session heartbeat is older than the server has been
+    // up — i.e. the timestamp is from a previous server instance and
+    // therefore misleading. Used to hide stale session chips so we
+    // don't show 'Last seen 4 min ago' while server uptime is 2m.
+    sessionTimestampStale(at) {
+      if (!at) return false;
+      const uptimeS = this.lastHealth?.uptime_seconds;
+      if (uptimeS == null) return false;
+      const ageS = (Date.now() - new Date(at).getTime()) / 1000;
+      return ageS > uptimeS + 5; // 5s slack for clock skew
+    },
     get downloadCapText() {
       if (!this.backendReachable) return '-';
       const bw = this.lastStatus?.bandwidth;

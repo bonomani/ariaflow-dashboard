@@ -427,7 +427,7 @@
                     <div class="chips" x-show="_lifecycleSession">
                       <div class="chip" x-show="_lifecycleSession?.session_id">Run <strong :title="_lifecycleSession?.session_id" x-text="_lifecycleSession?.session_id ? _lifecycleSession.session_id.slice(0, 8) : '-'">-</strong></div>
                       <div class="chip" x-show="_lifecycleSession?.session_started_at">Started <strong x-text="_lifecycleSession?.session_started_at ? relativeTime(_lifecycleSession.session_started_at) : '-'">-</strong></div>
-                      <div class="chip" x-show="_lifecycleSession?.session_last_seen_at">Last seen <strong x-text="_lifecycleSession?.session_last_seen_at ? relativeTime(_lifecycleSession.session_last_seen_at) : '-'">-</strong></div>
+                      <div class="chip" x-show="_lifecycleSession?.session_last_seen_at && !sessionTimestampStale(_lifecycleSession.session_last_seen_at)">Last seen <strong x-text="_lifecycleSession?.session_last_seen_at ? relativeTime(_lifecycleSession.session_last_seen_at) : '-'">-</strong></div>
                       <div class="chip" x-show="_lifecycleSession?.session_closed_at" :class="{ 'badge warn': _lifecycleSession?.session_closed_at }">Closed <strong x-text="_lifecycleSession?.session_closed_at ? relativeTime(_lifecycleSession.session_closed_at) + (_lifecycleSession.session_closed_reason ? ' · ' + _lifecycleSession.session_closed_reason : '') : '-'">-</strong></div>
                     </div>
                     <div class="action-strip mt-sm">
