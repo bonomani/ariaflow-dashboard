@@ -1,6 +1,19 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (1)
+## Open (2)
+
+### FE-37: Misleading "probe pending" wait_reason on empty queue
+
+**Blocked by:** BG-47
+
+When the queue is empty and the bandwidth probe hasn't run, the
+scheduler badge reads `idle · bandwidth probe pending` — but
+there's nothing to schedule, so the probe is irrelevant. Operator
+expectation: `idle · queue empty`.
+
+Pure backend reorder (`queue_empty` ahead of
+`bandwidth_probe_pending` in `deriveWaitReason()`). FE renders
+whatever `state.wait_reason` reports — no FE change needed.
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 
