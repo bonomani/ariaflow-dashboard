@@ -54,14 +54,9 @@
               </template>
             </select>
           </label>
-          <details class="chip-details" :title="healthIssues.length ? 'Click for details' : ''">
-            <summary :class="healthBadgeClass" x-text="healthBadgeText">Healthy</summary>
-            <div class="chips mt-sm" x-show="healthIssues.length">
-              <template x-for="issue in healthIssues" :key="issue.label">
-                <div class="chip" :class="issue.level === 'bad' ? 'badge warn' : 'badge'" x-text="issue.label"></div>
-              </template>
-            </div>
-          </details>
+          <a class="chip-details" href="/lifecycle" @click.prevent="navigateTo('lifecycle')" :title="healthIssues.length ? 'Open System Health' : ''">
+            <span :class="healthBadgeClass" x-text="healthBadgeText">Healthy</span>
+          </a>
           <div class="chip" :class="bonjourBadgeClass" :title="bonjourBadgeTitle" x-text="bonjourBadgeText">mDNS</div>
         </div>
         <!-- L2: Session + cap + disk -->

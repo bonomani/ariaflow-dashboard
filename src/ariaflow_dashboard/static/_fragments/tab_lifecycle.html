@@ -1,4 +1,17 @@
       <!-- LIFECYCLE / SYSTEM HEALTH -->
+      <div class="span-12" x-show="page === 'lifecycle' && healthIssues.length">
+        <div class="panel">
+          <div class="section-title">
+            <h2><span :class="healthBadgeClass" x-text="healthBadgeText">Healthy</span></h2>
+          </div>
+          <div class="chips">
+            <template x-for="issue in healthIssues" :key="issue.label">
+              <div class="chip" :class="issue.level === 'bad' ? 'badge warn' : 'badge'" x-text="issue.label"></div>
+            </template>
+          </div>
+        </div>
+      </div>
+
       <div class="span-6" x-show="page === 'lifecycle'">
         <div class="panel">
           <div class="section-title">
@@ -47,6 +60,7 @@
                   <strong class="text-muted text-sm" x-text="webVersionText">-</strong>
                   <span class="text-muted text-sm" x-show="webPidText !== '-'" x-text="'· pid ' + webPidText"></span>
                 </div>
+                <span class="badge good">running · current</span>
               </div>
             </div>
           </div>
