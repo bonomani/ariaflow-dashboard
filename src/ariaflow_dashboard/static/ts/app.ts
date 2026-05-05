@@ -273,8 +273,16 @@ document.addEventListener('alpine:init', () => {
       }
     },
     get schedulerWaitReasonText() {
-      const r = this.state?.wait_reason;
+      let r = this.state?.wait_reason;
       if (!r) return '';
+      // Defensive override: if the queue is empty, that's the real
+      // reason the scheduler is idle — older backends (pre-BG-47)
+      // surface 'bandwidth_probe_pending' even with no queue, which
+      // misleads operators. The probe itself isn't blocking work
+      // because there's no work to block on.
+      if (r === 'bandwidth_probe_pending' && (this.filterCounts?.all ?? 0) === 0) {
+        r = 'queue_empty';
+      }
       const labels = {
         queue_empty: 'queue empty',
         aria2_unreachable: 'aria2 unreachable',

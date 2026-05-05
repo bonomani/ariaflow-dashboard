@@ -1524,8 +1524,11 @@ document.addEventListener("alpine:init", () => {
       }
     },
     get schedulerWaitReasonText() {
-      const r = this.state?.wait_reason;
+      let r = this.state?.wait_reason;
       if (!r) return "";
+      if (r === "bandwidth_probe_pending" && (this.filterCounts?.all ?? 0) === 0) {
+        r = "queue_empty";
+      }
       const labels = {
         queue_empty: "queue empty",
         aria2_unreachable: "aria2 unreachable",
