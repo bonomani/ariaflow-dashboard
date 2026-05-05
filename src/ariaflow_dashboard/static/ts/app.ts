@@ -16,7 +16,7 @@ import {
   sessionLabel,
   sessionIdShort,
 } from './formatters';
-import { renderItemSparkline, renderGlobalSparkline, renderGlobalTimeline } from './sparkline';
+import { renderItemSparkline, renderGlobalTimeline } from './sparkline';
 import { apiFetch, postEmpty } from './api';
 import {
   backendUrl as runtimeBackendUrl,
@@ -368,12 +368,7 @@ document.addEventListener('alpine:init', () => {
       const ageS = (Date.now() - new Date(at).getTime()) / 1000;
       return ageS > uptimeS + 5; // 5s slack for clock skew
     },
-    get downloadCapText() {
-      if (!this.backendReachable) return '-';
-      const bw = this.lastStatus?.bandwidth;
-      return bw?.cap_mbps ? this.humanCap(this.formatMbps(bw.cap_mbps)) : this.humanCap(bw?.limit || '-');
-    },
-    // Consolidated health surface (#3). Single chip in the header lists
+// Consolidated health surface (#3). Single chip in the header lists
     // a count + opens a panel detailing each issue. Replaces the
     // separate Error + mDNS L1 chips and the implicit per-tab badge
     // duplication when several signals fire at once.
@@ -458,12 +453,7 @@ document.addEventListener('alpine:init', () => {
       const cap = this.bw?.cap_mbps;
       return !!cap && cap > 0 && this.bwLiveDownMbps > cap;
     },
-    get bwUtilizationText() {
-      const cap = this.bw?.cap_mbps;
-      if (!cap) return '';
-      return `${this.bwLiveDownMbps.toFixed(1)} / ${cap.toFixed(1)} Mbps`;
-    },
-    // Reserve preview: stricter of (% policy, absolute Mbps policy).
+// Reserve preview: stricter of (% policy, absolute Mbps policy).
     // Mirrors the backend's "stricter wins" logic so users see exactly
     // the cap their inputs will produce.
     _reserveResultMbps(measured, pct, abs) {
@@ -798,7 +788,6 @@ syncSchedulerResultText() {
       this.globalSpeedHistory = next.download;
       this.globalUploadHistory = next.upload;
     },
-    get globalSparklineSvg() { return renderGlobalSparkline(this.globalSpeedHistory, this.globalUploadHistory); },
     get globalTimelineSvg() {
       return renderGlobalTimeline(
         this.globalSpeedHistory,
@@ -1028,10 +1017,7 @@ syncSchedulerResultText() {
     get bonjourBadgeText() {
       return ({ pending: 'mDNS …', ok: 'mDNS ✓', broken: 'mDNS ✗', 'unavailable': 'mDNS N/A' })[this.bonjourState] || 'mDNS';
     },
-    get bonjourBadgeClass() {
-      return ({ pending: 'badge', ok: 'badge good', broken: 'badge warn', unavailable: 'badge' })[this.bonjourState] || 'badge';
-    },
-    get bonjourBadgeTitle() {
+get bonjourBadgeTitle() {
       return ({
         pending: 'Discovering Bonjour services…',
         ok: 'Bonjour discovery working',

@@ -1,7 +1,5 @@
 // Sparkline / timeline SVG rendering — no Alpine dependency.
 
-import { formatRate } from './formatters';
-
 function sparklinePoints(data: number[], max: number, w: number, h: number): string {
   const step = w / (data.length - 1);
   return data
@@ -21,22 +19,12 @@ export function renderItemSparkline(data: number[] | null | undefined): string {
 }
 
 /**
- * A7 hero timeline: stacked-area chart for downlink + uplink with a
- * cap reference line and time-axis ticks. Replaces the small global
- * sparkline in the redesigned hero.
+ * Hero timeline: smoothed downlink line with gradient area, optional
+ * uplink overlay, cap reference line, endpoint dot, time labels.
  *
- * Data:
- *   - `dl`, `ul` — bytes/sec samples, oldest → newest, length up to
- *     GLOBAL_SPEED_MAX (40)
- *   - `capMbps` — current global cap in Mbps; renders as a horizontal
- *     reference line at the corresponding bytes/sec value. 0 / null
- *     hides the line.
- *   - `refreshIntervalMs` — used to label the X axis ("-N s") so the
- *     time window adapts to the operator's chosen refresh rate.
- *
- * Output: a self-contained SVG with viewBox; CSS sets the width.
- * Time labels and current-value annotations are <text> elements
- * inside the SVG so the whole thing is one node.
+ * `dl` / `ul`: bytes/sec samples, oldest → newest.
+ * `capMbps`: 0 hides the cap line.
+ * `refreshIntervalMs`: scales the X-axis labels.
  */
 function smoothPath(points: Array<[number, number]>): string {
   const first = points[0];
@@ -123,25 +111,4 @@ export function renderGlobalTimeline(
     <text x="${padLeft}" y="${(h - 4).toFixed(1)}" fill="var(--ws-muted)" font-size="10" text-anchor="start">${startLabel}</text>
     <text x="${(w - padRight).toFixed(1)}" y="${(h - 4).toFixed(1)}" fill="var(--ws-muted)" font-size="10" text-anchor="end">now</text>
   </svg>`;
-}
-
-export function renderGlobalSparkline(dl: number[], ul: number[]): string {
-  if (dl.length < 2) return '';
-  const peakDlValue = Math.max(...dl);
-  const peakUlValue = Math.max(...ul);
-  // No traffic in the window — render nothing rather than a flat line
-  // and a "peak ↓ 0 B/s" caption that adds clutter while the engine
-  // is idle/stopped.
-  if (peakDlValue <= 0 && peakUlValue <= 0) return '';
-  const max = Math.max(...dl, ...ul, 1);
-  const w = 200;
-  const h = 40;
-  const dlPoints = sparklinePoints(dl, max, w, h);
-  const ulPoints = ul.length >= 2 ? sparklinePoints(ul, max, w, h) : '';
-  const peakDl = formatRate(peakDlValue);
-  const peakUl = peakUlValue > 0 ? ` ↑ ${formatRate(peakUlValue)}` : '';
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;">
-    <polyline points="${dlPoints}" fill="none" stroke="var(--ws-accent)" stroke-width="1.5" stroke-linejoin="round"/>
-    ${ulPoints ? `<polyline points="${ulPoints}" fill="none" stroke="var(--ws-accent-2)" stroke-width="1" stroke-linejoin="round" stroke-dasharray="3,2"/>` : ''}
-  </svg><span style="font-size:0.78rem;color:var(--ws-muted);">peak ↓ ${peakDl}${peakUl}</span>`;
 }

@@ -164,23 +164,6 @@ function renderGlobalTimeline(dl, ul, capMbps = 0, refreshIntervalMs = 1e4) {
     <text x="${(w - padRight).toFixed(1)}" y="${(h - 4).toFixed(1)}" fill="var(--ws-muted)" font-size="10" text-anchor="end">now</text>
   </svg>`;
 }
-function renderGlobalSparkline(dl, ul) {
-  if (dl.length < 2) return "";
-  const peakDlValue = Math.max(...dl);
-  const peakUlValue = Math.max(...ul);
-  if (peakDlValue <= 0 && peakUlValue <= 0) return "";
-  const max = Math.max(...dl, ...ul, 1);
-  const w = 200;
-  const h = 40;
-  const dlPoints = sparklinePoints(dl, max, w, h);
-  const ulPoints = ul.length >= 2 ? sparklinePoints(ul, max, w, h) : "";
-  const peakDl = formatRate(peakDlValue);
-  const peakUl = peakUlValue > 0 ? ` \u2191 ${formatRate(peakUlValue)}` : "";
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;">
-    <polyline points="${dlPoints}" fill="none" stroke="var(--ws-accent)" stroke-width="1.5" stroke-linejoin="round"/>
-    ${ulPoints ? `<polyline points="${ulPoints}" fill="none" stroke="var(--ws-accent-2)" stroke-width="1" stroke-linejoin="round" stroke-dasharray="3,2"/>` : ""}
-  </svg><span style="font-size:0.78rem;color:var(--ws-muted);">peak \u2193 ${peakDl}${peakUl}</span>`;
-}
 
 // src/ariaflow_dashboard/static/ts/api.ts
 var DEFAULT_TIMEOUT_MS = 1e4;
@@ -1610,11 +1593,6 @@ document.addEventListener("alpine:init", () => {
       const ageS = (Date.now() - new Date(at).getTime()) / 1e3;
       return ageS > uptimeS + 5;
     },
-    get downloadCapText() {
-      if (!this.backendReachable) return "-";
-      const bw = this.lastStatus?.bandwidth;
-      return bw?.cap_mbps ? this.humanCap(this.formatMbps(bw.cap_mbps)) : this.humanCap(bw?.limit || "-");
-    },
     // Consolidated health surface (#3). Single chip in the header lists
     // a count + opens a panel detailing each issue. Replaces the
     // separate Error + mDNS L1 chips and the implicit per-tab badge
@@ -1715,11 +1693,6 @@ document.addEventListener("alpine:init", () => {
     get bwOverCap() {
       const cap = this.bw?.cap_mbps;
       return !!cap && cap > 0 && this.bwLiveDownMbps > cap;
-    },
-    get bwUtilizationText() {
-      const cap = this.bw?.cap_mbps;
-      if (!cap) return "";
-      return `${this.bwLiveDownMbps.toFixed(1)} / ${cap.toFixed(1)} Mbps`;
     },
     // Reserve preview: stricter of (% policy, absolute Mbps policy).
     // Mirrors the backend's "stricter wins" logic so users see exactly
@@ -2073,9 +2046,6 @@ document.addEventListener("alpine:init", () => {
       this.globalSpeedHistory = next.download;
       this.globalUploadHistory = next.upload;
     },
-    get globalSparklineSvg() {
-      return renderGlobalSparkline(this.globalSpeedHistory, this.globalUploadHistory);
-    },
     get globalTimelineSvg() {
       return renderGlobalTimeline(
         this.globalSpeedHistory,
@@ -2278,9 +2248,6 @@ document.addEventListener("alpine:init", () => {
     },
     get bonjourBadgeText() {
       return { pending: "mDNS \u2026", ok: "mDNS \u2713", broken: "mDNS \u2717", "unavailable": "mDNS N/A" }[this.bonjourState] || "mDNS";
-    },
-    get bonjourBadgeClass() {
-      return { pending: "badge", ok: "badge good", broken: "badge warn", unavailable: "badge" }[this.bonjourState] || "badge";
     },
     get bonjourBadgeTitle() {
       return {
