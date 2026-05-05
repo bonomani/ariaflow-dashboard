@@ -1,6 +1,23 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (1)
+## Open (2)
+
+### FE-36: aria2 row missing `Installed via` chip + Upgrade button
+
+**Blocked by:** BG-46
+
+The lifecycle row for aria2 now renders an `Installed via` chip
+(parallel to `Managed by`) when the backend exposes the field, but
+today only `ariaflow-server` carries `installed_via`. Same story
+for the Upgrade button — the row iterates `row.actions` from the
+backend, and there's no `aria2/update` action declared. Operators
+reading the row see "Managed by launchd" and (correctly) assume
+aria2 came from Homebrew, but neither the chip nor the upgrade
+affordance is available to confirm/act on that.
+
+When BG-46 lands the chip and (separately) the action button will
+appear automatically with no FE change — the markup is already
+conditional on the data.
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 
