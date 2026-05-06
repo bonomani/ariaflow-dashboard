@@ -1377,6 +1377,7 @@ document.addEventListener("alpine:init", () => {
     webUptimeSeconds: 0,
     dashLifecycleLoading: null,
     // 'update' | 'restart' | null
+    _serverLifecycleLoading: null,
     webManagedBy: null,
     // /api/web/lifecycle.result.managed_by
     webInstalledVia: null,
@@ -3607,6 +3608,30 @@ document.addEventListener("alpine:init", () => {
         this.resultText = `${target} ${action} requested`;
         this.resultJson = JSON.stringify(data, null, 2);
         await this.loadLifecycle();
+        if (target === "ariaflow-server" && (action === "update" || action === "restart")) {
+          this._serverLifecycleLoading = action;
+          const startedAt = Date.now();
+          const originalVersion = String(this.backendVersionText || "");
+          const tick = setInterval(async () => {
+            try {
+              await this.loadLifecycle();
+            } catch (e) {
+            }
+            const now = String(this.backendVersionText || "");
+            const elapsed = Date.now() - startedAt;
+            if (now && now !== "-" && now !== originalVersion) {
+              clearInterval(tick);
+              this._serverLifecycleLoading = null;
+              this.resultText = `Server ${action} complete (${now})`;
+              return;
+            }
+            if (elapsed > 9e4) {
+              clearInterval(tick);
+              this._serverLifecycleLoading = null;
+              this.resultText = action === "update" ? "Update dispatched but version unchanged \u2014 check action log + restart manually if needed" : "Restart dispatched \u2014 verify via PID change";
+            }
+          }, 2e3);
+        }
       } catch (e) {
         this.resultText = `${target} ${action} failed: ${e.message}`;
       }

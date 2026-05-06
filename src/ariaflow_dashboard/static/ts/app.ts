@@ -131,6 +131,7 @@ document.addEventListener('alpine:init', () => {
     webPidText: runtimeDashboardPid() || '-',
     webUptimeSeconds: 0,
     dashLifecycleLoading: null,  // 'update' | 'restart' | null
+    _serverLifecycleLoading: null,
     webManagedBy: null,    // /api/web/lifecycle.result.managed_by
     webInstalledVia: null, // /api/web/lifecycle.result.installed_via
     get webRestartSupported() {
@@ -2397,6 +2398,34 @@ get bonjourBadgeTitle() {
         this.resultText = `${target} ${action} requested`;
         this.resultJson = JSON.stringify(data, null, 2);
         await this.loadLifecycle();
+        // For server update/restart: poll for version change so the
+        // operator knows the new bottle is actually running. Same
+        // pattern as webLifecycleAction for the dashboard self.
+        // Auto-restart chain (BG-62) does bootout+bootstrap detached;
+        // we don't get a synchronous confirmation, so poll up to 90s.
+        if (target === 'ariaflow-server' && (action === 'update' || action === 'restart')) {
+          this._serverLifecycleLoading = action;
+          const startedAt = Date.now();
+          const originalVersion = String(this.backendVersionText || '');
+          const tick = setInterval(async () => {
+            try { await this.loadLifecycle(); } catch (e) { /* nop */ }
+            const now = String(this.backendVersionText || '');
+            const elapsed = Date.now() - startedAt;
+            if (now && now !== '-' && now !== originalVersion) {
+              clearInterval(tick);
+              this._serverLifecycleLoading = null;
+              this.resultText = `Server ${action} complete (${now})`;
+              return;
+            }
+            if (elapsed > 90_000) {
+              clearInterval(tick);
+              this._serverLifecycleLoading = null;
+              this.resultText = action === 'update'
+                ? 'Update dispatched but version unchanged — check action log + restart manually if needed'
+                : 'Restart dispatched — verify via PID change';
+            }
+          }, 2000);
+        }
       } catch (e) {
         this.resultText = `${target} ${action} failed: ${e.message}`;
       }
