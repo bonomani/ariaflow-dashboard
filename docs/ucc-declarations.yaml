@@ -70,6 +70,7 @@ endpoint_coverage:
   "GET /api/lifecycle": "test_lifecycle"
   "GET /api/discovery": "test_web.py (web server only)"
   "GET /api/web/log": "test_web_log (web server only)"
+  "GET /api/web/lifecycle": "dashboard self lifecycle (covered by webapp test_web.py)"
   "GET /api/web/config": "FE-48: dashboard-local config (covered indirectly via test_web.py)"
   "PATCH /api/web/config": "FE-48: dashboard-local config (covered indirectly)"
   "POST /api/web/lifecycle/ariaflow-dashboard/check_update": "FE-49: brew outdated probe (covered indirectly via test_web.py)"
