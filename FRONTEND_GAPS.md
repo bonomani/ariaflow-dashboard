@@ -1,6 +1,20 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (1)
+## Open (2)
+
+### FE-50: download_dir defaults to ~/Downloads (waiting on BG-58)
+
+**Blocked by:** BG-58
+
+Fresh install shows "Download folder not configured" because
+`declaration.download_dir` is empty by default, even though
+`~/Downloads` is the obvious fallback. BG-58 makes the backend fall
+back to the platform's standard download folder (XDG_DOWNLOAD_DIR or
+`~/Downloads`); the explicit pref serves as an override. No FE change
+required — the existing 409 / unset UI stays as a last-resort for
+headless edge cases.
+
+---
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 
