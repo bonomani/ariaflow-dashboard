@@ -2049,9 +2049,9 @@ document.addEventListener("alpine:init", () => {
       const SIX_H = 6 * 60 * 60 * 1e3;
       if (Date.now() - this._lastUpdateProbeAt < SIX_H) return;
       this._lastUpdateProbeAt = Date.now();
-      if (this.backendReachable) this.checkBackendUpdate().catch(() => {
+      this.checkBackendUpdate().catch(() => {
       });
-      if (this.webUpdateSupported) this.checkDashUpdate().catch(() => {
+      this.checkDashUpdate().catch(() => {
       });
     },
     _runTabMountHooks(target) {

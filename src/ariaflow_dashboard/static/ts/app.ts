@@ -790,10 +790,14 @@ document.addEventListener('alpine:init', () => {
       const SIX_H = 6 * 60 * 60 * 1000;
       if (Date.now() - this._lastUpdateProbeAt < SIX_H) return;
       this._lastUpdateProbeAt = Date.now();
-      // Fire both probes in parallel; each updates its own state.
-      // Failures are non-fatal — the chips fall back to '?'.
-      if (this.backendReachable) this.checkBackendUpdate().catch(() => { /* nop */ });
-      if (this.webUpdateSupported) this.checkDashUpdate().catch(() => { /* nop */ });
+      // Fire both probes — methods handle their own preconditions
+      // (404 / unknown_installer → Latest stays '?'). Don't gate on
+      // backendReachable/webUpdateSupported here: those depend on
+      // /api/status and /api/web/lifecycle responses that may not
+      // have arrived yet on first tab visit, leading to silently
+      // skipped probes.
+      this.checkBackendUpdate().catch(() => { /* nop */ });
+      this.checkDashUpdate().catch(() => { /* nop */ });
     },
     _runTabMountHooks(target) {
       const hooks = (this.TAB_MOUNT_HOOKS && this.TAB_MOUNT_HOOKS[target]) || [];
