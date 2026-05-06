@@ -24,10 +24,20 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
+# Catch every file under static/ — top-level (style.css, index.html),
+# all subdirs (vendor/, _fragments/, dist/), and any new dirs added
+# later. The ** pattern + explicit fallbacks are belt-and-suspenders
+# for setuptools versions that don't honour ** recursion alone.
 ariaflow_dashboard = [
+    "static/**/*",
     "static/*",
+    "static/*.css",
+    "static/*.html",
     "static/_fragments/*",
     "static/dist/*",
+    "static/dist/*.js",
+    "static/dist/*.html",
+    "static/dist/*.map",
     "static/vendor/*",
     "static/vendor/**/*",
 ]
