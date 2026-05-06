@@ -1185,7 +1185,7 @@ get bonjourBadgeTitle() {
       return this.itemNormalizedStatus(item) === 'paused' && !!item.paused_at;
     },
     itemModeBadge(item) {
-      const mode = item.mode || item.download_mode || null;
+      const mode = item.mode || null;
       if (!mode || mode === 'http') return null;
       return mode;
     },
@@ -1200,11 +1200,10 @@ get bonjourBadgeTitle() {
       }
       return ns;
     },
-    itemAllowedActions(item) { return item.allowed_actions || []; },
-    itemCanPause(item) { const aa = this.itemAllowedActions(item); return aa.length ? aa.includes('pause') : this.itemNormalizedStatus(item) === 'active'; },
-    itemCanResume(item) { const aa = this.itemAllowedActions(item); return aa.length ? aa.includes('resume') : this.itemNormalizedStatus(item) === 'paused'; },
-    itemCanRetry(item) { const aa = this.itemAllowedActions(item); return aa.length ? aa.includes('retry') : ['error', 'removed'].includes(this.itemNormalizedStatus(item)); },
-    itemCanRemove(item) { const aa = this.itemAllowedActions(item); return aa.length ? aa.includes('remove') : true; },
+    itemCanPause(item)  { return this.itemNormalizedStatus(item) === 'active'; },
+    itemCanResume(item) { return this.itemNormalizedStatus(item) === 'paused'; },
+    itemCanRetry(item)  { return ['error', 'removed'].includes(this.itemNormalizedStatus(item)); },
+    itemCanRemove(item) { return true; },
     itemToggleAction(item) {
       if (this.itemCanPause(item)) return this.itemAction(item.id, 'pause');
       if (this.itemCanResume(item)) return this.itemAction(item.id, 'resume');
