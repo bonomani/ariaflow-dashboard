@@ -1,6 +1,24 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (1)
+## Open (2)
+
+### FE-53: Drop /api/lifecycle warm poll once backend self-probes (waiting on BG-63)
+
+**Blocked by:** BG-63
+
+`lifecycle_changed` SSE listener already shipped (v0.1.569). Today
+the FE pulls /api/lifecycle every 30s while on the Lifecycle tab as
+a safety net because the backend's lifecycle probe is lazy
+(FE-driven). When BG-63 lands, the backend will probe on its own
+timer and emit `lifecycle_changed` on real flips. FE can then drop
+the warm poll: tab visit → one fetch via cold subscription, then
+SSE-driven updates only.
+
+Saves ~120 req/hour while on Lifecycle tab. No new FE state — the
+listener and one-line LOCAL_METAS classification change are the
+whole follow-up.
+
+---
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 
