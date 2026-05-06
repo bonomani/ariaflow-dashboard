@@ -30,11 +30,12 @@ CONFIG_PATH = CONFIG_DIR / "config.json"
 DEFAULTS: dict[str, Any] = {
     "auto_update": False,
     "auto_update_check_hours": 24,
-    # When the dashboard auto-update fires, also trigger the server's
-    # update beforehand (best-effort; failures don't block the dashboard
-    # update). Default off — operators who want both kept current opt
-    # in.
-    "update_server_first": False,
+    # When the dashboard updates (manual button or auto-update poller),
+    # also trigger the server's update beforehand so versions stay
+    # aligned. Best-effort — failures don't block the dashboard update.
+    # Default ON: most operators want server + dashboard moving
+    # together. Set to false to opt out.
+    "update_server_first": True,
     # Backend URL to use for the server-update orchestration. Falls
     # back to DEFAULT_BACKEND_URL in webapp.py when empty.
     "backend_url": "",
@@ -80,7 +81,7 @@ def save_config(updates: dict[str, Any]) -> dict[str, Any]:
     return current
 
 
-def _trigger_server_update(backend_url: str) -> None:
+def trigger_server_update(backend_url: str) -> None:
     """Best-effort: ask the server to upgrade itself before we upgrade
     ourselves. POSTs /api/lifecycle/ariaflow-server/update — fire and
     forget. Any failure (server down, route 404, network) is swallowed
@@ -152,7 +153,7 @@ def _run_check_once() -> None:
     # waiting. Best-effort — server unreachable / no update is not a
     # blocker for the dashboard's own upgrade.
     if cfg.get("update_server_first"):
-        _trigger_server_update(cfg.get("backend_url", ""))
+        trigger_server_update(cfg.get("backend_url", ""))
     plan = dispatch_update()
     if plan.get("ok"):
         record_action(

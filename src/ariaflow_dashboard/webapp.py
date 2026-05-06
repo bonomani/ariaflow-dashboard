@@ -12,6 +12,7 @@ from .action_log import load_action_log, record_action
 from .auto_update import load_config as load_auto_update_config
 from .auto_update import save_config as save_auto_update_config
 from .auto_update import start_poller as start_auto_update_poller
+from .auto_update import trigger_server_update
 from .bonjour import discover_http_services, local_identity
 from .install_self import (
     check_for_update,
@@ -227,6 +228,14 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
             if action == "restart":
                 plan = dispatch_restart()
             elif action == "update":
+                # Best-effort orchestration: kick the server's update
+                # first when configured (default on). Same logic the
+                # auto-update poller uses, so manual Update + auto path
+                # behave identically. Failure is logged + ignored;
+                # dashboard's own upgrade still proceeds.
+                cfg = load_auto_update_config()
+                if cfg.get("update_server_first"):
+                    trigger_server_update(cfg.get("backend_url", ""))
                 plan = dispatch_update()
             elif action == "check_update":
                 plan = check_for_update()
