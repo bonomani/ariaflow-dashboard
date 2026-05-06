@@ -2982,13 +2982,14 @@ document.addEventListener("alpine:init", () => {
       if (!subdir) return;
       await this._filesPost("/api/files/move", { path, new_subdir: subdir }, "move");
     },
-    async deleteFile(path, name) {
+    async deleteFile(path, name, isDirectory) {
       if (!window.confirm(`Delete "${name}" from disk? This cannot be undone.`)) return;
       try {
+        const body = isDirectory ? { path, recursive: true } : { path };
         const r = await this._fetch(this.backendPath("/api/files"), {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path })
+          body: JSON.stringify(body)
         });
         const data = r.status === 204 ? { ok: true } : await r.json().catch(() => null);
         if (!r.ok || data?.ok === false) {

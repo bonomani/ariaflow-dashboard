@@ -1,6 +1,18 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (1)
+## Open (2)
+
+### FE-47: Filter-bar counts collapse to 0 under non-`all` filter (waiting on BG-57)
+
+**Blocked by:** BG-57
+
+When the operator selects any filter other than All, `summary` from
+`/api/status` is computed on the filtered slice, so every other count
+chip reads 0. The filter bar misleads operators (e.g. they can't see
+how many are awaiting_confirmation while they're on the Active
+filter). No FE change once backend summarises the unfiltered queue.
+
+---
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 

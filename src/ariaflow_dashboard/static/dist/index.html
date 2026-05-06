@@ -1113,7 +1113,8 @@
                   <div>
                     <div class="item-top">
                       <div class="item-url" x-text="row.file.rel_path"></div>
-                      <span class="badge" x-text="formatBytes(row.file.size)"></span>
+                      <span class="badge" x-show="row.file.type !== 'directory'" x-text="formatBytes(row.file.size)"></span>
+                      <span class="badge" x-show="row.file.type === 'directory'">folder</span>
                     </div>
                     <div class="meta">
                       <span x-show="row.history?.downloaded_at" x-text="'Downloaded ' + relativeTime(row.history.downloaded_at)"></span>
@@ -1122,7 +1123,7 @@
                     <div class="action-strip mt-sm">
                       <button class="secondary" @click="renameFile(row.file.path, row.file.rel_path)">Rename</button>
                       <button class="secondary" @click="moveFile(row.file.path, row.file.rel_path)">Move</button>
-                      <button class="secondary" @click="deleteFile(row.file.path, row.file.rel_path)">Delete</button>
+                      <button class="secondary" @click="deleteFile(row.file.path, row.file.rel_path, row.file.type === 'directory')">Delete</button>
                     </div>
                   </div>
                 </template>
@@ -1131,7 +1132,8 @@
                   <div>
                     <div class="item-top">
                       <div class="item-url" x-text="row.file.rel_path"></div>
-                      <span class="badge" x-text="formatBytes(row.file.size)"></span>
+                      <span class="badge" x-show="row.file.type !== 'directory'" x-text="formatBytes(row.file.size)"></span>
+                      <span class="badge" x-show="row.file.type === 'directory'">folder</span>
                       <span class="badge text-muted" title="File present in folder, never downloaded by ariaflow">orphan</span>
                     </div>
                     <div class="meta">
@@ -1141,7 +1143,7 @@
                     <div class="action-strip mt-sm">
                       <button class="secondary" @click="renameFile(row.file.path, row.file.rel_path)">Rename</button>
                       <button class="secondary" @click="moveFile(row.file.path, row.file.rel_path)">Move</button>
-                      <button class="secondary" @click="deleteFile(row.file.path, row.file.rel_path)">Delete</button>
+                      <button class="secondary" @click="deleteFile(row.file.path, row.file.rel_path, row.file.type === 'directory')">Delete</button>
                     </div>
                   </div>
                 </template>
