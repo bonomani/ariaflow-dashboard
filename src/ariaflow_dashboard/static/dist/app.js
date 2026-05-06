@@ -2017,7 +2017,13 @@ document.addEventListener("alpine:init", () => {
     // is the only remaining synthetic mirror — it's a backend endpoint
     // that BG-34 didn't include in the backend /api/_meta registry.
     LOCAL_METAS: [
-      { method: "GET", path: "/api/aria2/option_tiers", freshness: "cold" }
+      { method: "GET", path: "/api/aria2/option_tiers", freshness: "cold" },
+      // Override backend's `warm` classification for /api/lifecycle:
+      // the data is event-shaped (install/uninstall/restart/version
+      // change), not tick-shaped. Fetch once on tab visit; SSE
+      // `lifecycle_changed` listener (registered in _initSSE) drives
+      // refreshes. Drops ~120 req/hour of pure polling on this tab.
+      { method: "GET", path: "/api/lifecycle", freshness: "cold" }
     ],
     // One-shot actions to run when a tab becomes the active page (either
     // on direct URL load via init() or via navigateTo()). For tab-driven
@@ -2588,7 +2594,7 @@ document.addEventListener("alpine:init", () => {
         this._sse.close();
         this._sse = null;
       }
-      const url = this.backendPath("/api/events?topics=items,scheduler,log");
+      const url = this.backendPath("/api/events?topics=items,scheduler,log,lifecycle");
       let es;
       try {
         es = new EventSource(url);
@@ -2646,6 +2652,10 @@ document.addEventListener("alpine:init", () => {
         if (entry) {
           this.actionLogEntries = [entry, ...this.actionLogEntries].slice(0, this.logLimit || 120);
         }
+      });
+      es.addEventListener("lifecycle_changed", () => {
+        markActivity();
+        if (this.page === "lifecycle") this.loadLifecycle();
       });
       es.onerror = () => {
         this._sseConnected = false;

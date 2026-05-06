@@ -757,6 +757,12 @@ document.addEventListener('alpine:init', () => {
     // that BG-34 didn't include in the backend /api/_meta registry.
     LOCAL_METAS: [
       { method: 'GET', path: '/api/aria2/option_tiers', freshness: 'cold' },
+      // Override backend's `warm` classification for /api/lifecycle:
+      // the data is event-shaped (install/uninstall/restart/version
+      // change), not tick-shaped. Fetch once on tab visit; SSE
+      // `lifecycle_changed` listener (registered in _initSSE) drives
+      // refreshes. Drops ~120 req/hour of pure polling on this tab.
+      { method: 'GET', path: '/api/lifecycle', freshness: 'cold' },
     ],
     // One-shot actions to run when a tab becomes the active page (either
     // on direct URL load via init() or via navigateTo()). For tab-driven
@@ -1311,12 +1317,12 @@ get bonjourBadgeTitle() {
     // --- SSE ---
     _initSSE() {
       if (this._sse) { this._sse.close(); this._sse = null; }
-      // BG-32 topic filter: only subscribe to topics we actually consume
-      // (state_changed → items+scheduler; action_logged → log; session_*
-      // → scheduler). Skips lifecycle_changed and bandwidth_probed —
-      // re-add to topics if a future handler needs them. Back-compat:
-      // older backends ignore ?topics and stream everything.
-      const url = this.backendPath('/api/events?topics=items,scheduler,log');
+      // BG-32 topic filter: subscribe to topics we consume.
+      // state_changed → items+scheduler; action_logged → log; session_*
+      // → scheduler; lifecycle_changed → trigger a /api/lifecycle
+      // re-fetch (replaces the warm 30s poll while on Lifecycle tab).
+      // Older backends ignore ?topics and stream everything.
+      const url = this.backendPath('/api/events?topics=items,scheduler,log,lifecycle');
       let es;
       try { es = new EventSource(url); } catch (e) { return; }
       this._sse = es;
@@ -1368,6 +1374,15 @@ get bonjourBadgeTitle() {
         if (entry) {
           this.actionLogEntries = [entry, ...this.actionLogEntries].slice(0, this.logLimit || 120);
         }
+      });
+      // Backend emits lifecycle_changed when a component's lifecycle
+      // axes flip (install/uninstall, restart-effective, version
+      // change, autostart load/unload). Pull /api/lifecycle on event
+      // instead of warm-polling — the data is event-shaped, not
+      // tick-shaped. Saves ~120 req/hour while on Lifecycle tab.
+      es.addEventListener('lifecycle_changed', () => {
+        markActivity();
+        if (this.page === 'lifecycle') this.loadLifecycle();
       });
       es.onerror = () => {
         this._sseConnected = false;
