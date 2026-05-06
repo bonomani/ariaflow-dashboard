@@ -2273,6 +2273,16 @@ get bonjourBadgeTitle() {
     },
     async webLifecycleAction(action) {
       if (!['restart', 'update'].includes(action)) return;
+      // Honor the most-recent probe: if Check just said 'current',
+      // Update is a no-op. Tell the operator that explicitly instead
+      // of dispatching a chain that brew will silently skip and
+      // leaving the button stuck on 'Updating…' until the 90s
+      // timeout. Operator can click Restart explicitly to bounce
+      // without an upgrade.
+      if (action === 'update' && this._dashUpdateProbe === 'current') {
+        this.resultText = `Already up to date (${this._dashLatestVersion || this.webVersionText}). Click Restart to bounce the process.`;
+        return;
+      }
       // Visual feedback: button shows 'Updating…'/'Restarting…' until
       // either the page reconnects to a fresh process (auto-restart
       // landed), or the timeout fires (90s — long enough for brew
@@ -2451,6 +2461,13 @@ get bonjourBadgeTitle() {
       return lifecycleDetailLines(record).join(' · ');
     },
     async lifecycleAction(target, action) {
+      // Server-side equivalent of the dashboard self short-circuit:
+      // if we just verified the server is current, don't dispatch
+      // Update. Operator clicks Restart for an explicit bounce.
+      if (target === 'ariaflow-server' && action === 'update' && this._serverUpdateProbe === 'current') {
+        this.resultText = `Server already up to date (${this._serverLatestVersion || this.backendVersionText}). Click Restart to bounce.`;
+        return;
+      }
       try {
         const r = await postEmpty(this.backendPath(urlLifecycleAction(target, action)));
         const data = await r.json();
