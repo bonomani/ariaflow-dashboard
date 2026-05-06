@@ -3518,6 +3518,26 @@ document.addEventListener("alpine:init", () => {
     lifecycleStateLabel(name, record) {
       return describeLifecycleStatus(name, record);
     },
+    // FE-54 (BG-64): pill goes yellow with 'monitoring stale' overlay
+    // when backend's last probe of this component is older than 2× the
+    // configured probe interval. _staleTick wakes the getter every 1s
+    // so the boundary is honored without waiting for a fetch.
+    lifecycleStaleOverlay(record) {
+      void this._staleTick;
+      const at = Number(record?.result?.last_probed_at);
+      if (!Number.isFinite(at) || at <= 0) return null;
+      const intervalS = Number(this.getDeclarationPreference("lifecycle_probe_interval_seconds")) || 60;
+      const ageS = Date.now() / 1e3 - at;
+      return ageS > intervalS * 2 ? "stale" : null;
+    },
+    lifecycleStaleAgeText(record) {
+      const at = Number(record?.result?.last_probed_at);
+      if (!Number.isFinite(at) || at <= 0) return "";
+      const ageS = Math.floor(Date.now() / 1e3 - at);
+      if (ageS < 60) return `${ageS}s`;
+      if (ageS < 3600) return `${Math.floor(ageS / 60)}m`;
+      return `${Math.floor(ageS / 3600)}h`;
+    },
     // HEALTH_PILL_RULES.md: server-row pill goes yellow on actual
     // recent problems — 5xx within the last 5 minutes. Older entries
     // in errors_recent[] don't fire the overlay (operator already

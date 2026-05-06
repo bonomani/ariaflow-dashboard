@@ -1,27 +1,6 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (2)
-
-### FE-54: Stale-data overlay on lifecycle pills (waiting on BG-64)
-
-**Blocked by:** BG-64
-
-The HEALTH_PILL_RULES.md "stale → yellow" branch needs a per-
-component `last_probed_at` from the backend to fire correctly.
-Without that timestamp, FE can't distinguish "probe just ran and
-returned this answer again" (data fresh, accurate) from "probe loop
-crashed, this answer is from an hour ago" (data stale, untrusted).
-
-When BG-64 lands, FE adds:
-- `lifecycleStaleOverlay(record)` getter (5 lines)
-- Pill class branch: yellow + tooltip "monitoring stale (last probed
-  Xm ago)" when `now - last_probed_at > 2 × probe_interval`
-- Graceful degradation: missing field on older backends → no overlay
-
-This closes the last hole in the spec rule mapping: rules right,
-implementation matches.
-
----
+## Open (1)
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 
@@ -36,6 +15,7 @@ _End of open gaps._
 
 | ID | Summary | Date |
 |----|---------|------|
+| FE-54 | BG-64 shipped — backend stamps `last_probed_at` (epoch seconds) on every component result. FE adds `lifecycleStaleOverlay(record)` getter that returns 'stale' when `now - last_probed_at > 2 × probe_interval` (default 60s, so 120s threshold). Pill goes yellow + 'monitoring stale (last probed Xm ago)' tooltip + ' · monitoring stale' suffix in the badge text. Graceful: missing field on older backends → no overlay (no false positives) | 2026-05-06 |
 | FE-53 | BG-63 shipped — backend self-probes lifecycle every 60s and emits `lifecycle_changed` SSE on axis flips. FE flipped `/api/lifecycle` to `cold` in `LOCAL_METAS`: one fetch on tab visit, then SSE-driven refreshes. Saves ~120 req/hour while on Lifecycle tab; data is now event-fresh (sub-second on real changes) instead of 30s-stale | 2026-05-06 |
 | FE-52 | Downloaded tab gains a "paths disagree" banner when `declaration.download_dir` ≠ aria2's runtime `dir`. Two one-click reconcilers: "Use aria2's dir" (PATCH declaration.preferences) and "Use download_dir for aria2" (POST /api/aria2/change_global_option). aria2_global_option + declaration subscriptions added to archive TAB_SUBS so the banner has live data | 2026-05-06 |
 | FE-50 | BG-58 shipped — `loadDownloadDir` now falls back to `$XDG_DOWNLOAD_DIR` / `~/Downloads` when the pref is empty. Fresh installs land on the standard download folder without operator action; explicit `download_dir` pref still wins as an override. No FE change required (existing `download_dir_unset` 409 UI stays as a last-resort for headless edge cases) | 2026-05-06 |

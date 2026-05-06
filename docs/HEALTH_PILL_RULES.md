@@ -98,15 +98,16 @@ Same rules for every row.
    GRAY   — no info yet (not lying about the state)
 ```
 
-## Implementation status (v0.1.566+)
+## Implementation status (v0.1.577+)
 
 | Rule | Where applied |
 |---|---|
 | 🟢/🟡/🔴 axis-driven pill (`installed`/`current`/`running`) | all backend rows via `lifecycleBadgeClass` |
-| 🟡 30s warmup (uptime < 30s) | dashboard self ✓, server ✓ |
-| 🟡 5xx errors in last batch | server ✓ |
-| Latest chip 🟢 ✓ / 🟡 ↑ / ⚪ ? | dashboard self ✓, server ✓ (via `_serverUpdateProbe` override), aria2 ✓, networkquality ✓ (when backend reports `current` axis) |
+| 🟡 5xx errors in last 5 minutes (timestamp-filtered) | server ✓ |
+| 🟡 monitoring stale (`now - last_probed_at > 2 × probe_interval`) | all backend rows ✓ via `lifecycleStaleOverlay` (BG-64) |
+| Latest chip 🟢 ✓ / 🟡 ↑ / ⚪ ? | dashboard self ✓, server ✓ (via `_serverUpdateProbe` override), aria2 ✓, networkquality ✓ |
 | 🟡 ⚠ probe-failed (vs ↑ upgrade-available) | dashboard self ✓, server ✓ |
+| ~~30s warmup yellow~~ | **dropped** — recency is in chip text (`5s`/`1h2m`); yellow reserved for real problems |
 
 ## Implementation notes
 
