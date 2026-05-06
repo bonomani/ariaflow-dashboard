@@ -757,15 +757,12 @@ document.addEventListener('alpine:init', () => {
     // that BG-34 didn't include in the backend /api/_meta registry.
     LOCAL_METAS: [
       { method: 'GET', path: '/api/aria2/option_tiers', freshness: 'cold' },
-      // Earlier attempt: reclassify /api/lifecycle as 'cold' and rely
-      // solely on SSE lifecycle_changed for refreshes. Reverted —
-      // periodic polling also drives the BACKEND's probing for things
-      // SSE never emits: aria2 RPC death, networkquality binary
-      // removed externally, plist unloaded by another tool, etc.
-      // Backend's lifecycle handler probes lazily on each request, so
-      // no FE poll = no probe = no detection. Keep the warm cadence
-      // as the safety net; SSE lifecycle_changed adds *faster* updates
-      // on top.
+      // FE-53: BG-63 shipped — backend now self-probes lifecycle
+      // every 60s and emits lifecycle_changed on axis flips. FE can
+      // safely treat /api/lifecycle as cold (one fetch on tab visit;
+      // SSE handler refreshes on real changes). Saves ~120 req/hour
+      // while on Lifecycle tab.
+      { method: 'GET', path: '/api/lifecycle', freshness: 'cold' },
     ],
     // One-shot actions to run when a tab becomes the active page (either
     // on direct URL load via init() or via navigateTo()). For tab-driven

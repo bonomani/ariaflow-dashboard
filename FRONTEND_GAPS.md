@@ -1,24 +1,6 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (2)
-
-### FE-53: Drop /api/lifecycle warm poll once backend self-probes (waiting on BG-63)
-
-**Blocked by:** BG-63
-
-`lifecycle_changed` SSE listener already shipped (v0.1.569). Today
-the FE pulls /api/lifecycle every 30s while on the Lifecycle tab as
-a safety net because the backend's lifecycle probe is lazy
-(FE-driven). When BG-63 lands, the backend will probe on its own
-timer and emit `lifecycle_changed` on real flips. FE can then drop
-the warm poll: tab visit → one fetch via cold subscription, then
-SSE-driven updates only.
-
-Saves ~120 req/hour while on Lifecycle tab. No new FE state — the
-listener and one-line LOCAL_METAS classification change are the
-whole follow-up.
-
----
+## Open (1)
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 
@@ -33,6 +15,7 @@ _End of open gaps._
 
 | ID | Summary | Date |
 |----|---------|------|
+| FE-53 | BG-63 shipped — backend self-probes lifecycle every 60s and emits `lifecycle_changed` SSE on axis flips. FE flipped `/api/lifecycle` to `cold` in `LOCAL_METAS`: one fetch on tab visit, then SSE-driven refreshes. Saves ~120 req/hour while on Lifecycle tab; data is now event-fresh (sub-second on real changes) instead of 30s-stale | 2026-05-06 |
 | FE-52 | Downloaded tab gains a "paths disagree" banner when `declaration.download_dir` ≠ aria2's runtime `dir`. Two one-click reconcilers: "Use aria2's dir" (PATCH declaration.preferences) and "Use download_dir for aria2" (POST /api/aria2/change_global_option). aria2_global_option + declaration subscriptions added to archive TAB_SUBS so the banner has live data | 2026-05-06 |
 | FE-50 | BG-58 shipped — `loadDownloadDir` now falls back to `$XDG_DOWNLOAD_DIR` / `~/Downloads` when the pref is empty. Fresh installs land on the standard download folder without operator action; explicit `download_dir` pref still wins as an override. No FE change required (existing `download_dir_unset` 409 UI stays as a last-resort for headless edge cases) | 2026-05-06 |
 | FE-47 | BG-57 shipped — `/api/status` summary now computed against the unfiltered queue (only `items` is filtered). Filter-bar count chips show full picture under any active filter; awaiting_confirmation count is now visible without switching filters. No FE change required | 2026-05-06 |
