@@ -1,6 +1,19 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (3)
+## Open (4)
+
+### FE-44: Re-add overwrites existing file silently (waiting on BG-54)
+
+**Blocked by:** BG-54
+
+Backend dispatch hardcodes `allow-overwrite: true` for every aria2
+add. Re-adding an already-downloaded URL clobbers the existing file
+with no warning. Once BG-54 drops the hardcode, aria2's default
+`auto-file-renaming: true` produces non-destructive `.1` / `.2`
+renames. Optional FE follow-up later: a per-item "force re-download"
+action that overrides per-call.
+
+---
 
 ### FE-43: Per-download cap drift below displayed CAP (waiting on BG-53)
 
