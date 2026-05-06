@@ -194,19 +194,22 @@
                   ariaflow-dashboard
                   <strong class="text-muted text-sm" x-text="webVersionText">-</strong>
                 </div>
-                <span class="badge good"
-                      :title="'Process up for ' + webUptimeText"
-                      x-show="webPidText !== '-'">
+                <!-- Same status-pill shape as the server / aria2 / networkquality
+                     rows for consistency: 'running · current (launchd · homebrew)' or
+                     'update available (...)' when probe says so. PID + uptime
+                     moved to a chip below alongside Latest. -->
+                <span :class="_dashUpdateProbe === 'available' || _dashUpdateProbe === 'failed' ? 'badge warn' : 'badge good'"
+                      :title="updateCheckResultDash || ''"
+                      x-text="_dashUpdateProbe === 'available' ? ('update available' + (webManagedBy || webInstalledVia ? ' (' + [webManagedBy, webInstalledVia].filter(Boolean).join(' · ') + ')' : '')) : (_dashUpdateProbe === 'failed' ? 'running · probe failed' : webStateLabel)"></span>
+              </div>
+              <!-- Chips row: PID + uptime first, then Latest + Check.
+                   Supervisor + Package info is in the status pill above
+                   (e.g. 'running · current (launchd · homebrew)') —
+                   matches the server / aria2 row pattern. -->
+              <div class="chips mt-sm">
+                <span class="chip" x-show="webPidText !== '-'" :title="'Process up for ' + webUptimeText">
                   PID <strong x-text="webPidText">-</strong>
                   · <strong x-text="webUptimeText"></strong>
-                </span>
-              </div>
-              <div class="chips mt-sm">
-                <span class="chip" x-show="webManagedBy">
-                  Supervisor: <strong x-text="webManagedBy"></strong>
-                </span>
-                <span class="chip" x-show="webInstalledVia">
-                  Package: <strong x-text="webInstalledVia"></strong>
                 </span>
                 <span :class="_dashUpdateProbe === 'available' || _dashUpdateProbe === 'failed' ? 'chip badge warn' : (_dashUpdateProbe === 'current' ? 'chip badge good' : 'chip')"
                       x-show="webInstalledVia"
