@@ -2777,15 +2777,14 @@ document.addEventListener("alpine:init", () => {
           this.resultJson = JSON.stringify(data, null, 2);
           return;
         }
-        const result = data.result || {};
         if (action === "start") {
-          this.resultText = result.started ? "Scheduler started" : "Scheduler already running";
-          if (this.lastStatus?.state && result.started) {
+          this.resultText = data.started ? "Scheduler started" : "Scheduler already running";
+          if (this.lastStatus?.state && data.started) {
             this.lastStatus = { ...this.lastStatus, state: { ...this.lastStatus.state, running: true, scheduler_status: "starting" } };
           }
         } else {
-          this.resultText = result.stopped ? "Scheduler stopped" : "Scheduler already idle";
-          if (this.lastStatus?.state && result.stopped) {
+          this.resultText = data.stopped ? "Scheduler stopped" : "Scheduler already idle";
+          if (this.lastStatus?.state && data.stopped) {
             this.lastStatus = { ...this.lastStatus, state: { ...this.lastStatus.state, running: false, scheduler_status: "stopped" } };
           }
         }
@@ -2803,13 +2802,13 @@ document.addEventListener("alpine:init", () => {
     },
     async _pauseResume(action) {
       const isPause = action === "pause";
-      const okKey = isPause ? "paused" : "resumed";
       const verb = isPause ? "Pause" : "Resume";
       this.resultText = "";
       try {
         const r = await postEmpty(this.backendPath(urlScheduler(action)));
         const data = await r.json();
-        this.resultText = data[okKey] ? isPause ? "Downloads paused" : "Downloads resumed" : data.message || (data.reason === "no_active_transfer" ? `No active transfer to ${action}` : `${verb} failed`);
+        const ok = isPause ? data.paused === true : data.paused === false;
+        this.resultText = ok ? isPause ? "Downloads paused" : "Downloads resumed" : data.message || (data.reason === "no_active_transfer" ? `No active transfer to ${action}` : `${verb} failed`);
         this.resultJson = JSON.stringify(data, null, 2);
         if (this.lastStatus?.state) {
           const next = { ...this.lastStatus.state, dispatch_paused: isPause };

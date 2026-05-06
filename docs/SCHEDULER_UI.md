@@ -60,6 +60,18 @@ The "Run contract" button on the Log tab dispatches
 `POST /api/scheduler/ucc` (with `/contract` fallback on 404 — backward-compat
 during the BG-48 deprecation window).
 
+## Wire response shapes
+
+Backend returns flat envelopes (no nested `result` object). FE reads
+top-level fields:
+
+| Action | Backend response | FE success check |
+|---|---|---|
+| start | `{ok, started, running, ...}` | `data.started === true` |
+| stop | `{ok, stopped, ...}` | `data.stopped === true` |
+| pause | `{ok, paused: true, _rev}` | `data.paused === true` |
+| resume | `{ok, paused: false, _rev, ...}` | `data.paused === false` (no `resumed` field) |
+
 ## Optimistic updates
 
 After a successful POST, the FE writes both `scheduler_status` *and* the
