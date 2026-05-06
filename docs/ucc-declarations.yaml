@@ -140,6 +140,7 @@ coverage_map:
   closeFileSelection: "test_file_selection"
   saveFileSelection: "test_file_selection"
   navigateTo: "test_nav_links"
+  filterLogToCurrentSession: "thin wrapper: sets sessionFilter and calls navigateTo (both covered separately)"
   handleFileUpload: "test_api_params.test_valid_add (torrent_data/metalink_data path)"
   loadMoreArchive: "test_api_params.test_archive (archive pagination)"
   setAria2Option: "test_api_params.test_aria2_options"
