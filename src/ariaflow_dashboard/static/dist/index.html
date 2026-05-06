@@ -1095,32 +1095,101 @@
         <div class="panel">
           <div class="section-title">
             <h2>Downloaded</h2>
-            <div class="hint">Past downloads — completed and removed items</div>
+            <div class="hint">
+              <span x-text="filesData.length + ' file(s) in folder · ' + formatBytes(filesTotalSize)"></span>
+            </div>
+            <div class="action-strip">
+              <button class="secondary" @click="openCleanModal()" :disabled="!backendReachable">Clean…</button>
+            </div>
           </div>
           <div class="list">
-            <template x-if="archiveItems.length === 0">
-              <div class="item">No past downloads.</div>
+            <template x-if="filesRows.length === 0">
+              <div class="item">No files in download folder.</div>
             </template>
-            <template x-for="item in archiveItems" :key="item.id || item.url">
+            <template x-for="row in filesRows" :key="(row.file?.path || row.history?.id)">
               <div class="item compact">
-                <div class="item-top">
-                  <div class="item-url" x-text="shortName(item.output || item.url || '(no url)')"></div>
-                  <span :class="badgeClass(item.status || 'removed')" x-text="item.status || 'removed'"></span>
-                </div>
-                <div class="meta">
-                  <span x-show="item.created_at" x-text="'Added ' + relativeTime(item.created_at)"></span>
-                  <span x-show="item.completed_at" x-text="'Done ' + relativeTime(item.completed_at)"></span>
-                  <span x-show="item.removed_at || item.cancelled_at" x-text="'Removed ' + relativeTime(item.removed_at || item.cancelled_at)"></span>
-                  <span class="url-truncate" x-show="item.url" :title="item.url" x-text="item.url"></span>
-                </div>
+                <!-- Row variant: on disk + ariaflow history -->
+                <template x-if="row.kind === 'on_disk_history'">
+                  <div>
+                    <div class="item-top">
+                      <div class="item-url" x-text="row.file.rel_path"></div>
+                      <span class="badge" x-text="formatBytes(row.file.size)"></span>
+                    </div>
+                    <div class="meta">
+                      <span x-show="row.history?.downloaded_at" x-text="'Downloaded ' + relativeTime(row.history.downloaded_at)"></span>
+                      <span class="url-truncate text-muted" x-show="row.history?.url" :title="row.history.url" x-text="row.history.url"></span>
+                    </div>
+                    <div class="action-strip mt-sm">
+                      <button class="secondary" @click="renameFile(row.file.path, row.file.rel_path)">Rename</button>
+                      <button class="secondary" @click="moveFile(row.file.path, row.file.rel_path)">Move</button>
+                      <button class="secondary" @click="deleteFile(row.file.path, row.file.rel_path)">Delete</button>
+                    </div>
+                  </div>
+                </template>
+                <!-- Row variant: on disk, no ariaflow history -->
+                <template x-if="row.kind === 'on_disk_orphan'">
+                  <div>
+                    <div class="item-top">
+                      <div class="item-url" x-text="row.file.rel_path"></div>
+                      <span class="badge" x-text="formatBytes(row.file.size)"></span>
+                      <span class="badge text-muted" title="File present in folder, never downloaded by ariaflow">orphan</span>
+                    </div>
+                    <div class="meta">
+                      <span x-show="row.file.modified_at" x-text="'Modified ' + relativeTime(row.file.modified_at)"></span>
+                      <span class="text-muted">Source unknown — found in folder, not in ariaflow history.</span>
+                    </div>
+                    <div class="action-strip mt-sm">
+                      <button class="secondary" @click="renameFile(row.file.path, row.file.rel_path)">Rename</button>
+                      <button class="secondary" @click="moveFile(row.file.path, row.file.rel_path)">Move</button>
+                      <button class="secondary" @click="deleteFile(row.file.path, row.file.rel_path)">Delete</button>
+                    </div>
+                  </div>
+                </template>
+                <!-- Row variant: in history but missing from disk -->
+                <template x-if="row.kind === 'history_missing_disk'">
+                  <div>
+                    <div class="item-top">
+                      <div class="item-url" x-text="shortName(row.history.output_path || row.history.url || '(no name)')"></div>
+                      <span class="badge warn">missing</span>
+                    </div>
+                    <div class="meta">
+                      <span x-show="row.history?.completed_at" x-text="'Downloaded ' + relativeTime(row.history.completed_at) + ' — file no longer on disk'"></span>
+                      <span class="url-truncate text-muted" x-show="row.history?.url" :title="row.history.url" x-text="row.history.url"></span>
+                    </div>
+                  </div>
+                </template>
               </div>
             </template>
           </div>
-          <div class="mt-md text-center">
-            <button :class="{ secondary: !backendReachable }" @click="loadMoreArchive()" :disabled="!backendReachable" class="text-sm">Load more</button>
-          </div>
         </div>
       </div>
+
+      <!-- Clean modal -->
+      <template x-if="cleanModalOpen">
+        <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="clean-modal-heading">
+          <div class="modal panel">
+            <h3 id="clean-modal-heading">Clean downloads</h3>
+            <div class="meta">
+              <label>
+                <input type="radio" x-model="cleanForm.recipe" value="complete_older_than">
+                Delete completed downloads older than
+                <input type="number" min="1" x-model="cleanForm.older_than_days" style="width:5em" :disabled="cleanForm.recipe !== 'complete_older_than'">
+                days
+              </label>
+            </div>
+            <div class="meta">
+              <label><input type="radio" x-model="cleanForm.recipe" value="errors"> Delete files for errored downloads</label>
+            </div>
+            <div class="meta">
+              <label><input type="radio" x-model="cleanForm.recipe" value="orphaned"> Forget history rows where the file is gone (no disk effect)</label>
+            </div>
+            <div class="action-strip mt-md">
+              <button @click="runCleanRecipe()">Run</button>
+              <button class="secondary" @click="closeCleanModal()">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 </body>

@@ -1399,6 +1399,9 @@ document.addEventListener("alpine:init", () => {
     fileSelectionFiles: [],
     fileSelectionLoading: false,
     archiveItems: [],
+    filesData: [],
+    cleanModalOpen: false,
+    cleanForm: { recipe: "complete_older_than", older_than_days: 30 },
     torrentList: [],
     torrentLoading: false,
     peerList: [],
@@ -1930,6 +1933,13 @@ document.addEventListener("alpine:init", () => {
           getParams: (self) => ({ limit: self.archiveLimit }),
           apply: (self, data) => {
             self.archiveItems = data?.items || [];
+          }
+        },
+        {
+          method: "GET",
+          path: "/api/files",
+          apply: (self, data) => {
+            self.filesData = data?.files || [];
           }
         }
       ]
@@ -2960,6 +2970,88 @@ document.addEventListener("alpine:init", () => {
     loadMoreArchive() {
       this.archiveLimit += 100;
       this._subscribeTab("archive");
+    },
+    // BG-56: folder operations within download_dir.
+    async renameFile(path, currentName) {
+      const next = (window.prompt(`Rename "${currentName}" to:`, currentName) || "").trim();
+      if (!next || next === currentName) return;
+      await this._filesPost("/api/files/rename", { path, new_name: next }, "rename");
+    },
+    async moveFile(path, currentName) {
+      const subdir = (window.prompt(`Move "${currentName}" to subdirectory (relative to download dir):`, "") || "").trim();
+      if (!subdir) return;
+      await this._filesPost("/api/files/move", { path, new_subdir: subdir }, "move");
+    },
+    async deleteFile(path, name) {
+      if (!window.confirm(`Delete "${name}" from disk? This cannot be undone.`)) return;
+      try {
+        const r = await this._fetch(this.backendPath("/api/files"), {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path })
+        });
+        const data = r.status === 204 ? { ok: true } : await r.json().catch(() => null);
+        if (!r.ok || data?.ok === false) {
+          this.resultText = data?.message || "Delete failed";
+          return;
+        }
+        this.resultText = `Deleted ${name}`;
+        this._subscribeTab("archive");
+      } catch (e) {
+        this.resultText = `Delete failed: ${e.message}`;
+      }
+    },
+    async _filesPost(endpoint, body, verb) {
+      try {
+        const r = await this._fetch(this.backendPath(endpoint), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const data = await r.json().catch(() => null);
+        if (!r.ok || data?.ok === false) {
+          this.resultText = data?.message || `${verb} failed`;
+          return;
+        }
+        this.resultText = `${verb.charAt(0).toUpperCase() + verb.slice(1)} succeeded`;
+        this._subscribeTab("archive");
+      } catch (e) {
+        this.resultText = `${verb} failed: ${e.message}`;
+      }
+    },
+    async runCleanRecipe() {
+      const f = this.cleanForm;
+      let body = {};
+      if (f.recipe === "complete_older_than") body = { status: "complete", older_than_days: Number(f.older_than_days) || 30 };
+      else if (f.recipe === "errors") body = { status: "error" };
+      else if (f.recipe === "orphaned") body = { orphaned: true };
+      this.cleanModalOpen = false;
+      await this._filesPost("/api/files/clean", body, "clean");
+    },
+    openCleanModal() {
+      this.cleanModalOpen = true;
+    },
+    closeCleanModal() {
+      this.cleanModalOpen = false;
+    },
+    get filesTotalSize() {
+      return (this.filesData || []).reduce((sum, f) => sum + (Number(f.size) || 0), 0);
+    },
+    get filesRows() {
+      const files = this.filesData || [];
+      const filePaths = new Set(files.map((f) => f.path).filter(Boolean));
+      const rows = files.map((f) => ({
+        kind: f.history_match ? "on_disk_history" : "on_disk_orphan",
+        file: f,
+        history: f.history_match || null
+      }));
+      for (const item of this.archiveItems || []) {
+        const p = item.output_path;
+        if (p && !filePaths.has(p)) {
+          rows.push({ kind: "history_missing_disk", file: null, history: item });
+        }
+      }
+      return rows;
     },
     async cleanup() {
       this.archiveLoading = true;

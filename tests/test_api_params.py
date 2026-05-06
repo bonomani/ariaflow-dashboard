@@ -568,6 +568,8 @@ class TestApiParamCoverage:
             "itemAction",
             "apiPath",
             "saveDeclaration",
+            "_filesPost",
+            "_itemDecision",
         }
 
         # Check each API method is referenced in HTML or called from init.
