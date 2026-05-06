@@ -255,27 +255,18 @@ def check_for_update() -> dict:
     if installed_via == "homebrew":
         try:
             brew = _resolve_pkg_manager("brew")
-            # Refresh the tap clone directly via git — `brew update`
-            # has an internal throttle that skips actual pulls when it
-            # thinks the tap is "recent" (often <5 min), so back-to-back
-            # check clicks see stale data. A direct `git pull` always
-            # fetches.
-            try:
-                prefix = subprocess.run(  # noqa: S603
-                    [brew, "--prefix"], capture_output=True, text=True,
-                    timeout=5, check=False,
-                ).stdout.strip()
-                if prefix:
-                    tap_dir = (
-                        Path(prefix) / "Library/Taps/bonomani/homebrew-ariaflow"
-                    )
-                    if tap_dir.is_dir():
-                        subprocess.run(  # noqa: S603
-                            ["git", "-C", str(tap_dir), "pull", "--quiet", "--ff-only"],
-                            capture_output=True, text=True, timeout=15, check=False,
-                        )
-            except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-                pass  # fall back to whatever brew already has cached
+            # Force a real tap refresh on every check. brew update
+            # normally throttles itself via HOMEBREW_AUTO_UPDATE_SECS
+            # (default 300s) — back-to-back manual checks would read
+            # stale formula. Setting the var to 0 in the subprocess env
+            # forces it to actually pull. macOS launchd may also strip
+            # the env, so set HOME explicitly so brew can find its
+            # config / cache dirs.
+            env = {**os.environ, "HOMEBREW_AUTO_UPDATE_SECS": "0"}
+            subprocess.run(  # noqa: S603
+                [brew, "update"],
+                capture_output=True, text=True, timeout=30, check=False, env=env,
+            )
             out = subprocess.run(  # noqa: S603
                 [brew, "outdated", "--json", "--formula", "ariaflow-dashboard"],
                 capture_output=True,
