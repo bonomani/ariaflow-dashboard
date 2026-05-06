@@ -379,6 +379,110 @@ def _restart_via_bootstrap(target: str, plist_path: str, label: str) -> None:
     _detached("sh", ["-c", cmd])
 
 
+def detect_server_installed_via() -> InstalledVia:
+    """Detect how (or if) ariaflow-server is installed locally.
+
+    Probes the package manager — does NOT require ariaflow-server to be
+    running. This is what enables the dashboard to install the server
+    when no backend is reachable (cold-start).
+    """
+    brew = shutil.which("brew") or _resolve_pkg_manager("brew")
+    if brew and brew != "brew":
+        try:
+            out = subprocess.run(  # noqa: S603
+                [brew, "list", "--formula", "--versions", "ariaflow-server"],
+                capture_output=True, text=True, timeout=5, check=False,
+            )
+            if out.returncode == 0 and out.stdout.strip():
+                return "homebrew"
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            pass
+    pipx = shutil.which("pipx") or _resolve_pkg_manager("pipx")
+    if pipx and pipx != "pipx":
+        try:
+            out = subprocess.run(  # noqa: S603
+                [pipx, "list", "--short"],
+                capture_output=True, text=True, timeout=5, check=False,
+            )
+            if "ariaflow-server" in (out.stdout or ""):
+                return "pipx"
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            pass
+    return None
+
+
+def dispatch_server_lifecycle(action: str) -> dict:
+    """Plan + execute install / uninstall / update for ariaflow-server.
+
+    Mirrors dispatch_update but targets the server formula. Channel is
+    coupled to the dashboard's own installer (homebrew dashboard →
+    homebrew server) to avoid mixed-channel installs at upgrade time.
+    """
+    if action not in ("install", "uninstall", "update"):
+        return {"ok": False, "status": 400, "error": "unsupported_action"}
+    dash_via = detect_installed_via()
+    if dash_via == "source":
+        return {
+            "ok": False,
+            "status": 409,
+            "error": "source_install",
+            "message": "dashboard is a git checkout — manage server manually",
+        }
+    if dash_via == "homebrew":
+        brew = _resolve_pkg_manager("brew")
+        if action == "install":
+            cmd = f"{brew} install bonomani/ariaflow/ariaflow-server"
+        elif action == "uninstall":
+            cmd = f"{brew} uninstall ariaflow-server"
+        else:
+            cmd = f"{brew} upgrade ariaflow-server"
+        return {
+            "ok": True,
+            "status": 202,
+            "action": action,
+            "target": "ariaflow-server",
+            "installed_via": "homebrew",
+            "after": lambda: _detached("sh", ["-c", cmd]),
+        }
+    if dash_via == "pipx":
+        pipx = _resolve_pkg_manager("pipx")
+        if action == "install":
+            cmd = f"{pipx} install ariaflow-server"
+        elif action == "uninstall":
+            cmd = f"{pipx} uninstall ariaflow-server"
+        else:
+            cmd = f"{pipx} upgrade ariaflow-server"
+        return {
+            "ok": True,
+            "status": 202,
+            "action": action,
+            "target": "ariaflow-server",
+            "installed_via": "pipx",
+            "after": lambda: _detached("sh", ["-c", cmd]),
+        }
+    return {
+        "ok": False,
+        "status": 409,
+        "error": "unknown_installer",
+        "message": "could not detect a supported installer (homebrew/pipx) for the dashboard",
+    }
+
+
+def server_lifecycle_probe() -> dict:
+    """Snapshot of ariaflow-server's local install state.
+
+    Used by the FE to decide which buttons to render: Install (when
+    not installed), Uninstall + Update (when installed).
+    """
+    via = detect_server_installed_via()
+    return {
+        "ok": True,
+        "installed": via is not None,
+        "installed_via": via,
+        "install_supported": detect_installed_via() in ("homebrew", "pipx"),
+    }
+
+
 def _detached(cmd: str, args: list[str]) -> None:
     subprocess.Popen(  # noqa: S603
         [cmd, *args],

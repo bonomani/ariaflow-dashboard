@@ -572,6 +572,7 @@ class TestApiParamCoverage:
             "_itemDecision",
             "_patchWebConfig",
             "loadWebConfig",
+            "loadServerProbe",
         }
 
         # Check each API method is referenced in HTML or called from init.

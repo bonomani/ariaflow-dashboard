@@ -1848,6 +1848,9 @@ document.addEventListener("alpine:init", () => {
     // config.json on the box running the dashboard, NOT in the server's
     // declaration — must work when the server is down.
     webConfig: { auto_update: false, auto_update_check_hours: 24, update_server_first: false, auto_restart_after_upgrade: true, backend_url: "" },
+    // Local probe: is ariaflow-server installed on this machine?
+    // null = haven't probed yet; falsy means not installed.
+    serverProbe: null,
     get dashAutoUpdateEnabled() {
       return !!this.webConfig?.auto_update;
     },
@@ -1932,6 +1935,7 @@ document.addEventListener("alpine:init", () => {
       setTimeout(() => this.discoverBackends().catch((e) => console.warn(e.message)), 2e3);
       setInterval(() => this.discoverBackends().catch((e) => console.warn(e.message)), 6e4);
       this.loadWebConfig();
+      this.loadServerProbe();
     },
     // --- per-tab data routing ---
     // Each entry maps a tab to one or more endpoints; the FreshnessRouter
@@ -2948,6 +2952,36 @@ document.addEventListener("alpine:init", () => {
         const data = await r.json();
         if (data?.ok) this.webConfig = this._normalizeWebConfig(data);
       } catch (e) {
+      }
+    },
+    async loadServerProbe() {
+      try {
+        const r = await this._fetch("/api/web/lifecycle/ariaflow-server/probe");
+        const data = await r.json();
+        if (data?.ok) this.serverProbe = data;
+      } catch (e) {
+      }
+    },
+    async installAriaflowServer() {
+      try {
+        const r = await this._fetch("/api/web/lifecycle/ariaflow-server/install", { method: "POST" });
+        const data = await r.json().catch(() => null);
+        if (!r.ok || data?.ok === false) {
+          this.resultText = data?.message || `Install failed (${r.status})`;
+          return;
+        }
+        this.resultText = "Installing ariaflow-server\u2026 (~30s)";
+        setTimeout(() => this.loadServerProbe(), 5e3);
+        setTimeout(() => {
+          this.loadServerProbe();
+          this.discoverBackends();
+        }, 3e4);
+        setTimeout(() => {
+          this.loadServerProbe();
+          this.discoverBackends();
+        }, 6e4);
+      } catch (e) {
+        this.resultText = `Install failed: ${e.message}`;
       }
     },
     _normalizeWebConfig(data) {

@@ -17,6 +17,25 @@
           <div class="section-title">
             <h2>Components</h2>
           </div>
+          <template x-if="!backendReachable && serverProbe && !serverProbe.installed && serverProbe.install_supported">
+            <div class="banner mt-sm" role="region" aria-label="ariaflow-server not installed">
+              <div class="meta">
+                <span class="badge warn">not installed</span>
+                <span>ariaflow-server isn't installed on this machine. The dashboard works against any backend, but the local one needs installing for full functionality.</span>
+              </div>
+              <div class="action-strip mt-sm">
+                <button @click="installAriaflowServer()" :title="'brew/pipx install ariaflow-server (~30s)'">Install ariaflow-server (local)</button>
+              </div>
+            </div>
+          </template>
+          <template x-if="!backendReachable && serverProbe && !serverProbe.installed && !serverProbe.install_supported">
+            <div class="banner mt-sm" role="region" aria-label="install not supported">
+              <div class="meta text-muted">
+                <span class="badge">manual install needed</span>
+                <span>The dashboard was installed from source — install ariaflow-server yourself: <code>brew install bonomani/ariaflow/ariaflow-server</code></span>
+              </div>
+            </div>
+          </template>
           <div class="list">
             <template x-for="row in lifecycleRows" :key="row.name">
               <div class="item">

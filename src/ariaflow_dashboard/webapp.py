@@ -19,7 +19,9 @@ from .install_self import (
     detect_installed_via,
     detect_managed_by,
     dispatch_restart,
+    dispatch_server_lifecycle,
     dispatch_update,
+    server_lifecycle_probe,
 )
 
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -45,6 +47,7 @@ _DASHBOARD_META: list[dict] = [
     {"method": "GET", "path": "/api/web/log", "freshness": "warm", "ttl_s": 30},
     {"method": "GET", "path": "/api/web/config", "freshness": "cold"},
     {"method": "PATCH", "path": "/api/web/config", "freshness": "on-action"},
+    {"method": "GET", "path": "/api/web/lifecycle/ariaflow-server/probe", "freshness": "warm", "ttl_s": 30},
     {"method": "GET", "path": "/api/web/lifecycle", "freshness": "warm", "ttl_s": 60},
 ]
 
@@ -198,6 +201,9 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
                 {"ok": True, **cfg, "meta": _meta_for("/api/web/config")}
             )
             return
+        if path == "/api/web/lifecycle/ariaflow-server/probe":
+            self._send_json(server_lifecycle_probe())
+            return
         if path == "/api/web/log":
             qs = parse_qs(parsed.query)
             try:
@@ -223,6 +229,26 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
         # /api/lifecycle/:target/:action: dashboard self-management.
         # Only the dashboard target is recognized here — aria2 / ariaflow-
         # server lifecycle calls go to the backend at port 8000.
+        if path.startswith("/api/web/lifecycle/ariaflow-server/"):
+            action = path[len("/api/web/lifecycle/ariaflow-server/") :]
+            plan = dispatch_server_lifecycle(action)
+            after = plan.pop("after", None)
+            status = plan.pop("status", 200)
+            record_action(
+                action="lifecycle",
+                target="ariaflow-server",
+                outcome="changed" if plan.get("ok") else "failed",
+                reason=action,
+                detail={k: v for k, v in plan.items() if k != "ok"},
+            )
+            self._send_json(plan, status=status)
+            if after is not None:
+                try:
+                    self.wfile.flush()
+                except OSError:
+                    pass
+                after()
+            return
         if path.startswith("/api/web/lifecycle/ariaflow-dashboard/"):
             action = path[len("/api/web/lifecycle/ariaflow-dashboard/") :]
             if action == "restart":

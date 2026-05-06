@@ -561,6 +561,9 @@ document.addEventListener('alpine:init', () => {
     // config.json on the box running the dashboard, NOT in the server's
     // declaration — must work when the server is down.
     webConfig: { auto_update: false, auto_update_check_hours: 24, update_server_first: false, auto_restart_after_upgrade: true, backend_url: '' },
+    // Local probe: is ariaflow-server installed on this machine?
+    // null = haven't probed yet; falsy means not installed.
+    serverProbe: null,
     get dashAutoUpdateEnabled() { return !!this.webConfig?.auto_update; },
     get dashAutoUpdateCheckHours() {
       const v = Number(this.webConfig?.auto_update_check_hours);
@@ -673,6 +676,10 @@ document.addEventListener('alpine:init', () => {
       setInterval(() => this.discoverBackends().catch((e) => console.warn(e.message)), 60_000);
       // Dashboard-local config (FE-48). Same-origin, cheap.
       this.loadWebConfig();
+      // Local probe: is ariaflow-server installed on this machine?
+      // Drives the cold-start "Install ariaflow-server" CTA on the
+      // Lifecycle tab when backend is unreachable.
+      this.loadServerProbe();
     },
 
     // --- per-tab data routing ---
@@ -1681,6 +1688,30 @@ get bonjourBadgeTitle() {
         const data = await r.json();
         if (data?.ok) this.webConfig = this._normalizeWebConfig(data);
       } catch (e) { /* ignore — defaults already in place */ }
+    },
+    async loadServerProbe() {
+      try {
+        const r = await this._fetch('/api/web/lifecycle/ariaflow-server/probe');
+        const data = await r.json();
+        if (data?.ok) this.serverProbe = data;
+      } catch (e) { /* keep null; UI hides CTA */ }
+    },
+    async installAriaflowServer() {
+      try {
+        const r = await this._fetch('/api/web/lifecycle/ariaflow-server/install', { method: 'POST' });
+        const data = await r.json().catch(() => null);
+        if (!r.ok || data?.ok === false) {
+          this.resultText = data?.message || `Install failed (${r.status})`;
+          return;
+        }
+        this.resultText = 'Installing ariaflow-server… (~30s)';
+        // Re-probe in 5s + 30s + 60s to catch the install completing.
+        setTimeout(() => this.loadServerProbe(), 5_000);
+        setTimeout(() => { this.loadServerProbe(); this.discoverBackends(); }, 30_000);
+        setTimeout(() => { this.loadServerProbe(); this.discoverBackends(); }, 60_000);
+      } catch (e) {
+        this.resultText = `Install failed: ${e.message}`;
+      }
     },
     _normalizeWebConfig(data) {
       return {
