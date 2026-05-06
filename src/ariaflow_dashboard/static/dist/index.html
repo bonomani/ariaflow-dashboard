@@ -629,6 +629,12 @@
                   Also update ariaflow-server first
                 </label>
               </div>
+              <div class="meta mt-sm">
+                <label :title="'After brew upgrade completes, automatically bootout+bootstrap the launchd job so the new bottle starts running. Without this, every upgrade requires a manual Restart click and the running process keeps reading from the deleted Cellar dir → 404s on static assets.'">
+                  <input type="checkbox" :checked="dashAutoRestart" @change="setDashAutoRestart($el.checked)">
+                  Auto-restart after upgrade (recommended)
+                </label>
+              </div>
               <div class="action-strip mt-sm">
                 <button class="secondary" @click="checkDashUpdate()" :disabled="!webUpdateSupported || updateCheckLoading" x-text="updateCheckLoading ? 'Checking…' : 'Check for update'"></button>
                 <span class="text-muted text-sm" x-show="updateCheckResultDash" x-text="updateCheckResultDash"></span>

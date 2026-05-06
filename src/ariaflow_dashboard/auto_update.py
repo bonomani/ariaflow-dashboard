@@ -39,6 +39,13 @@ DEFAULTS: dict[str, Any] = {
     # Backend URL to use for the server-update orchestration. Falls
     # back to DEFAULT_BACKEND_URL in webapp.py when empty.
     "backend_url": "",
+    # When the dashboard is upgraded (manual button or auto poller),
+    # chain a launchd bootout+bootstrap right after `brew upgrade`
+    # finishes so the new bottle starts running immediately. Without
+    # this, the upgrade succeeds but the running Python process keeps
+    # __file__ paths into the now-deleted Cellar dir → static files
+    # 404 until manual restart. Default ON.
+    "auto_restart_after_upgrade": True,
 }
 
 
@@ -53,6 +60,7 @@ def load_config() -> dict[str, Any]:
         pass
     cfg["auto_update"] = bool(cfg.get("auto_update", False))
     cfg["update_server_first"] = bool(cfg.get("update_server_first", False))
+    cfg["auto_restart_after_upgrade"] = bool(cfg.get("auto_restart_after_upgrade", True))
     cfg["backend_url"] = str(cfg.get("backend_url", "") or "")
     try:
         hours = int(cfg.get("auto_update_check_hours", 24))
@@ -70,6 +78,7 @@ def save_config(updates: dict[str, Any]) -> dict[str, Any]:
             current[key] = updates[key]
     current["auto_update"] = bool(current["auto_update"])
     current["update_server_first"] = bool(current["update_server_first"])
+    current["auto_restart_after_upgrade"] = bool(current.get("auto_restart_after_upgrade", True))
     current["backend_url"] = str(current.get("backend_url", "") or "")
     try:
         hours = int(current.get("auto_update_check_hours", 24))
@@ -154,7 +163,7 @@ def _run_check_once() -> None:
     # blocker for the dashboard's own upgrade.
     if cfg.get("update_server_first"):
         trigger_server_update(cfg.get("backend_url", ""))
-    plan = dispatch_update()
+    plan = dispatch_update(auto_restart=bool(cfg.get("auto_restart_after_upgrade", True)))
     if plan.get("ok"):
         record_action(
             action="auto_update_dispatch",

@@ -200,26 +200,61 @@ def dispatch_restart() -> dict:
     }
 
 
-def dispatch_update() -> dict:
-    """Plan + execute an update per detected installer."""
+def dispatch_update(auto_restart: bool = False) -> dict:
+    """Plan + execute an update per detected installer.
+
+    When auto_restart=True and we're under launchd, chain the upgrade
+    and a bootout+bootstrap restart into one detached shell so the
+    new bottle is running before the operator's next request hits a
+    stale-cellar 404.
+    """
     installed_via = detect_installed_via()
+
+    def _chain_restart(upgrade_cmd: str) -> str:
+        """Build a shell snippet that runs the upgrade, then restarts
+        via launchd if applicable. Falls back to upgrade-only when no
+        managed supervisor is detected (the operator can restart
+        manually)."""
+        if not auto_restart:
+            return upgrade_cmd
+        managed_by = detect_managed_by()
+        if managed_by != "launchd":
+            return upgrade_cmd
+        label = detect_launchd_label()
+        if not label:
+            return upgrade_cmd
+        plist_path = Path.home() / "Library/LaunchAgents" / f"{label}.plist"
+        if not plist_path.is_file():
+            return upgrade_cmd
+        target = f"gui/{os.getuid()}/{label}"
+        domain = f"gui/{os.getuid()}"
+        return (
+            f"{upgrade_cmd} && "
+            f"launchctl bootout {target} 2>/dev/null; "
+            f"launchctl bootstrap {domain} {plist_path}"
+        )
+
     if installed_via == "homebrew":
         brew = _resolve_pkg_manager("brew")
+        upgrade = f"{brew} upgrade ariaflow-dashboard"
         return {
             "ok": True,
             "status": 202,
             "action": "update",
             "installed_via": "homebrew",
-            "after": lambda: _detached(brew, ["upgrade", "ariaflow-dashboard"]),
+            "auto_restart": auto_restart,
+            "after": lambda: _detached("sh", ["-c", _chain_restart(upgrade)]),
         }
     if installed_via == "pipx":
         pipx = _resolve_pkg_manager("pipx")
+        upgrade = f"{pipx} upgrade ariaflow-dashboard"
         return {
             "ok": True,
             "status": 202,
             "action": "update",
             "installed_via": "pipx",
-            "after": lambda: _detached(pipx, ["upgrade", "ariaflow-dashboard"]),
+            "auto_restart": auto_restart,
+            "after": lambda: _detached("sh", ["-c", _chain_restart(upgrade)]),
         }
     if installed_via == "pip":
         return {

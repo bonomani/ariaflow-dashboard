@@ -236,7 +236,9 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
                 cfg = load_auto_update_config()
                 if cfg.get("update_server_first"):
                     trigger_server_update(cfg.get("backend_url", ""))
-                plan = dispatch_update()
+                plan = dispatch_update(
+                    auto_restart=bool(cfg.get("auto_restart_after_upgrade", True))
+                )
             elif action == "check_update":
                 plan = check_for_update()
             else:

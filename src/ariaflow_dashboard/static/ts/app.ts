@@ -559,13 +559,14 @@ document.addEventListener('alpine:init', () => {
     // Dashboard-local auto-update (FE-48). Stored at ~/.ariaflow-dashboard/
     // config.json on the box running the dashboard, NOT in the server's
     // declaration — must work when the server is down.
-    webConfig: { auto_update: false, auto_update_check_hours: 24, update_server_first: false, backend_url: '' },
+    webConfig: { auto_update: false, auto_update_check_hours: 24, update_server_first: false, auto_restart_after_upgrade: true, backend_url: '' },
     get dashAutoUpdateEnabled() { return !!this.webConfig?.auto_update; },
     get dashAutoUpdateCheckHours() {
       const v = Number(this.webConfig?.auto_update_check_hours);
       return Number.isFinite(v) && v > 0 ? v : 24;
     },
     get dashUpdateServerFirst() { return !!this.webConfig?.update_server_first; },
+    get dashAutoRestart() { return this.webConfig?.auto_restart_after_upgrade !== false; },
 
     // lifecycle
     lifecycleRows: [],
@@ -1657,6 +1658,9 @@ get bonjourBadgeTitle() {
     async setDashUpdateServerFirst(enabled) {
       await this._patchWebConfig({ update_server_first: !!enabled });
     },
+    async setDashAutoRestart(enabled) {
+      await this._patchWebConfig({ auto_restart_after_upgrade: !!enabled });
+    },
     async _patchWebConfig(updates) {
       try {
         const r = await this._fetch('/api/web/config', {
@@ -1682,6 +1686,7 @@ get bonjourBadgeTitle() {
         auto_update: !!data.auto_update,
         auto_update_check_hours: Number(data.auto_update_check_hours) || 24,
         update_server_first: !!data.update_server_first,
+        auto_restart_after_upgrade: data.auto_restart_after_upgrade !== false,
         backend_url: String(data.backend_url || ''),
       };
     },
