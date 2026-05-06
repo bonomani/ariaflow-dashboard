@@ -2311,14 +2311,23 @@ get bonjourBadgeTitle() {
       return describeLifecycleStatus(name, record);
     },
     // HEALTH_PILL_RULES.md: server-row pill goes yellow on actual
-    // problems (recent 5xx errors). The 30s 'warmup' branch was
-    // dropped — 'just restarted' isn't concerning, the chip text
-    // already shows 'Xs / Ym' so recency is visible without colouring
-    // a healthy state yellow.
+    // recent problems — 5xx within the last 5 minutes. Older entries
+    // in errors_recent[] don't fire the overlay (operator already
+    // recovered; no point staying yellow forever just because the
+    // ring buffer hasn't rotated the entry out).
+    // _staleTick voided so Alpine re-evaluates this every second
+    // tick — without it, a yellow pill would only flip back to green
+    // on the next /api/status arrival.
     get serverHealthOverlay() {
+      void this._staleTick;
       if (!this.backendReachable) return null;  // unreachable already red
       const errs = this.lastHealth?.errors_recent || [];
-      const recentServerErrors = errs.filter((e) => Number(e?.status) >= 500);
+      const fiveMinAgoSec = Date.now() / 1000 - 300;
+      const recentServerErrors = errs.filter((e) => {
+        if (Number(e?.status) < 500) return false;
+        const at = Number(e?.at);
+        return Number.isFinite(at) && at >= fiveMinAgoSec;
+      });
       if (recentServerErrors.length > 0) return 'errors';
       return null;
     },

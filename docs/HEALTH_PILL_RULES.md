@@ -38,10 +38,14 @@ never red ones that scared them about a healthy system.
 
 | Color  | Condition |
 |--------|-----------|
-| 🟢     | TCP `:8000` reachable + PID present + `errors_recent` empty |
-| 🟡     | Reachable but `errors_recent` non-empty (5xx in recent buffer) |
+| 🟢     | TCP `:8000` reachable + PID present + no 5xx in last 5 minutes |
+| 🟡     | Reachable but a 5xx error landed in the last 5 minutes (filtered by `errors_recent[].at`) |
 | 🔴     | Unreachable (lifecycle endpoint TCP refused) |
 | ⚪     | No probe yet |
+
+The 5-minute window is computed from `Date.now() - 5*60s` against
+each entry's `at` timestamp, not from buffer presence. Old entries
+in `errors_recent[]` no longer keep the pill yellow forever.
 
 ### ariaflow-dashboard (this page)
 
