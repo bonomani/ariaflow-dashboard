@@ -1,6 +1,17 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (1)
+## Open (2)
+
+### FE-41: Stuck-idle scheduler after Add (waiting on BG-51)
+
+**Blocked by:** BG-51
+
+When a single download is added into a drained-idle scheduler, the
+backend kicks the loop but it ends up at `idle · (no wait_reason)`
+with the item stuck `queued` indefinitely. No FE change needed once
+BG-51 closes the dispatch hole upstream.
+
+---
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 

@@ -1513,10 +1513,12 @@ get bonjourBadgeTitle() {
         this.resultJson = JSON.stringify(data, null, 2);
         return;
       }
-      const queued = Array.isArray(data.added) ? data.added.length : 0;
+      // Backend returns {ok, items: [{id, url, status, duplicate}, ...]}.
+      const added = Array.isArray(data.items) ? data.items : (Array.isArray(data.added) ? data.added : []);
+      const queued = added.length;
       this.resultText = queued > 1
         ? `Queued ${queued} items`
-        : `Queued: ${data.added?.[0]?.url || urls[0] || raw}`;
+        : `Queued: ${added[0]?.url || urls[0] || raw}`;
       this.resultJson = JSON.stringify(data, null, 2);
       // Clear the URL input + aux fields so the operator sees the form
       // reset (= visible feedback that the click landed) and so the
