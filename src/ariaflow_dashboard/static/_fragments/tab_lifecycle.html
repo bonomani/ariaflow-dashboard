@@ -52,7 +52,9 @@
                       <span class="badge warn" :title="'Latest in homebrew is v' + _serverLatestVersion + '. Click Update to upgrade.'" x-text="'→ v' + _serverLatestVersion"></span>
                     </template>
                   </div>
-                  <span :class="(row.name === 'ariaflow-server' && _serverUpdateProbe === 'available') ? 'badge warn' : lifecycleBadgeClass(row.record)" x-text="(row.name === 'ariaflow-server' && _serverUpdateProbe === 'available') ? ('update available' + (row.record?.result?.managed_by || row.record?.result?.installed_via ? ' (' + [row.record.result.managed_by, row.record.result.installed_via].filter(Boolean).join(' · ') + ')' : '')) : lifecycleStateLabel(row.name, row.record)"></span>
+                  <span :class="(row.name === 'ariaflow-server' && _serverUpdateProbe === 'available') ? 'badge warn' : ((row.name === 'ariaflow-server' && serverHealthOverlay) ? 'badge warn' : lifecycleBadgeClass(row.record))"
+                        :title="row.name === 'ariaflow-server' && serverHealthOverlay ? serverHealthOverlayText : ''"
+                        x-text="(row.name === 'ariaflow-server' && _serverUpdateProbe === 'available') ? ('update available' + (row.record?.result?.managed_by || row.record?.result?.installed_via ? ' (' + [row.record.result.managed_by, row.record.result.installed_via].filter(Boolean).join(' · ') + ')' : '')) : ((row.name === 'ariaflow-server' && serverHealthOverlay) ? (lifecycleStateLabel(row.name, row.record) + ' · ' + serverHealthOverlayText) : lifecycleStateLabel(row.name, row.record))"></span>
                 </div>
                 <template x-if="row.name === 'ariaflow-server'">
                   <div>
@@ -193,16 +195,19 @@
                 <span class="chip" x-show="webInstalledVia">
                   Package: <strong x-text="webInstalledVia"></strong>
                 </span>
-                <span :class="_dashUpdateProbe === 'available' ? 'chip badge warn' : (_dashUpdateProbe === 'current' ? 'chip badge good' : 'chip')"
+                <span :class="_dashUpdateProbe === 'available' || _dashUpdateProbe === 'failed' ? 'chip badge warn' : (_dashUpdateProbe === 'current' ? 'chip badge good' : 'chip')"
                       x-show="webInstalledVia"
                       :title="_dashUpdateProbe === null ? 'Click Check for update to verify' : updateCheckResultDash">
-                  <template x-if="_dashLatestVersion">
+                  <template x-if="_dashUpdateProbe === 'failed'">
+                    <span>Latest ⚠</span>
+                  </template>
+                  <template x-if="_dashUpdateProbe !== 'failed' && _dashLatestVersion">
                     <span>
                       Latest <strong x-text="'v' + _dashLatestVersion"></strong>
                       <strong x-text="_dashUpdateProbe === 'available' ? '↑' : '✓'"></strong>
                     </span>
                   </template>
-                  <span x-show="!_dashLatestVersion" class="text-muted">Latest ?</span>
+                  <span x-show="_dashUpdateProbe !== 'failed' && !_dashLatestVersion" class="text-muted">Latest ?</span>
                 </span>
                 <button class="secondary text-sm" @click="checkDashUpdate()" :disabled="!webUpdateSupported || updateCheckLoading || dashLifecycleLoading" x-text="updateCheckLoading ? 'Checking…' : 'Check'"></button>
               </div>
