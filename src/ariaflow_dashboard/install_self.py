@@ -475,7 +475,7 @@ def dispatch_server_lifecycle(action: str) -> dict:
     }
 
 
-def _server_plist_path() -> Path | None:
+def _server_plist_path() -> Optional[Path]:
     """Locate the launchd plist for ariaflow-server. None if not present."""
     candidates = (
         "homebrew.mxcl.ariaflow-server",
