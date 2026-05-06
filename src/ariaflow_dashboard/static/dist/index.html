@@ -120,9 +120,9 @@
           <div class="kpi-label">Cap</div>
           <div class="kpi-value">
             <span x-show="bwLiveDownMbps > 0" :class="{ 'kpi-over': bwOverCap, 'kpi-good': bwAtCapTarget }" x-text="bwUtilizationPct + '%'"></span>
-            <span x-show="bwLiveDownMbps <= 0" class="text-muted" x-text="bw.cap_mbps.toFixed(1) + ' Mbps'"></span>
+            <span x-show="bwLiveDownMbps <= 0" class="text-muted" x-text="(bw.cap_mbps != null ? bw.cap_mbps.toFixed(1) : '-') + ' Mbps'"></span>
           </div>
-          <div class="kpi-sub" x-show="bwLiveDownMbps > 0" x-text="bwLiveDownMbps.toFixed(1) + ' / ' + bw.cap_mbps.toFixed(1) + ' Mbps' + (bwOverCap ? ' · over' : '')"></div>
+          <div class="kpi-sub" x-show="bwLiveDownMbps > 0" x-text="bwLiveDownMbps.toFixed(1) + ' / ' + (bw.cap_mbps != null ? bw.cap_mbps.toFixed(1) : '-') + ' Mbps' + (bwOverCap ? ' · over' : '')"></div>
           <div class="kpi-sub" x-show="bwLiveDownMbps <= 0">headroom available</div>
         </div>
         <div class="kpi kpi-cap" x-show="!bw.cap_mbps">
@@ -280,11 +280,11 @@
                   </div>
                 </template>
                 <template x-if="itemNormalizedStatus(item) === 'awaiting_confirmation'">
-                  <div class="banner mt-sm" role="region" :aria-label="'Re-add confirmation for ' + (shortName(item) || item.url)">
+                  <div class="banner mt-sm" role="region" :aria-label="'Re-add confirmation for ' + (shortName(item.output || item.url))">
                     <div class="meta">
                       <template x-if="confirmContext(item)">
                         <span>
-                          <span x-text="'Already have ' + (shortName(item) || 'this file') + ' (' + formatBytes(confirmContext(item).existing_size) + ') at ' + confirmContext(item).existing_path"></span>
+                          <span x-text="'Already have ' + (shortName(item.output || item.url) || 'this file') + ' (' + formatBytes(confirmContext(item).existing_size) + ') at ' + confirmContext(item).existing_path"></span>
                           <span class="text-muted" x-show="confirmContext(item).history_match && confirmContext(item).last_downloaded_at" x-text="' · last downloaded ' + relativeTime(confirmContext(item).last_downloaded_at)"></span>
                           <span class="text-muted" x-show="!confirmContext(item).history_match"> · source unknown (not downloaded by ariaflow)</span>
                           <span class="badge warn" x-show="confirmContext(item).remote_changed">server changed</span>
@@ -303,7 +303,7 @@
                 </template>
                 <div x-show="item.id && itemNormalizedStatus(item) !== 'awaiting_confirmation'" class="action-strip mt-sm">
                   <button x-show="itemCanToggle(item)" @click="itemToggleAction(item)" x-text="itemToggleLabel(item)" :title="itemToggleLabel(item)"></button>
-                  <button x-show="itemModeBadge(item) === 'torrent' || itemModeBadge(item) === 'metalink'" :aria-label="'Select files for ' + (shortName(item) || item.url)" @click="openFileSelection(item.id)">Files</button>
+                  <button x-show="itemModeBadge(item) === 'torrent' || itemModeBadge(item) === 'metalink'" :aria-label="'Select files for ' + (shortName(item.output || item.url))" @click="openFileSelection(item.id)">Files</button>
                   <button x-show="item.gid" class="secondary" @click="loadItemOptions(item.gid)">Options</button>
                   <button x-show="itemCanRemove(item)" @click="itemAction(item.id, 'remove')">Remove</button>
                 </div>

@@ -51,7 +51,17 @@ export function humanCap(value: Numeric): string {
   return text;
 }
 
-export function shortName(value: string | null | undefined): string {
+export function shortName(value: unknown): string {
+  // Defensive: accept anything; coerce to string before splitting.
+  // Some templates pass the whole item object by mistake — that
+  // shouldn't crash the page, just degrade gracefully.
+  if (value == null) return '(no name)';
+  if (typeof value !== 'string') {
+    const v = value as { output?: unknown; url?: unknown };
+    if (typeof v.output === 'string' && v.output) return shortName(v.output);
+    if (typeof v.url === 'string' && v.url) return shortName(v.url);
+    return '(no name)';
+  }
   if (!value) return '(no name)';
   try {
     const url = new URL(value);

@@ -40,6 +40,13 @@ function humanCap(value) {
   return text;
 }
 function shortName(value) {
+  if (value == null) return "(no name)";
+  if (typeof value !== "string") {
+    const v = value;
+    if (typeof v.output === "string" && v.output) return shortName(v.output);
+    if (typeof v.url === "string" && v.url) return shortName(v.url);
+    return "(no name)";
+  }
   if (!value) return "(no name)";
   try {
     const url = new URL(value);
