@@ -1028,6 +1028,18 @@ var FreshnessRouter = class {
     }
     return out;
   }
+  /**
+   * Stamp an out-of-band fetch onto an endpoint. Used for endpoints that
+   * bypass `runFetch` — `/api/status` (driven by SSE / legacy refresh loop),
+   * `/api/_meta` (fetched once at bootstrap), `/api/events` — so the
+   * Dev-tab Freshness map reflects real activity instead of "never".
+   */
+  markExternalFetch(method, path) {
+    const key = endpointKey(method, path);
+    const ep = this.endpoints.get(key);
+    if (!ep) return;
+    ep.lastFetchAt = this.adapters.now();
+  }
   /** Tear down all timers. Call on app teardown / hot reload. */
   dispose() {
     for (const ep of this.endpoints.values()) {
@@ -2156,6 +2168,10 @@ document.addEventListener("alpine:init", () => {
         }
         this._freshnessRouter = router;
         this._freshnessVisibility = wireHostVisibility(router);
+        try {
+          router.markExternalFetch("GET", "/api/_meta");
+        } catch (e) {
+        }
         this._subscribeTab(this.page);
       } catch (e) {
       }
@@ -2471,6 +2487,12 @@ document.addEventListener("alpine:init", () => {
           }
           this._consecutiveFailures = 0;
           this._lastFreshAt = Date.now();
+          if (this._freshnessRouter) {
+            try {
+              this._freshnessRouter.markExternalFetch("GET", "/api/status");
+            } catch (e2) {
+            }
+          }
           this.lastStatus = evt.data;
           this.lastRev = evt.data._rev || null;
           this.checkNotifications(this.itemsWithStatus);
@@ -2589,6 +2611,12 @@ document.addEventListener("alpine:init", () => {
         }
         this._consecutiveFailures = 0;
         this._lastFreshAt = Date.now();
+        if (this._freshnessRouter) {
+          try {
+            this._freshnessRouter.markExternalFetch("GET", "/api/status");
+          } catch (e) {
+          }
+        }
         this.lastStatus = data;
         this.syncSchedulerResultText();
         const items = this.itemsWithStatus;

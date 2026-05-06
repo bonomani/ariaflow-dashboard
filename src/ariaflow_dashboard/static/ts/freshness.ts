@@ -269,6 +269,19 @@ export class FreshnessRouter {
     return out;
   }
 
+  /**
+   * Stamp an out-of-band fetch onto an endpoint. Used for endpoints that
+   * bypass `runFetch` — `/api/status` (driven by SSE / legacy refresh loop),
+   * `/api/_meta` (fetched once at bootstrap), `/api/events` — so the
+   * Dev-tab Freshness map reflects real activity instead of "never".
+   */
+  markExternalFetch(method: string, path: string): void {
+    const key = endpointKey(method, path);
+    const ep = this.endpoints.get(key);
+    if (!ep) return;
+    ep.lastFetchAt = this.adapters.now();
+  }
+
   /** Tear down all timers. Call on app teardown / hot reload. */
   dispose(): void {
     for (const ep of this.endpoints.values()) {

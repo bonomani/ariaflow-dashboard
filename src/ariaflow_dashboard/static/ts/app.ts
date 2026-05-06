@@ -903,6 +903,10 @@ syncSchedulerResultText() {
         }
         this._freshnessRouter = router;
         this._freshnessVisibility = wireHostVisibility(router);
+        // /api/_meta was just fetched by bootstrapFreshnessRouter outside
+        // the router's runFetch path; stamp it so the Dev-tab map shows
+        // real activity instead of 'never'.
+        try { router.markExternalFetch('GET', '/api/_meta'); } catch (e) { /* ignore */ }
         // FE-26: now that the router is up, subscribe the current
         // tab. init() / _refreshAll ran before the router booted, so
         // every tab's subscriptions were skipped.
@@ -1205,6 +1209,9 @@ get bonjourBadgeTitle() {
           }
           this._consecutiveFailures = 0;
           this._lastFreshAt = Date.now();
+          if (this._freshnessRouter) {
+            try { this._freshnessRouter.markExternalFetch('GET', '/api/status'); } catch (e) { /* ignore */ }
+          }
           this.lastStatus = evt.data;
           this.lastRev = evt.data._rev || null;
           this.checkNotifications(this.itemsWithStatus);
@@ -1329,6 +1336,9 @@ get bonjourBadgeTitle() {
         }
         this._consecutiveFailures = 0;
         this._lastFreshAt = Date.now();
+        if (this._freshnessRouter) {
+          try { this._freshnessRouter.markExternalFetch('GET', '/api/status'); } catch (e) { /* ignore */ }
+        }
         this.lastStatus = data;
         this.syncSchedulerResultText();
         const items = this.itemsWithStatus;
