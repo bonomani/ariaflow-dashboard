@@ -194,8 +194,8 @@
                   ariaflow-dashboard
                   <strong class="text-muted text-sm" x-text="webVersionText">-</strong>
                 </div>
-                <span :class="(webPidText !== '-' && webUptimeSeconds >= 30) ? 'badge good' : 'badge'"
-                      :title="webUptimeSeconds < 30 ? 'Just restarted — settling' : 'Process up for ' + webUptimeText"
+                <span class="badge good"
+                      :title="'Process up for ' + webUptimeText"
                       x-show="webPidText !== '-'">
                   PID <strong x-text="webPidText">-</strong>
                   · <strong x-text="webUptimeText"></strong>

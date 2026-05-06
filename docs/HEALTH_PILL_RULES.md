@@ -8,14 +8,13 @@ and **latest-chip** ("am I on the latest"). Each follows the same
 
 | STATE                    | Running pill                | Latest chip          |
 |--------------------------|-----------------------------|----------------------|
-| Just started (< 30s)     | `[PID … · 8s]` 🟡          | Latest ?           ⚪ |
-| Healthy steady-state     | `[PID … · 1h2m]` 🟢        | Latest vX.Y.Z ✓    🟢 |
+| Healthy steady-state     | `[PID … · 5s]` / `1h2m` 🟢 | Latest vX.Y.Z ✓    🟢 |
 | Healthy + upgrade waits  | `[PID … · 1h2m]` 🟢        | Latest vX.Y.Z ↑    🟡 |
 | Errors in last 5 min     | `[PID … · 1h2m]` 🟡        | Latest vX.Y.Z ✓    🟢 |
 | Probe attempt failed     | `[PID … · 1h2m]` 🟢        | Latest ⚠ probe err 🟡 |
 | Backend unreachable      | `[unreachable]`     🔴      | Latest ?           ⚪ |
 | Process not running      | `[not running]`     🔴      | Latest ?           ⚪ |
-| No probe yet (cold load) | `[PID … · 8s]` 🟡          | Latest ?           ⚪ |
+| No probe yet (cold load) | `[PID … · 5s]` 🟢          | Latest ?           ⚪ |
 
 ## Mapping rules
 
@@ -39,8 +38,8 @@ never red ones that scared them about a healthy system.
 
 | Color  | Condition |
 |--------|-----------|
-| 🟢     | TCP `:8000` reachable + PID present + uptime ≥ 30s + `errors_recent` empty |
-| 🟡     | Reachable but uptime < 30s (just restarted) OR `errors_recent` non-empty |
+| 🟢     | TCP `:8000` reachable + PID present + `errors_recent` empty |
+| 🟡     | Reachable but `errors_recent` non-empty (5xx in recent buffer) |
 | 🔴     | Unreachable (lifecycle endpoint TCP refused) |
 | ⚪     | No probe yet |
 
@@ -48,10 +47,13 @@ never red ones that scared them about a healthy system.
 
 | Color  | Condition |
 |--------|-----------|
-| 🟢     | PID present + uptime ≥ 30s |
-| 🟡     | uptime < 30s (just restarted) |
+| 🟢     | PID present (process is up) |
 | ⚪     | No data yet (first request still in flight) |
 | 🔴     | Impossible — page can't load if dashboard is down |
+
+Note: an earlier draft had a 30s "warmup" yellow window after restart.
+Dropped — recency is already visible in the chip text (`5s`, `1h2m`).
+Yellow stays reserved for actual problems.
 
 ### aria2 (RPC service, supervised by ariaflow-server)
 

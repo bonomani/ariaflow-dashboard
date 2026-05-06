@@ -3518,14 +3518,13 @@ document.addEventListener("alpine:init", () => {
     lifecycleStateLabel(name, record) {
       return describeLifecycleStatus(name, record);
     },
-    // HEALTH_PILL_RULES.md: server-row pill goes yellow when uptime is
-    // under 30s (warmup) or there are recent 5xx errors. Returns the
-    // override reason or null when the standard lifecycleBadgeClass
-    // verdict should win.
+    // HEALTH_PILL_RULES.md: server-row pill goes yellow on actual
+    // problems (recent 5xx errors). The 30s 'warmup' branch was
+    // dropped — 'just restarted' isn't concerning, the chip text
+    // already shows 'Xs / Ym' so recency is visible without colouring
+    // a healthy state yellow.
     get serverHealthOverlay() {
       if (!this.backendReachable) return null;
-      const uptime = Number(this.lastHealth?.uptime_seconds);
-      if (Number.isFinite(uptime) && uptime < 30) return "warmup";
       const errs = this.lastHealth?.errors_recent || [];
       const recentServerErrors = errs.filter((e) => Number(e?.status) >= 500);
       if (recentServerErrors.length > 0) return "errors";
@@ -3533,7 +3532,6 @@ document.addEventListener("alpine:init", () => {
     },
     get serverHealthOverlayText() {
       const o = this.serverHealthOverlay;
-      if (o === "warmup") return "just restarted";
       if (o === "errors") return "recent errors";
       return "";
     },
