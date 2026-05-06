@@ -1,6 +1,36 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (1)
+## Open (2)
+
+### FE-52: Detect and warn when `declaration.download_dir` ≠ aria2's `dir`
+
+**Standalone (no backend gap needed).**
+
+The dashboard tracks two independent paths today:
+
+- `declaration.download_dir` — what `/api/files` and the verify gate read
+- aria2's `dir` global option — what aria2 actually writes to
+
+If the operator changes one but not the other, files end up at one
+path while the dashboard reads from another → "Download folder is
+empty" even though downloads completed. Confirmed live by an operator.
+
+**Fix:** small banner / chip on the Downloaded tab when the two
+disagree:
+
+> aria2 writes to `/Users/bc/Downloads`, but ariaflow's `download_dir`
+> is `/Users/bc/ariaflow/`. They should match — [Use aria2's dir]
+> [Use download_dir for aria2]
+
+Two one-click reconcilers:
+- "Use aria2's dir" → PATCH declaration.preferences with download_dir
+  matching aria2's
+- "Use download_dir for aria2" → POST /api/aria2/global_option with
+  dir matching declaration
+
+Both already-supported endpoints; no new backend surface.
+
+---
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 
