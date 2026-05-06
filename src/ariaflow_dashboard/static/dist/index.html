@@ -81,6 +81,10 @@
             <span class="status-dot" :class="bonjourState === 'broken' ? 'warn' : (bonjourState === 'ok' ? 'good' : 'muted')"></span>
             <span x-text="bonjourBadgeText">mDNS</span>
           </span>
+          <span class="pill" x-show="isStale" :title="'Backend unreachable — last successful update ' + staleAgeText">
+            <span class="status-dot warn"></span>
+            <span>stale · <span x-text="staleAgeText"></span></span>
+          </span>
         </div>
       </div>
 

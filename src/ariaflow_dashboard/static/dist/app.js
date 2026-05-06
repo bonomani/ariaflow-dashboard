@@ -1326,12 +1326,12 @@ document.addEventListener("alpine:init", () => {
     //   _sseReconnectAttempts — exponential backoff counter, reset on
     //   each successful 'connected' event.
     //   _sseLastActivityAt — timestamp of the last received SSE event;
-    //   the liveness timer reconnects if no traffic arrives for >60s
+    //   the liveness timer reconnects if no traffic arrives for >25s
     //   even when the TCP connection looks healthy.
     _sseReconnectAttempts: 0,
     _sseLastActivityAt: 0,
     _sseLivenessTimer: null,
-    SSE_LIVENESS_TIMEOUT_MS: 6e4,
+    SSE_LIVENESS_TIMEOUT_MS: 25e3,
     SSE_LIVENESS_CHECK_MS: 15e3,
     queueFilter: "all",
     queueSearch: "",
@@ -1565,6 +1565,20 @@ document.addEventListener("alpine:init", () => {
     },
     get schedulerBtnDisabled() {
       return !this.backendReachable || this.schedulerBadgeText === "starting";
+    },
+    get isStale() {
+      void this._staleTick;
+      if (!this._lastFreshAt) return false;
+      const ageMs = Date.now() - this._lastFreshAt;
+      return this._consecutiveFailures > 0 && ageMs > this.refreshInterval * 2;
+    },
+    get staleAgeText() {
+      void this._staleTick;
+      if (!this._lastFreshAt) return "";
+      const secs = Math.floor((Date.now() - this._lastFreshAt) / 1e3);
+      if (secs < 60) return `${secs}s ago`;
+      if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+      return `${Math.floor(secs / 3600)}h ago`;
     },
     get schedulerStopVisible() {
       const s = this.schedulerBadgeText;
@@ -1846,6 +1860,9 @@ document.addEventListener("alpine:init", () => {
         this._refreshTabOnly(target);
       });
       this._initFreshness();
+      setInterval(() => {
+        this._staleTick++;
+      }, 1e3);
       this.refreshInterval = readRefreshInterval(1e4);
       this._refreshAll();
       this.loadLifecycle();
@@ -2451,6 +2468,7 @@ document.addEventListener("alpine:init", () => {
             return;
           }
           this._consecutiveFailures = 0;
+          this._lastFreshAt = Date.now();
           this.lastStatus = evt.data;
           this.lastRev = evt.data._rev || null;
           this.checkNotifications(this.itemsWithStatus);
@@ -2532,6 +2550,10 @@ document.addEventListener("alpine:init", () => {
       }, delay);
     },
     _consecutiveFailures: 0,
+    _lastFreshAt: 0,
+    _staleTick: 0,
+    _mergedActivityCache: null,
+    _mergedActivitySig: "",
     _statusETag: null,
     _statusUrl() {
       return buildStatusUrl(this.backendPath("/api/status"), {
@@ -2564,6 +2586,7 @@ document.addEventListener("alpine:init", () => {
           return;
         }
         this._consecutiveFailures = 0;
+        this._lastFreshAt = Date.now();
         this.lastStatus = data;
         this.syncSchedulerResultText();
         const items = this.itemsWithStatus;
@@ -3063,11 +3086,17 @@ document.addEventListener("alpine:init", () => {
     // ('server' | 'dashboard') so the UI can badge it. Filters apply
     // to the merged list; the new sourceFilter narrows by origin.
     get mergedActivity() {
+      const sig = `${this.actionLogEntries.length}|${this.webLogEntries.length}`;
+      if (this._mergedActivityCache && this._mergedActivitySig === sig) {
+        return this._mergedActivityCache;
+      }
       const tagged = [
         ...this.actionLogEntries.map((e) => ({ ...e, _source: "server" })),
         ...this.webLogEntries.map((e) => ({ ...e, _source: "dashboard" }))
       ];
       tagged.sort((a, b) => String(b.timestamp || "").localeCompare(String(a.timestamp || "")));
+      this._mergedActivityCache = tagged;
+      this._mergedActivitySig = sig;
       return tagged;
     },
     get filteredActionLog() {
