@@ -1193,8 +1193,13 @@ get bonjourBadgeTitle() {
         this._armSseLivenessTimer();
         if (this._sseFallbackTimer) { clearTimeout(this._sseFallbackTimer); this._sseFallbackTimer = null; }
         if (this._deferTimer) { clearTimeout(this._deferTimer); this._deferTimer = null; }
-        // Pause polling — SSE will push updates
-        if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
+        // Keep polling alive even with SSE connected: state_changed fires
+        // on transitions only (active_gid flip, pause/resume, etc.), NOT
+        // on per-tick download progress. Without polling, the queue rows,
+        // header throughput, and global timeline stop updating during a
+        // steady download — observed live by an operator. The selectable
+        // refresh interval (1.5s/3s/5s/10s/30s) is the user's chosen
+        // progress-refresh cadence and must keep firing.
       });
       es.addEventListener('state_changed', (e) => {
         markActivity();

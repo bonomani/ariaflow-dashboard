@@ -2469,10 +2469,6 @@ document.addEventListener("alpine:init", () => {
           clearTimeout(this._deferTimer);
           this._deferTimer = null;
         }
-        if (this.refreshTimer) {
-          clearInterval(this.refreshTimer);
-          this.refreshTimer = null;
-        }
       });
       es.addEventListener("state_changed", (e) => {
         markActivity();
