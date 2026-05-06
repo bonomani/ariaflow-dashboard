@@ -1971,6 +1971,10 @@ document.addEventListener("alpine:init", () => {
     _refreshTabOnly(target) {
       this._subscribeTab(target);
     },
+    filterLogToCurrentSession() {
+      this.sessionFilter = "current";
+      this.navigateTo("log");
+    },
     navigateTo(target) {
       if (this.page === target) return;
       this.page = target;

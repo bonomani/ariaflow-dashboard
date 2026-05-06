@@ -718,6 +718,11 @@ document.addEventListener('alpine:init', () => {
       this._subscribeTab(target);
     },
 
+    filterLogToCurrentSession() {
+      this.sessionFilter = 'current';
+      this.navigateTo('log');
+    },
+
     navigateTo(target) {
       if (this.page === target) return;
       this.page = target;
