@@ -5,10 +5,6 @@ import mimetypes
 import os
 import time
 from pathlib import Path
-
-# Module-load time as a proxy for process start time. Captured at
-# import so we can report uptime without pulling in psutil.
-_PROCESS_STARTED_AT = time.time()
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
@@ -40,6 +36,10 @@ _CONTENT_TYPES: dict[str, str] = {
 
 
 DEFAULT_BACKEND_URL = "http://127.0.0.1:8000"
+
+# Module-load time as a proxy for process start. Captured at import
+# so /api/web/lifecycle can report uptime without pulling in psutil.
+_PROCESS_STARTED_AT = time.time()
 
 
 # Dashboard-side endpoint freshness contract. Mirrors the backend's BG-31
