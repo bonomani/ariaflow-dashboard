@@ -2276,7 +2276,12 @@ get bonjourBadgeTitle() {
             clearInterval(tick);
             this.dashLifecycleLoading = null;
             if (action === 'update') {
-              this.resultText = 'Update dispatched but no version change detected — check action log';
+              // Auto-fallback: chain may have failed mid-bootout (bootstrap
+              // didn't relaunch). One more attempt via the explicit
+              // restart endpoint, since that's the cleanest UI-only
+              // recovery without terminal access.
+              this.resultText = 'Update dispatched but version unchanged — auto-restarting…';
+              this.webLifecycleAction('restart').catch(() => { /* nop */ });
             } else {
               this.resultText = 'Restart dispatched — check via PID change';
             }
@@ -2420,9 +2425,17 @@ get bonjourBadgeTitle() {
             if (elapsed > 90_000) {
               clearInterval(tick);
               this._serverLifecycleLoading = null;
-              this.resultText = action === 'update'
-                ? 'Update dispatched but version unchanged — check action log + restart manually if needed'
-                : 'Restart dispatched — verify via PID change';
+              if (action === 'update') {
+                // Same recovery as the dashboard self path: if the
+                // chain didn't land a new version, fire an explicit
+                // Restart through the BACKEND lifecycle endpoint.
+                // Stays UI-only — operator never needs a terminal,
+                // even when operating remotely.
+                this.resultText = 'Update dispatched but version unchanged — auto-restarting…';
+                this.lifecycleAction('ariaflow-server', 'restart').catch(() => { /* nop */ });
+              } else {
+                this.resultText = 'Restart dispatched but PID/version unchanged — check Activity log';
+              }
             }
           }, 2000);
         }

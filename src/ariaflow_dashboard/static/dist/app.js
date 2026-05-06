@@ -3487,7 +3487,9 @@ document.addEventListener("alpine:init", () => {
             clearInterval(tick);
             this.dashLifecycleLoading = null;
             if (action === "update") {
-              this.resultText = "Update dispatched but no version change detected \u2014 check action log";
+              this.resultText = "Update dispatched but version unchanged \u2014 auto-restarting\u2026";
+              this.webLifecycleAction("restart").catch(() => {
+              });
             } else {
               this.resultText = "Restart dispatched \u2014 check via PID change";
             }
@@ -3628,7 +3630,13 @@ document.addEventListener("alpine:init", () => {
             if (elapsed > 9e4) {
               clearInterval(tick);
               this._serverLifecycleLoading = null;
-              this.resultText = action === "update" ? "Update dispatched but version unchanged \u2014 check action log + restart manually if needed" : "Restart dispatched \u2014 verify via PID change";
+              if (action === "update") {
+                this.resultText = "Update dispatched but version unchanged \u2014 auto-restarting\u2026";
+                this.lifecycleAction("ariaflow-server", "restart").catch(() => {
+                });
+              } else {
+                this.resultText = "Restart dispatched but PID/version unchanged \u2014 check Activity log";
+              }
             }
           }, 2e3);
         }
