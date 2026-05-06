@@ -2017,13 +2017,16 @@ document.addEventListener("alpine:init", () => {
     // is the only remaining synthetic mirror — it's a backend endpoint
     // that BG-34 didn't include in the backend /api/_meta registry.
     LOCAL_METAS: [
-      { method: "GET", path: "/api/aria2/option_tiers", freshness: "cold" },
-      // Override backend's `warm` classification for /api/lifecycle:
-      // the data is event-shaped (install/uninstall/restart/version
-      // change), not tick-shaped. Fetch once on tab visit; SSE
-      // `lifecycle_changed` listener (registered in _initSSE) drives
-      // refreshes. Drops ~120 req/hour of pure polling on this tab.
-      { method: "GET", path: "/api/lifecycle", freshness: "cold" }
+      { method: "GET", path: "/api/aria2/option_tiers", freshness: "cold" }
+      // Earlier attempt: reclassify /api/lifecycle as 'cold' and rely
+      // solely on SSE lifecycle_changed for refreshes. Reverted —
+      // periodic polling also drives the BACKEND's probing for things
+      // SSE never emits: aria2 RPC death, networkquality binary
+      // removed externally, plist unloaded by another tool, etc.
+      // Backend's lifecycle handler probes lazily on each request, so
+      // no FE poll = no probe = no detection. Keep the warm cadence
+      // as the safety net; SSE lifecycle_changed adds *faster* updates
+      // on top.
     ],
     // One-shot actions to run when a tab becomes the active page (either
     // on direct URL load via init() or via navigateTo()). For tab-driven
