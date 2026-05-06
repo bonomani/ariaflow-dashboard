@@ -2645,6 +2645,11 @@ document.addEventListener("alpine:init", () => {
           this.lastRev = evt.data._rev || null;
           this.checkNotifications(this.itemsWithStatus);
           this.recordGlobalSpeed(this.currentSpeed || 0, this.currentUploadSpeed || 0);
+          if (this.refreshTimer && !this._isSystemIdle() && this._currentRefreshDelay !== this.refreshInterval) {
+            clearInterval(this.refreshTimer);
+            this.refreshTimer = setInterval(() => this.refresh(), this.refreshInterval);
+            this._currentRefreshDelay = this.refreshInterval;
+          }
         } else if (evt.kind === "rev" && evt.rev !== this.lastRev) {
           this.refresh();
         }
@@ -2726,6 +2731,7 @@ document.addEventListener("alpine:init", () => {
       }, delay);
     },
     _consecutiveFailures: 0,
+    _currentRefreshDelay: 0,
     _lastFreshAt: 0,
     _staleTick: 0,
     _mergedActivityCache: null,
@@ -2785,19 +2791,34 @@ document.addEventListener("alpine:init", () => {
         this.recordGlobalSpeed(0, 0);
       } finally {
         this.refreshInFlight = false;
-        if (this._consecutiveFailures > 0 && this.refreshTimer && !this._sseConnected) {
-          const backoff = Math.min(this.refreshInterval * Math.pow(2, this._consecutiveFailures), 6e4);
+        const failBackoff = this._consecutiveFailures > 0 && !this._sseConnected;
+        let targetInterval;
+        if (failBackoff) {
+          targetInterval = Math.min(this.refreshInterval * Math.pow(2, this._consecutiveFailures), 6e4);
+        } else if (this._isSystemIdle()) {
+          targetInterval = Math.min(this.refreshInterval * 3, 6e4);
+        } else {
+          targetInterval = this.refreshInterval;
+        }
+        if (this.refreshTimer && targetInterval !== this._currentRefreshDelay) {
           clearInterval(this.refreshTimer);
-          this.refreshTimer = setInterval(() => this.refresh(), backoff);
+          this.refreshTimer = setInterval(() => this.refresh(), targetInterval);
+          this._currentRefreshDelay = targetInterval;
+        }
+        if (failBackoff && !this._inBackoff) {
           this._inBackoff = true;
           this._unsubscribeTab();
-        } else if (this._consecutiveFailures === 0 && this._inBackoff && this.refreshTimer) {
-          clearInterval(this.refreshTimer);
-          this.refreshTimer = setInterval(() => this.refresh(), this.refreshInterval);
+        } else if (!failBackoff && this._inBackoff) {
           this._inBackoff = false;
           this._subscribeTab(this.page);
         }
       }
+    },
+    _isSystemIdle() {
+      const st = this.state?.scheduler_status;
+      const noActive = (this.filterCounts?.active ?? 0) === 0;
+      const noTransfer = !this.currentTransfer;
+      return (st === "idle" || st === "stopped" || !st) && noActive && noTransfer;
     },
     // --- declaration ---
     getDeclarationPreference(name) {

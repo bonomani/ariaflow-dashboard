@@ -1365,6 +1365,15 @@ get bonjourBadgeTitle() {
           this.lastRev = evt.data._rev || null;
           this.checkNotifications(this.itemsWithStatus);
           this.recordGlobalSpeed(this.currentSpeed || 0, this.currentUploadSpeed || 0);
+          // Re-arm fast polling immediately if SSE just informed us of
+          // a transition that took us out of idle (e.g. operator added
+          // a download → state_changed delivers; we don't want to wait
+          // for the next slow tick to flip back to fast cadence).
+          if (this.refreshTimer && !this._isSystemIdle() && this._currentRefreshDelay !== this.refreshInterval) {
+            clearInterval(this.refreshTimer);
+            this.refreshTimer = setInterval(() => this.refresh(), this.refreshInterval);
+            this._currentRefreshDelay = this.refreshInterval;
+          }
         } else if (evt.kind === 'rev' && evt.rev !== this.lastRev) {
           // Lightweight event with just rev — fetch full status
           this.refresh();
@@ -1457,6 +1466,7 @@ get bonjourBadgeTitle() {
     },
 
     _consecutiveFailures: 0,
+    _currentRefreshDelay: 0,
     _lastFreshAt: 0,
     _staleTick: 0,
     _mergedActivityCache: null,
@@ -1523,22 +1533,43 @@ get bonjourBadgeTitle() {
         this.recordGlobalSpeed(0, 0);
       } finally {
         this.refreshInFlight = false;
-        // Backoff: increase polling interval on consecutive failures, reset on recovery
-        if (this._consecutiveFailures > 0 && this.refreshTimer && !this._sseConnected) {
-          const backoff = Math.min(this.refreshInterval * Math.pow(2, this._consecutiveFailures), 60000);
+        // Adaptive cadence: poll fast when there's something to watch
+        // (active transfer / running scheduler), slow down when idle.
+        // SSE catches the resume/add event so the FE re-arms fast
+        // immediately after operator action — slow polling can't hide
+        // a real transition from us.
+        const failBackoff = this._consecutiveFailures > 0 && !this._sseConnected;
+        let targetInterval;
+        if (failBackoff) {
+          targetInterval = Math.min(this.refreshInterval * Math.pow(2, this._consecutiveFailures), 60_000);
+        } else if (this._isSystemIdle()) {
+          // 3× user's interval, capped at 60s — fresh enough for the
+          // operator to notice they're not online, but skips the
+          // 10s firehose when nothing is moving.
+          targetInterval = Math.min(this.refreshInterval * 3, 60_000);
+        } else {
+          targetInterval = this.refreshInterval;
+        }
+        if (this.refreshTimer && targetInterval !== this._currentRefreshDelay) {
           clearInterval(this.refreshTimer);
-          this.refreshTimer = setInterval(() => this.refresh(), backoff);
+          this.refreshTimer = setInterval(() => this.refresh(), targetInterval);
+          this._currentRefreshDelay = targetInterval;
+        }
+        // Subscription gating tied to backend reachability.
+        if (failBackoff && !this._inBackoff) {
           this._inBackoff = true;
-          // Pause tab subscriptions — backend is unreachable
           this._unsubscribeTab();
-        } else if (this._consecutiveFailures === 0 && this._inBackoff && this.refreshTimer) {
-          clearInterval(this.refreshTimer);
-          this.refreshTimer = setInterval(() => this.refresh(), this.refreshInterval);
+        } else if (!failBackoff && this._inBackoff) {
           this._inBackoff = false;
-          // Resume tab subscriptions — backend is back
           this._subscribeTab(this.page);
         }
       }
+    },
+    _isSystemIdle() {
+      const st = this.state?.scheduler_status;
+      const noActive = (this.filterCounts?.active ?? 0) === 0;
+      const noTransfer = !this.currentTransfer;
+      return (st === 'idle' || st === 'stopped' || !st) && noActive && noTransfer;
     },
 
     // --- declaration ---
