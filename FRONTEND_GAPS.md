@@ -1,20 +1,6 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (2)
-
-### FE-40: Badge stays `idle` after Pause from drained-idle (waiting on BG-50)
-
-**Blocked by:** BG-50
-
-**Status:** waiting on backend.
-
-When the scheduler is `idle` (loop drained, intent=running) and the
-operator clicks Pause, the dispatch-paused flag is persisted but
-`deriveSchedulerStatus` returns `'idle'` instead of `'paused'`, so the
-badge appears unchanged. BG-50 fixes the derivation upstream; no FE
-change once it lands.
-
----
+## Open (1)
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 
@@ -29,6 +15,7 @@ _End of open gaps._
 
 | ID | Summary | Date |
 |----|---------|------|
+| FE-40 | BG-50 shipped — `deriveSchedulerStatus` now checks `paused` before the `!running` short-circuit. Pausing from drained-idle (intent=running, running=false, session open, paused=true) now correctly returns `'paused'` instead of `'idle'`. No FE change needed; the badge picks up the new derivation via the BG-49 envelope on /api/scheduler/pause | 2026-05-06 |
 | FE-39 | BG-49 shipped — `POST /api/scheduler/{start,stop,pause,resume}` now return a canonical `state` envelope (`scheduler_status`, `running`, `dispatch_paused`, `session_id`, `_rev`). FE: `schedulerAction()` and `_pauseResume()` drop the optimistic enum guess + the `currentTransfer ? 'running' : 'idle'` heuristic on /resume; both now splat `data.state` into `lastStatus.state`. Post-action `refresh()` also dropped — response itself is ground truth | 2026-05-06 |
 | FE-38 | BG-48 shipped — backend now exposes `POST /api/scheduler/contract` and the action log emits `entry.action: "contract"` for both routes (the deprecated `/ucc` alias also normalises to "contract" in logs). FE: `uccRun()` switched to `urlScheduler('contract')`, `urlScheduler` arg type updated from `'ucc'` to `'contract'`, the display-only `actionDisplay()` helper + its call sites removed. Wire and UI now share one name | 2026-05-05 |
 | FE-37 | BG-47 shipped — `deriveWaitReason()` reordered so `queue_empty` is evaluated before `bandwidth_probe_pending`. Hard blockers (`aria2_unreachable` / `preflight_blocked` / `disk_full`) still win first. Probe is a one-shot pre-loop step, not gated on queue contents — that's fine because the wait_reason now correctly defaults to `queue_empty` when there's nothing to schedule. No FE change needed: the dashboard renders whatever `state.wait_reason` reports | 2026-05-05 |
