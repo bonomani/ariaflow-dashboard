@@ -1566,6 +1566,10 @@ document.addEventListener("alpine:init", () => {
     get schedulerBtnDisabled() {
       return !this.backendReachable || this.schedulerBadgeText === "starting";
     },
+    get schedulerStopVisible() {
+      const s = this.schedulerBadgeText;
+      return s === "idle" || s === "running" || s === "paused";
+    },
     get backendVersionText() {
       if (!this.backendReachable) return "-";
       const v = this.lastStatus?.["ariaflow-server"]?.version;

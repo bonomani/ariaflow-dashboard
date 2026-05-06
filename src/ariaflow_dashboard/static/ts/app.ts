@@ -335,6 +335,13 @@ document.addEventListener('alpine:init', () => {
       // ('already_running') or race with the Start that's in flight.
       return !this.backendReachable || this.schedulerBadgeText === 'starting';
     },
+    get schedulerStopVisible() {
+      // Stop is meaningful only for an active scheduler. Hide on
+      // stopped/starting/unknown — those states either have nothing to
+      // stop or are mid-bootstrap (racy).
+      const s = this.schedulerBadgeText;
+      return s === 'idle' || s === 'running' || s === 'paused';
+    },
     get backendVersionText() {
       if (!this.backendReachable) return '-';
       const v = this.lastStatus?.['ariaflow-server']?.version;
