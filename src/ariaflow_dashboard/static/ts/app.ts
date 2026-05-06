@@ -661,6 +661,10 @@ document.addEventListener('alpine:init', () => {
     TAB_SUBS: {
       dashboard: [
         { method: 'GET', path: '/api/declaration', apply: (s, d) => s._applyDeclaration(d) },
+        // Needed for the awaiting_confirmation banner (BG-55): confirmContext
+        // joins item.output_path against the live filesystem listing to show
+        // size + history info. Cheap thanks to /api/files's `warm` TTL cache.
+        { method: 'GET', path: '/api/files', apply: (s, d) => s.filesData = d?.files || [] },
       ],
       bandwidth: [
         { method: 'GET', path: '/api/bandwidth',   apply: (s, d) => s._applyBandwidth(d) },
@@ -1090,6 +1094,23 @@ get bonjourBadgeTitle() {
     },
     filterBtnVisible(f) {
       return isFilterButtonVisible(f, this.filterCounts, this.queueFilter);
+    },
+    // BG-55 awaiting_confirmation enrichment.
+    // Backend doesn't populate item.detail on the queue row — it only stamps
+    // output_path. Join with filesData (from GET /api/files) to surface the
+    // real size + history info in the banner.
+    confirmContext(item) {
+      const path = item?.output_path;
+      if (!path) return null;
+      const file = (this.filesData || []).find((f) => f.path === path);
+      if (!file) return null;
+      return {
+        existing_path: file.path,
+        existing_size: file.size,
+        history_match: !!file.history_match,
+        last_downloaded_at: file.history_match?.downloaded_at || item.completed_at || null,
+        remote_changed: false,
+      };
     },
     filterLabel(f) {
       // 'awaiting_confirmation' is the only multi-word status; render it

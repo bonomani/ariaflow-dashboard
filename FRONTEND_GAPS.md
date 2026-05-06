@@ -1,18 +1,6 @@
 # ariaflow-dashboard Frontend Gaps
 
-## Open (2)
-
-### FE-47: Filter-bar counts collapse to 0 under non-`all` filter (waiting on BG-57)
-
-**Blocked by:** BG-57
-
-When the operator selects any filter other than All, `summary` from
-`/api/status` is computed on the filtered slice, so every other count
-chip reads 0. The filter bar misleads operators (e.g. they can't see
-how many are awaiting_confirmation while they're on the Active
-filter). No FE change once backend summarises the unfiltered queue.
-
----
+## Open (1)
 
 ### FE-18: No schema/test oracle for `/api/events` (deferred)
 
@@ -27,6 +15,7 @@ _End of open gaps._
 
 | ID | Summary | Date |
 |----|---------|------|
+| FE-47 | BG-57 shipped — `/api/status` summary now computed against the unfiltered queue (only `items` is filtered). Filter-bar count chips show full picture under any active filter; awaiting_confirmation count is now visible without switching filters. No FE change required | 2026-05-06 |
 | FE-46 | BG-56 shipped — Downloaded tab rebuilt around `GET /api/files` (filesystem-first). Three row variants: on-disk+history (full record + Rename/Move/Delete), on-disk+orphan ("found in folder, source unknown" + same actions), history-missing-disk ("missing from disk" derived from archiveItems whose output_path isn't in filesData). Disk-usage chip in section header (file count + total bytes). Bulk Clean modal with three recipes (complete_older_than_N_days / errors / orphaned-history). renameFile/moveFile use window.prompt; deleteFile uses window.confirm. All four ops route through _filesPost or DELETE /api/files and re-subscribe the archive tab on success. Phase 0 (Archive→Downloaded rename) folded in | 2026-05-06 |
 | FE-45 | BG-55 (Tier 1 + decision endpoints) shipped — FE wires `awaiting_confirmation` queue status: added to `filterCounts` (summary + client-side count fallback), new "Confirm" filter button, `notice` badge variant for the count chip, banner row variant rendering "Already have <name> (<size>) at <path>" + last-downloaded relative time + remote_changed warn chip. Three item actions wire to `POST /api/downloads/:id/{confirm,skip,rename}`. Phase 0 'Archive → Downloaded' rename also landed (header link, tab heading, empty-state copy) | 2026-05-06 |
 | FE-44 | BG-54 shipped — backend dropped hardcoded `allow-overwrite: true` from `aria2/dispatch.ts`. Re-add of completed URL now produces `.1` rename via aria2's default `auto-file-renaming` instead of silent overwrite. No FE change required | 2026-05-06 |

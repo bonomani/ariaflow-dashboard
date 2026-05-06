@@ -282,10 +282,17 @@
                 <template x-if="itemNormalizedStatus(item) === 'awaiting_confirmation'">
                   <div class="banner mt-sm" role="region" :aria-label="'Re-add confirmation for ' + (shortName(item) || item.url)">
                     <div class="meta">
-                      <span x-show="item.detail?.existing_size" x-text="'Already have ' + (shortName(item) || 'this file') + ' (' + formatBytes(item.detail?.existing_size) + ')' + (item.detail?.existing_path ? ' at ' + item.detail.existing_path : '')"></span>
-                      <span class="text-muted" x-show="item.detail?.history_match && item.detail?.last_downloaded_at" x-text="'Last downloaded ' + relativeTime(item.detail.last_downloaded_at)"></span>
-                      <span class="text-muted" x-show="item.detail && !item.detail?.history_match">Source unknown — file present in folder, never downloaded by ariaflow.</span>
-                      <span class="text-muted badge warn" x-show="item.detail?.remote_changed">Server has a different version</span>
+                      <template x-if="confirmContext(item)">
+                        <span>
+                          <span x-text="'Already have ' + (shortName(item) || 'this file') + ' (' + formatBytes(confirmContext(item).existing_size) + ') at ' + confirmContext(item).existing_path"></span>
+                          <span class="text-muted" x-show="confirmContext(item).history_match && confirmContext(item).last_downloaded_at" x-text="' · last downloaded ' + relativeTime(confirmContext(item).last_downloaded_at)"></span>
+                          <span class="text-muted" x-show="!confirmContext(item).history_match"> · source unknown (not downloaded by ariaflow)</span>
+                          <span class="badge warn" x-show="confirmContext(item).remote_changed">server changed</span>
+                        </span>
+                      </template>
+                      <template x-if="!confirmContext(item)">
+                        <span class="text-muted">Already have this file on disk. Choose what to do.</span>
+                      </template>
                     </div>
                     <div class="action-strip mt-sm">
                       <button @click="itemConfirmRedownload(item.id)">Re-download</button>
