@@ -102,10 +102,9 @@ export function describeLifecycleStatus(
     if (v && ev) return `update available (${v} → ${ev})`;
     return 'update available';
   }
-  // installed && current at this point.
-  // Compose suffix as "(supervisor · package)" when both axes are
-  // known so the headline carries the same disambiguation as the
-  // chips below it.
+  // installed at this point. Compose suffix as "(supervisor · package)"
+  // when both axes are known so the headline carries the same
+  // disambiguation as the chips below it.
   const parts = [result.managed_by, result.installed_via].filter(Boolean);
   const suffix = parts.length ? ` (${parts.join(' · ')})` : '';
   // BG-29: on-demand idle is healthy.
@@ -113,8 +112,13 @@ export function describeLifecycleStatus(
     return `idle · on-demand${suffix}`;
   }
   if (running === false) return 'installed · stopped';
-  if (running === true) return `running · current${suffix}`;
-  return 'installed · current';
+  // Honesty: only claim "current" when the backend has explicitly set
+  // current=true (a real update probe ran and succeeded). null /
+  // undefined means "no probe / probe failed silently" → just say
+  // "running" without the misleading reassurance.
+  const verifiedCurrent = current === true;
+  if (running === true) return verifiedCurrent ? `running · current${suffix}` : `running${suffix}`;
+  return verifiedCurrent ? 'installed · current' : 'installed';
 }
 
 // Detail lines shown under the headline label. Skips noise the

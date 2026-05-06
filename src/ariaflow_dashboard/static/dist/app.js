@@ -1271,8 +1271,9 @@ function describeLifecycleStatus(name, record) {
     return `idle \xB7 on-demand${suffix}`;
   }
   if (running === false) return "installed \xB7 stopped";
-  if (running === true) return `running \xB7 current${suffix}`;
-  return "installed \xB7 current";
+  const verifiedCurrent = current === true;
+  if (running === true) return verifiedCurrent ? `running \xB7 current${suffix}` : `running${suffix}`;
+  return verifiedCurrent ? "installed \xB7 current" : "installed";
 }
 function lifecycleDetailLines(record) {
   const result = record?.result;
@@ -2884,15 +2885,19 @@ document.addEventListener("alpine:init", () => {
         const data = await r.json().catch(() => null);
         if (!r.ok || data?.ok === false) {
           this.updateCheckResultDash = data?.message || `Check failed (${r.status})`;
+          this._dashUpdateProbe = "failed";
           return;
         }
         if (data?.update_available) {
           this.updateCheckResultDash = `Update available: ${data.current_version || "?"} \u2192 ${data.latest_version || "?"}`;
+          this._dashUpdateProbe = "available";
         } else {
           this.updateCheckResultDash = `Up to date (${data?.current_version || "?"})`;
+          this._dashUpdateProbe = "current";
         }
       } catch (e) {
         this.updateCheckResultDash = `Check failed: ${e.message}`;
+        this._dashUpdateProbe = "failed";
       } finally {
         this.updateCheckLoading = false;
       }
@@ -3297,13 +3302,22 @@ document.addEventListener("alpine:init", () => {
       return describeLifecycleStatus(name, record);
     },
     // Mirror describeLifecycleStatus for the dashboard's own row, which
-    // doesn't have a backend lifecycle record. Keeps the pill format
-    // identical: "running · current (managed_by · installed_via)".
+    // doesn't have a backend lifecycle record. Honest about state: only
+    // claim "current" when we've actually verified it via a check probe
+    // (manual or auto). Default is plain "running" with the axes
+    // suffix; "update available" overrides; "current" only after a
+    // successful probe with update_available === false.
     get webStateLabel() {
       const parts = [this.webManagedBy, this.webInstalledVia].filter(Boolean);
       const suffix = parts.length ? ` (${parts.join(" \xB7 ")})` : "";
-      return `running \xB7 current${suffix}`;
+      const r = this._dashUpdateProbe;
+      if (r === "available") return `update available${suffix}`;
+      if (r === "current") return `running \xB7 current${suffix}`;
+      return `running${suffix}`;
     },
+    // Tracked verdict from the most recent dashboard self check_update
+    // probe. null = never checked; 'current' / 'available' / 'failed'.
+    _dashUpdateProbe: null,
     lifecycleBadgeClass(record) {
       return lifecycleBadgeClass(record);
     },

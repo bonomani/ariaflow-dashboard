@@ -108,21 +108,32 @@ test('describeLifecycleStatus axes — pure registration (launchd) not running',
   );
 });
 
-test('describeLifecycleStatus axes — networkquality (current=null) uses installed/running', () => {
+test('describeLifecycleStatus — current=null reads as running, no false "current" claim', () => {
+  // Honesty: only claim "current" when backend explicitly sets
+  // current=true. null means probe never ran or failed silently.
   assert.equal(
     describeLifecycleStatus('networkquality', {
       result: { installed: true, current: null, running: true },
     }),
-    'running · current',
+    'running',
   );
 });
 
-test('describeLifecycleStatus axes — running=null collapses to installed/current', () => {
+test('describeLifecycleStatus — current=true is required for "current" suffix', () => {
   assert.equal(
     describeLifecycleStatus('foo', {
       result: { installed: true, current: true, running: null },
     }),
     'installed · current',
+  );
+});
+
+test('describeLifecycleStatus — running=true + current=null reads as running only', () => {
+  assert.equal(
+    describeLifecycleStatus('foo', {
+      result: { installed: true, current: null, running: true },
+    }),
+    'running',
   );
 });
 
