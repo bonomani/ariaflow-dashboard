@@ -758,6 +758,387 @@ Acceptable cost.
 
 ---
 
+## 11. Revocation granularity — 4 axes
+
+The identity tuple `(machine, component, user)` implies **3 first-class
+revocation axes**, plus the identity itself = 4 axes total. Each axis
+is independently revocable; revocations don't cascade between axes
+beyond the identities they cover.
+
+### 11.1 The 4 axes
+
+| Axis | Scope of revocation | Example |
+|---|---|---|
+| **Identity** | one specific (machine, component, user) | "revoke dashboard/bruno@old-laptop, keep his other dashboards" |
+| **Machine** | all components × all users on that machine | "Bruno's laptop sold → kick everything on it" |
+| **User** | all components × all machines for that user | "Pote left the group → kick him everywhere" |
+| **Component** | all (machine, user) running this component | "ariaflow-server has a CVE in v0.1.319 → revoke that component until upgrade" |
+
+### 11.2 Schema with 4 first-class entity tables
+
+```sql
+CREATE TABLE machines (
+  machine_uuid_hash   TEXT PRIMARY KEY,
+  display_name        TEXT,
+  attestation_format  TEXT,
+  first_seen_at       INTEGER NOT NULL,
+  last_seen_at        INTEGER,
+  revoked_at          INTEGER,
+  revoked_reason      TEXT
+);
+
+CREATE TABLE users (
+  user_key            TEXT PRIMARY KEY,
+  display_name        TEXT,
+  added_at            INTEGER NOT NULL,
+  revoked_at          INTEGER,
+  revoked_reason      TEXT
+);
+
+CREATE TABLE components (
+  component_id        TEXT PRIMARY KEY,        -- "ariaflow-dashboard", "ariaflow-server", "aria2"
+  display_name        TEXT,
+  added_at            INTEGER NOT NULL,
+  revoked_at          INTEGER,
+  revoked_reason      TEXT
+);
+
+CREATE TABLE identities (
+  identity_id         TEXT PRIMARY KEY,
+  display_name        TEXT NOT NULL,
+  component_id        TEXT NOT NULL REFERENCES components(component_id),
+  user_key            TEXT NOT NULL REFERENCES users(user_key),
+  machine_uuid_hash   TEXT NOT NULL REFERENCES machines(machine_uuid_hash),
+  public_key          TEXT NOT NULL,
+  hardware_attestation TEXT,
+  role                TEXT NOT NULL,
+  paired_at           INTEGER NOT NULL,
+  paired_by           TEXT REFERENCES identities(identity_id),
+  last_seen_at        INTEGER,
+  revoked_at          INTEGER,
+  revoked_reason      TEXT
+);
+```
+
+### 11.3 Authorization across the 4 axes
+
+```typescript
+async function authorize(identity_id: string): Promise<AuthResult> {
+  const identity = await db.identities.get(identity_id);
+  if (!identity) return deny("unknown identity");
+  if (identity.revoked_at) return deny("identity revoked");
+
+  const [machine, user, component] = await Promise.all([
+    db.machines.get(identity.machine_uuid_hash),
+    db.users.get(identity.user_key),
+    db.components.get(identity.component_id),
+  ]);
+
+  if (machine?.revoked_at)   return deny("machine revoked");
+  if (user?.revoked_at)      return deny("user revoked");
+  if (component?.revoked_at) return deny("component revoked");
+
+  // Group axis (5th — see §12) checked separately for transitivity
+  return allow(identity);
+}
+```
+
+Independent axes, no SQL cascade, AND-gate evaluation. Revoking the
+machine doesn't touch user/component records; revoking a component
+doesn't touch user/machine records. Each axis is its own kill switch.
+
+### 11.4 Use-case matrix per axis
+
+| Operator wants to… | Axis used |
+|---|---|
+| Kick a stolen laptop entirely | Machine |
+| Block a user across all their devices | User |
+| Pull a vulnerable software version off the network | Component |
+| Block one specific (laptop, user, software) combo | Identity |
+| Block multiple machines / users / components at once | Group (§12) |
+
+### 11.5 Component-axis use cases (the new one)
+
+Why does the **component** axis matter on its own?
+
+- **Security CVE**: critical vulnerability in `ariaflow-server@0.1.319`
+  → revoke component `ariaflow-server` until everyone upgrades.
+  Effect: every identity running that component, on every machine,
+  for every user, is denied. Forces upgrade.
+- **Decommissioning**: you stop supporting `aria2` and migrate to a
+  different download engine. Revoke the component → all aria2-based
+  identities denied; clean cutoff.
+- **Component-level audit**: "show me everyone running ariaflow-server"
+  becomes a single query against `identities WHERE component_id = X`.
+
+A component-level revoke can also be **soft** (e.g. require attestation
+of upgrade before re-allow):
+
+```sql
+-- Revoke
+UPDATE components SET revoked_at = now(), revoked_reason = 'CVE-2026-XXX' WHERE component_id = 'ariaflow-server';
+
+-- Per-identity bypass once upgraded
+UPDATE identities SET ... WHERE component_id='ariaflow-server' AND public_key matches new attestation;
+```
+
+---
+
+## 12. Groups of (machines | users | components | identities | groups)
+
+Groups add a **5th authorization axis** that overlays the 4 entity axes.
+A group is a named bag of any-type members, including other groups
+(nesting unlimited modulo cycle prevention).
+
+### 12.1 Schema
+
+```sql
+CREATE TABLE groups (
+  group_id     TEXT PRIMARY KEY,
+  display_name TEXT NOT NULL,                    -- "famille-bonomani"
+  kind_hint    TEXT,                              -- 'machines' | 'users' | 'components' | 'mixed' (informational only)
+  created_at   INTEGER NOT NULL,
+  created_by   TEXT REFERENCES identities(identity_id),
+  revoked_at   INTEGER,
+  revoked_reason TEXT
+);
+
+CREATE TABLE group_members (
+  group_id    TEXT REFERENCES groups(group_id),
+  member_type TEXT CHECK (member_type IN ('machine', 'user', 'component', 'identity', 'group')),
+  member_id   TEXT NOT NULL,
+  added_at    INTEGER NOT NULL,
+  added_by    TEXT REFERENCES identities(identity_id),
+  PRIMARY KEY (group_id, member_type, member_id)
+);
+```
+
+5 member types; `member_id` is the foreign key into the appropriate
+table by `member_type`. `member_type='group'` enables nesting.
+
+### 12.2 Cycle prevention at insert time
+
+Before adding `(parent_group, member_type='group', member_id=child_group)`,
+verify `parent_group` is not already a transitive member of `child_group`:
+
+```sql
+WITH RECURSIVE descendants(g) AS (
+  SELECT $child_group
+  UNION
+  SELECT gm.member_id FROM group_members gm
+    JOIN descendants d ON gm.group_id = d.g
+   WHERE gm.member_type = 'group'
+)
+SELECT 1 FROM descendants WHERE g = $parent_group;
+-- If non-empty result → cycle would be created → REJECT
+```
+
+### 12.3 Transitive membership resolution
+
+For an identity, the set of groups it belongs to (directly or
+transitively) is the union of:
+
+- Groups directly containing the identity_id
+- Groups directly containing the machine_uuid_hash
+- Groups directly containing the user_key
+- Groups directly containing the component_id
+- Plus all groups containing those groups (transitive closure)
+
+```sql
+WITH RECURSIVE ancestor_groups(g) AS (
+  SELECT group_id FROM group_members
+   WHERE (member_type = 'machine'   AND member_id = $machine_uuid_hash)
+      OR (member_type = 'user'      AND member_id = $user_key)
+      OR (member_type = 'component' AND member_id = $component_id)
+      OR (member_type = 'identity'  AND member_id = $identity_id)
+  UNION
+  SELECT gm.group_id FROM group_members gm
+    JOIN ancestor_groups ag ON gm.member_type = 'group'
+                           AND gm.member_id = ag.g
+)
+SELECT ag.g FROM ancestor_groups ag;
+```
+
+### 12.4 5-axis authorization
+
+```typescript
+async function authorize(identity_id: string): Promise<AuthResult> {
+  const identity = await db.identities.get(identity_id);
+  if (!identity) return deny("unknown identity");
+  if (identity.revoked_at) return deny("identity revoked");
+
+  // Axes 2-4: entity-level
+  const [machine, user, component] = await Promise.all([
+    db.machines.get(identity.machine_uuid_hash),
+    db.users.get(identity.user_key),
+    db.components.get(identity.component_id),
+  ]);
+  if (machine?.revoked_at)   return deny("machine revoked");
+  if (user?.revoked_at)      return deny("user revoked");
+  if (component?.revoked_at) return deny("component revoked");
+
+  // Axis 5: group-level (any ancestor group revoked)
+  const ancestorGroups = await getAncestorGroups(identity);  // cached
+  const revokedGroup = await db.groups
+    .findOne({ group_id: { $in: [...ancestorGroups] }, revoked_at: { $ne: null } });
+  if (revokedGroup) return deny(`group revoked: ${revokedGroup.display_name}`);
+
+  return allow(identity);
+}
+```
+
+### 12.5 Performance — caching strategy
+
+Computing transitive group ancestors per request is too slow. Three
+options:
+
+#### A. In-memory LRU cache (simple, recommended)
+
+```typescript
+const groupAncestorsCache = new LRU<string, Set<string>>({ max: 5000 });
+
+function cacheKey(id: Identity): string {
+  return `${id.identity_id}:${id.machine_uuid_hash}:${id.user_key}:${id.component_id}`;
+}
+
+function getAncestorGroups(id: Identity): Promise<Set<string>> {
+  const key = cacheKey(id);
+  if (groupAncestorsCache.has(key)) return Promise.resolve(groupAncestorsCache.get(key)!);
+  const result = recursiveQuery(id);
+  groupAncestorsCache.set(key, result);
+  return result;
+}
+
+// Invalidate when groups or memberships change:
+db.on('groups.write', () => groupAncestorsCache.clear());
+db.on('group_members.write', () => groupAncestorsCache.clear());
+```
+
+#### B. Pre-computed denormalized table
+
+```sql
+CREATE TABLE principal_group_membership (
+  principal_type TEXT,          -- 'machine' | 'user' | 'component' | 'identity'
+  principal_id   TEXT,
+  group_id       TEXT REFERENCES groups(group_id),
+  PRIMARY KEY (principal_type, principal_id, group_id)
+);
+
+-- Recompute on any change to groups/group_members
+-- Auth lookup is O(1) join.
+```
+
+Heavy-write less suitable, but for selfhost where groups change rarely,
+this is fine.
+
+#### C. Limit nesting depth
+
+Hard cap at 3 levels of nesting. Predictable cost, simple cache TTL.
+
+**Recommendation**: A initially. Move to B if traversal cost shows in
+profiling.
+
+### 12.6 Use cases unlocked by component-aware groups
+
+| Use case | Group |
+|---|---|
+| "All ariaflow stack components" | `[ariaflow-dashboard, ariaflow-server, aria2]` (group of components) |
+| "All download-related identities" | nested: `(ariaflow-stack-group, all-machines-with-downloads)` |
+| "Everything Bruno controls (his machines + his users)" | nested: `(bruno-machines-group, bruno-users-group)` |
+| "Family components excluding aria2" | filter — needs allow/deny, see §12.7 |
+
+### 12.7 Allow vs deny groups (deferred)
+
+Today we propose **deny only** at the group level (revoked_at).
+"Inclusive groups" (members are allowed) is implicit by the
+identity's existence in the principal tables.
+
+Future enhancement (not in this BG):
+- Group-level **role grants**: "all members of group X get role Y"
+- Conflict resolution policy: most permissive vs most restrictive
+
+For now: **groups are kill switches only**. Roles stay on identities.
+
+### 12.8 Group revocation cascade
+
+Revoking a group denies access for **every transitive member** of that
+group, but **does not revoke the underlying entities**. So:
+
+```
+Before:  group "famille" {bruno, maman, papa}
+                                  ↓
+                            none revoked, all 3 users active
+
+Action:  revoke group "famille" (revoked_at = now())
+                                  ↓
+After:   group "famille" {bruno, maman, papa}    ← still members
+         users:   bruno   active (not revoked)
+                  maman   active (not revoked)
+                  papa    active (not revoked)
+         BUT: authorization fails for all 3 because they're in a
+              revoked group.
+
+Action:  unrevoke group "famille" (revoked_at = NULL)
+                                  ↓
+After:   all 3 users authorized again, instantly. No re-pairing.
+```
+
+This is the **correct** behavior: revocation = access policy decision,
+not destruction of the underlying records. The group structure is
+preserved for re-enabling.
+
+### 12.9 UI for group management
+
+Tab Devices admin sees groups alongside individual entities:
+
+```
+┌─── Groups ──────────────────────────────────────────────────┐
+│  ▼ famille-bonomani         3 users · 1 sub-group          │
+│    ├─ user maman                                            │
+│    ├─ user papa                                             │
+│    ├─ user sis                                              │
+│    └─ ▼ kid-machines (nested)                               │
+│        ├─ machine kid-ipad                                  │
+│        └─ machine kid-laptop                                │
+│    [Revoke group] [Edit] [Delete]                           │
+│                                                              │
+│  ▼ ariaflow-stack           3 components                    │
+│    ├─ component ariaflow-dashboard                          │
+│    ├─ component ariaflow-server                             │
+│    └─ component aria2                                       │
+│    [Revoke group] (would block all 3 components everywhere) │
+│                                                              │
+│  [+ Create group]                                            │
+└──────────────────────────────────────────────────────────────┘
+```
+
+Operators can:
+- Create group, name it, set kind hint (informational)
+- Add members of any type (machine, user, component, identity, group)
+- Revoke / unrevoke the entire group
+- Delete (if not referenced elsewhere)
+
+### 12.10 Effort summary (revised total)
+
+```
+Original design (HARDWARE_BOUND_IDENTITY.md base)        ~18 days
++ 3-axis revocation (machine/user/identity)              + 3.5 days
++ 4th axis (component-level)                             + 1 day
++ Groups of any-type members                             + 2 days
++ Nested groups + cycle detection                        + 1 day
++ Transitive ancestor cache                              + 1 day
++ UI for groups + 4-axis revocation                      + 2 days
++ Audit log enrichment                                   + 0.5 days
+─────────────────────────────────────────────────────────────────
+TOTAL                                                    ~29 days
+```
+
+For a system supporting hardware-bound identities + 4-axis revocation +
+nested groups across (machine, user, component, identity, group)
+hierarchy.
+
+---
+
 ## Appendix A — Comparison table
 
 | Aspect | Today (no auth) | Phase 1 (software) | Phase 2-4 (hardware) |
