@@ -37,6 +37,7 @@ import {
 import {
   backendPath as composeBackendPath,
   backendDisplayName as composeBackendDisplayName,
+  loadBackendMeta,
   loadBackendState as loadBackendStateFromStorage,
   mergeDiscoveredItems,
   saveBackendState as persistBackendState,
@@ -148,7 +149,10 @@ document.addEventListener('alpine:init', () => {
     backendsDiscovered: null,
     discoveryText: '',
     // URL → {name, host, ip} from Bonjour discovery, for friendly display.
-    backendMeta: {},
+    // Hydrated from localStorage at init so the dropdown shows friendly
+    // names ("NAS-Bonomani") right after a browser refresh, without
+    // waiting 1-3s for the next mDNS browse cycle.
+    backendMeta: loadBackendMeta(),
     urlInput: '',
     addOutput: '',
     addPriority: '',

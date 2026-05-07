@@ -242,7 +242,11 @@ function localIps() {
 var KEYS = {
   refreshInterval: "ariaflow.refresh_interval",
   backends: "ariaflow.backends",
-  selectedBackend: "ariaflow.selected_backend"
+  selectedBackend: "ariaflow.selected_backend",
+  // Cached display metadata for backends (URL → {name, host, ip, txt_hostname}).
+  // Persisted so the dropdown shows friendly names ("NAS-Bonomani") on a fresh
+  // page load before the next mDNS browse cycle finishes (~1-3s).
+  backendMeta: "ariaflow.backend_meta"
 };
 function readString(key, fallback = "") {
   return (localStorage.getItem(key) ?? "").trim() || fallback;
@@ -290,6 +294,12 @@ function readSelectedBackend() {
 }
 function writeSelectedBackend(url) {
   writeString(KEYS.selectedBackend, url);
+}
+function readBackendMeta(fallback) {
+  return readJson(KEYS.backendMeta, fallback);
+}
+function writeBackendMeta(meta) {
+  writeJson(KEYS.backendMeta, meta);
 }
 
 // src/ariaflow_dashboard/static/ts/vendor/webstyle/looks.ts
@@ -628,7 +638,29 @@ function mergeDiscoveredItems(rawItems, prevMeta, prevState, options) {
   const shouldAutoSelect = discovered.length === 1 && prevState.selected === options.defaultBackendUrl && firstDiscovered !== prevState.selected;
   const nextSelected = shouldAutoSelect ? firstDiscovered : prevState.selected;
   const state = saveBackendState(merged, nextSelected, options.defaultBackendUrl);
+  const knownUrls = /* @__PURE__ */ new Set([options.defaultBackendUrl, ...state.backends]);
+  const trimmedMeta = {};
+  for (const url of Object.keys(meta)) {
+    if (knownUrls.has(url)) trimmedMeta[url] = meta[url];
+  }
+  writeBackendMeta(trimmedMeta);
   return { meta, state, autoSelectedUrl: shouldAutoSelect ? firstDiscovered : null };
+}
+function loadBackendMeta() {
+  const raw = readBackendMeta({});
+  if (!raw || typeof raw !== "object") return {};
+  const out = {};
+  for (const [url, value] of Object.entries(raw)) {
+    if (!value || typeof value !== "object") continue;
+    const v = value;
+    out[url] = {
+      name: String(v.name ?? "").trim(),
+      host: String(v.host ?? "").trim(),
+      ip: String(v.ip ?? "").trim(),
+      txt_hostname: String(v.txt_hostname ?? "").trim()
+    };
+  }
+  return out;
 }
 function backendDisplayName(url, meta, defaultBackendUrl, localMainIpValue) {
   if (!url) return "-";
@@ -1394,7 +1426,10 @@ document.addEventListener("alpine:init", () => {
     backendsDiscovered: null,
     discoveryText: "",
     // URL → {name, host, ip} from Bonjour discovery, for friendly display.
-    backendMeta: {},
+    // Hydrated from localStorage at init so the dropdown shows friendly
+    // names ("NAS-Bonomani") right after a browser refresh, without
+    // waiting 1-3s for the next mDNS browse cycle.
+    backendMeta: loadBackendMeta(),
     urlInput: "",
     addOutput: "",
     addPriority: "",

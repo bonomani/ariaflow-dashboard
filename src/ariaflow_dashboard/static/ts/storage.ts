@@ -7,6 +7,10 @@ export const KEYS = {
   refreshInterval: 'ariaflow.refresh_interval',
   backends: 'ariaflow.backends',
   selectedBackend: 'ariaflow.selected_backend',
+  // Cached display metadata for backends (URL → {name, host, ip, txt_hostname}).
+  // Persisted so the dropdown shows friendly names ("NAS-Bonomani") on a fresh
+  // page load before the next mDNS browse cycle finishes (~1-3s).
+  backendMeta: 'ariaflow.backend_meta',
 } as const;
 
 export type StorageKey = (typeof KEYS)[keyof typeof KEYS];
@@ -68,4 +72,12 @@ export function readSelectedBackend(): string {
 
 export function writeSelectedBackend(url: string): void {
   writeString(KEYS.selectedBackend, url);
+}
+
+export function readBackendMeta<T>(fallback: T): T {
+  return readJson<T>(KEYS.backendMeta, fallback);
+}
+
+export function writeBackendMeta(meta: unknown): void {
+  writeJson(KEYS.backendMeta, meta);
 }

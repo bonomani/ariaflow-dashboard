@@ -11,7 +11,14 @@
 
 import { joinUrl } from './api';
 import { dashboardHostname, dashboardHostnameLower } from './runtime';
-import { readBackends, readSelectedBackend, writeBackends, writeSelectedBackend } from './storage';
+import {
+  readBackendMeta,
+  readBackends,
+  readSelectedBackend,
+  writeBackendMeta,
+  writeBackends,
+  writeSelectedBackend,
+} from './storage';
 
 export interface BackendMeta {
   name: string;
@@ -175,7 +182,35 @@ export function mergeDiscoveredItems(
 
   const nextSelected = shouldAutoSelect ? firstDiscovered : prevState.selected;
   const state = saveBackendState(merged, nextSelected, options.defaultBackendUrl);
+  // Persist meta so friendly names survive a browser refresh — the next
+  // mDNS browse takes 1-3s, during which the dropdown would otherwise
+  // show raw URLs instead of "NAS-Bonomani". Trim to URLs we still
+  // know about (default + currently-stored backends) to avoid unbounded
+  // growth across long-lived sessions.
+  const knownUrls = new Set([options.defaultBackendUrl, ...state.backends]);
+  const trimmedMeta: BackendMetaMap = {};
+  for (const url of Object.keys(meta)) {
+    if (knownUrls.has(url)) trimmedMeta[url] = meta[url]!;
+  }
+  writeBackendMeta(trimmedMeta);
   return { meta, state, autoSelectedUrl: shouldAutoSelect ? firstDiscovered : null };
+}
+
+export function loadBackendMeta(): BackendMetaMap {
+  const raw = readBackendMeta<unknown>({});
+  if (!raw || typeof raw !== 'object') return {};
+  const out: BackendMetaMap = {};
+  for (const [url, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!value || typeof value !== 'object') continue;
+    const v = value as Record<string, unknown>;
+    out[url] = {
+      name: String(v.name ?? '').trim(),
+      host: String(v.host ?? '').trim(),
+      ip: String(v.ip ?? '').trim(),
+      txt_hostname: String(v.txt_hostname ?? '').trim(),
+    };
+  }
+  return out;
 }
 
 export function backendDisplayName(
