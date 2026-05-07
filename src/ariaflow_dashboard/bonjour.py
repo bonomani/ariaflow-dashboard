@@ -105,6 +105,54 @@ def _parse_txt(output: str) -> dict[str, str]:
     return dict(_TXT_RE.findall(output))
 
 
+def _build_service_dict(
+    name: str,
+    host: str,
+    ip: str | None,
+    port: int,
+    url_host: str,
+    txt: dict[str, str],
+) -> dict[str, object]:
+    """Assemble a discovered-service record from SRV + TXT data.
+
+    BG-73 schema (current):
+      ver=<protocol>   protocol version (e.g. "0.2") for compat checks
+      v=<software>     software version (e.g. "0.1.321") for display
+      role=server      principal type — FE filters for `role !== 'web'`
+      fp=<hash>        identity fingerprint (added by future BG-67)
+
+    Pre-BG-73 (kept for transitional compat with backends running ≤ v0.1.321):
+      path=/api        always /api → ignored, path hardcoded client-side
+      tls=0            always 0 → http only, no HTTPS support yet
+      hostname=<name>  duplicated SRV target → ignored, isSelfService
+                       falls back to SRV host check
+      version=<sw>     legacy name for `v` — read both during transition
+      product=<name>   never set in practice → ignored
+    """
+    # Scheme: BG-73 dropped `tls`, but old backends still emit it. Honour
+    # the legacy hint when present; default to http otherwise.
+    tls = txt.get("tls", "0")
+    scheme = "https" if tls == "1" else "http"
+    # Software version: prefer `v` (BG-73), fall back to `version` (legacy).
+    sw_version = txt.get("v") or txt.get("version")
+    return {
+        "name": name,
+        "host": host,
+        "ip": ip,
+        "port": port,
+        "url": f"{scheme}://{url_host}:{port}",
+        # Path is hardcoded — keep the field for back-compat with FE
+        # consumers that still read it, but don't trust the TXT.
+        "path": txt.get("path", "/api"),
+        "role": txt.get("role"),
+        "product": txt.get("product"),
+        "version": sw_version,
+        "protocol_version": txt.get("ver"),
+        "fingerprint": txt.get("fp"),
+        "txt_hostname": txt.get("hostname"),
+    }
+
+
 def _resolve_to_ip(host: str) -> str | None:
     """Resolve a .local hostname to an IPv4 address. Returns None if resolution fails."""
     try:
@@ -202,25 +250,11 @@ def _dnssd_resolve(name: str, timeout: float) -> dict[str, object] | None:
             host = match.group(1).rstrip(".")
             port = int(match.group(2))
             txt = _parse_txt(output)
-            path = txt.get("path", "/")
-            tls = txt.get("tls", "0")
-            scheme = "https" if tls == "1" else "http"
             # Resolve .local hostname to IP — works in networking contexts
             # where mDNS hostname resolution is unavailable (WSL, containers).
             ip = _resolve_to_ip(host) if host.endswith(".local") else host
             url_host = ip or host
-            return {
-                "name": name,
-                "host": host,
-                "ip": ip,
-                "port": port,
-                "url": f"{scheme}://{url_host}:{port}",
-                "path": path,
-                "role": txt.get("role"),
-                "product": txt.get("product"),
-                "version": txt.get("version"),
-                "txt_hostname": txt.get("hostname"),
-            }
+            return _build_service_dict(name, host, ip, port, url_host, txt)
     return None
 
 
@@ -275,23 +309,9 @@ def _avahi_discover(timeout: float) -> list[dict[str, object]]:
         if key in seen:
             continue
         seen.add(key)
-        path = txt.get("path", "/")
-        tls = txt.get("tls", "0")
-        scheme = "https" if tls == "1" else "http"
         url_host = ip or host
         items.append(
-            {
-                "name": name,
-                "host": host,
-                "ip": ip,
-                "port": port,
-                "url": f"{scheme}://{url_host}:{port}",
-                "path": path,
-                "role": txt.get("role"),
-                "product": txt.get("product"),
-                "version": txt.get("version"),
-                "txt_hostname": txt.get("hostname"),
-            }
+            _build_service_dict(name, host, ip, port, url_host, txt)
         )
     return items
 
