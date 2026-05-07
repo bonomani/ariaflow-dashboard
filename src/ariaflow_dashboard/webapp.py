@@ -274,6 +274,30 @@ class AriaFlowHandler(BaseHTTPRequestHandler):
                 # behave identically. Failure is logged + ignored;
                 # dashboard's own upgrade still proceeds.
                 cfg = load_auto_update_config()
+                # Optional supply-chain gate (default off during rollout):
+                # when verify_signatures is on, probe latest version,
+                # download the release artifact, and verify the Sigstore
+                # signature before dispatching the upgrade chain. Hard
+                # fail on verification mismatch.
+                if cfg.get("verify_signatures"):
+                    from .install_self import check_for_update as _probe
+                    from .sigstore_verify import verify_release
+                    probe = _probe()
+                    if probe.get("ok") and probe.get("update_available"):
+                        ver = str(probe.get("latest_version") or "").lstrip("v").strip()
+                        if ver:
+                            ok, msg = verify_release(ver)
+                            if not ok:
+                                self._send_json(
+                                    {
+                                        "ok": False,
+                                        "error": "signature_verification_failed",
+                                        "message": msg,
+                                        "target_version": ver,
+                                    },
+                                    status=502,
+                                )
+                                return
                 if cfg.get("update_server_first"):
                     trigger_server_update(cfg.get("backend_url", ""))
                 plan = dispatch_update(

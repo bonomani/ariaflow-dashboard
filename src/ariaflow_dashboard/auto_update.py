@@ -21,6 +21,7 @@ import urllib.request
 
 from .action_log import record_action
 from .install_self import check_for_update, detect_installed_via, dispatch_update
+from .sigstore_verify import verify_release
 
 DEFAULT_BACKEND = "http://127.0.0.1:8000"
 
@@ -46,6 +47,21 @@ DEFAULTS: dict[str, Any] = {
     # __file__ paths into the now-deleted Cellar dir → static files
     # 404 until manual restart. Default ON.
     "auto_restart_after_upgrade": True,
+    # Sigstore signature verification before dispatching an update.
+    # When True, the auto-update poller (and the manual Update button
+    # via webapp.py) downloads the GitHub release artifact + signature
+    # and runs `cosign verify-blob` against the signing identity of our
+    # release.yml workflow. On verification failure, the update is
+    # refused with a hard error.
+    #
+    # Default OFF during initial rollout so existing deployments don't
+    # break if cosign isn't installed or the user hasn't yet decided
+    # whether to opt in. Plan: flip default ON after ~1 month of clean
+    # signed releases (release.yml shipped 2026-05-07, BG-67 paired with
+    # ariaflow-server resolved same day).
+    #
+    # Operator-side requirement when ON: `brew install cosign`.
+    "verify_signatures": False,
 }
 
 
@@ -61,6 +77,7 @@ def load_config() -> dict[str, Any]:
     cfg["auto_update"] = bool(cfg.get("auto_update", False))
     cfg["update_server_first"] = bool(cfg.get("update_server_first", False))
     cfg["auto_restart_after_upgrade"] = bool(cfg.get("auto_restart_after_upgrade", True))
+    cfg["verify_signatures"] = bool(cfg.get("verify_signatures", False))
     cfg["backend_url"] = str(cfg.get("backend_url", "") or "")
     try:
         hours = int(cfg.get("auto_update_check_hours", 24))
@@ -79,6 +96,7 @@ def save_config(updates: dict[str, Any]) -> dict[str, Any]:
     current["auto_update"] = bool(current["auto_update"])
     current["update_server_first"] = bool(current["update_server_first"])
     current["auto_restart_after_upgrade"] = bool(current.get("auto_restart_after_upgrade", True))
+    current["verify_signatures"] = bool(current.get("verify_signatures", False))
     current["backend_url"] = str(current.get("backend_url", "") or "")
     try:
         hours = int(current.get("auto_update_check_hours", 24))
@@ -157,6 +175,39 @@ def _run_check_once() -> None:
             },
         )
         return
+    # Optional supply-chain check: when verify_signatures is on, refuse
+    # to dispatch an update unless the GitHub release artifact is signed
+    # by our CI's OIDC identity. Hard fail — better to skip an update
+    # than ship one we can't verify. Default OFF during rollout; flips
+    # to default ON after ~1 month of clean releases.
+    if cfg.get("verify_signatures") and via == "homebrew":
+        target_version = probe.get("latest_version") or ""
+        # Strip any leading 'v' or trailing whitespace; verify_release
+        # expects bare semver "0.1.X".
+        ver = str(target_version).lstrip("v").strip()
+        if ver:
+            ok, msg = verify_release(ver)
+            if not ok:
+                record_action(
+                    action="auto_update_dispatch",
+                    target="ariaflow-dashboard",
+                    outcome="failed",
+                    reason="signature_verification_failed",
+                    detail={
+                        "installed_via": via,
+                        "target_version": ver,
+                        "verification_error": msg,
+                    },
+                )
+                return
+            record_action(
+                action="auto_update_check",
+                target="ariaflow-dashboard",
+                outcome="changed",
+                reason="signature_verified",
+                detail={"target_version": ver, "verification_message": msg},
+            )
+
     # Optional orchestration: kick the server's update first so server +
     # dashboard end up at compatible versions when both have updates
     # waiting. Best-effort — server unreachable / no update is not a
